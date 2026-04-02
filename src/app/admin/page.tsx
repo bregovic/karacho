@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { db } from '@/lib/db';
 import { createSong } from './actions';
 
+export const dynamic = 'force-dynamic'; 
+
 export default async function AdminPage() {
   const songs = await db.song.findMany({
     orderBy: { createdAt: 'desc' }
@@ -47,7 +49,7 @@ export default async function AdminPage() {
             <p style={{ color: 'var(--text-secondary)' }}>Zatím zde nejsou žádné písně.</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {songs.map(song => (
+              {songs.map((song: any) => (
                 <div key={song.id} style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <h3 style={{ color: '#fff', marginBottom: '4px' }}>{song.title}</h3>
