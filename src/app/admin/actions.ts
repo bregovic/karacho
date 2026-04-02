@@ -9,7 +9,7 @@ export async function createSong(formData: FormData) {
   const lyrics = formData.get('lyrics') as string;
   const maxBlockChars = parseInt(formData.get('maxBlockChars') as string) || 40;
 
-  if (!title) return { error: 'Název písně je povinný' };
+  if (!title) return;
 
   await db.song.create({
     data: {
@@ -21,5 +21,4 @@ export async function createSong(formData: FormData) {
   });
 
   revalidatePath('/admin');
-  return { success: true };
 }
