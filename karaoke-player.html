@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Karaoke Player</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#000;overflow:hidden;font-family:-apple-system,'Segoe UI',sans-serif;color:#fff;user-select:none}
+/* setup */
+#setup{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:2rem;background:linear-gradient(135deg,#0a0a14 0%,#0d0d1a 100%);z-index:100}
+.setup-logo{font-size:32px;margin-bottom:4px}
+.setup-title{font-size:22px;font-weight:700;letter-spacing:-.02em;color:#fff}
+.setup-sub{font-size:13px;color:rgba(255,255,255,.45);text-align:center}
+.file-btn{display:flex;align-items:center;gap:10px;width:100%;max-width:320px;padding:14px 18px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:12px;cursor:pointer;transition:background .15s;font-size:14px;color:#fff}
+.file-btn:hover{background:rgba(255,255,255,.12)}
+.file-btn .icon{font-size:20px;flex-shrink:0}
+.file-btn .info{display:flex;flex-direction:column;gap:2px;min-width:0}
+.file-btn .info span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file-btn .info .hint{font-size:11px;color:rgba(255,255,255,.38)}
+.file-btn input{display:none}
+.start-btn{width:100%;max-width:320px;padding:16px;background:#ffd700;color:#000;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;transition:background .15s;opacity:.4}
+.start-btn.ready{opacity:1}
+.start-btn.ready:hover{background:#ffe840}
+/* player */
+#player{position:fixed;inset:0;display:none}
+#bg-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+#bg-solid{position:absolute;inset:0;background:#0a0a14;z-index:0}
+#scrim{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.88) 0%,rgba(0,0,0,.45) 42%,rgba(0,0,0,.22) 100%);z-index:1}
+#stage{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6vw;gap:2.5vh;pointer-events:none}
+.ln-ctx{font-size:clamp(13px,3.2vw,26px);font-weight:700;color:rgba(255,255,255,.35);text-align:center;min-height:1.3em;transition:opacity .3s;text-shadow:0 2px 8px rgba(0,0,0,.9);line-height:1.3;padding:0 2vw}
+#cur-line{font-size:clamp(24px,6vw,78px);font-weight:900;text-align:center;min-height:1.2em;line-height:1.2;padding:0 1vw;letter-spacing:-.01em}
+.word{display:inline-block;margin:0 .1em;transition:color .07s ease,text-shadow .07s ease;text-shadow:0 2px 6px rgba(0,0,0,.95),0 0 1px rgba(0,0,0,1)}
+.word.on{color:#ffd700;text-shadow:0 2px 6px rgba(0,0,0,.95),0 0 24px rgba(255,215,0,.55)}
+.word.off{color:rgba(255,255,255,.82)}
+/* progress */
+#pbar-bg{position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,.1);z-index:3;cursor:pointer}
+#pbar{height:100%;background:#ffd700;width:0%;transition:none}
+/* controls */
+#tap-zone{position:absolute;inset:0;z-index:4;cursor:pointer}
+#ctrl{position:absolute;bottom:12px;right:14px;z-index:5;display:flex;gap:8px;align-items:center}
+#pp-btn{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);transition:background .12s}
+#pp-btn:hover{background:rgba(255,255,255,.2)}
+#time-disp{font-size:11px;color:rgba(255,255,255,.4);font-variant-numeric:tabular-nums;font-family:monospace;pointer-events:none}
+/* block transition */
+@keyframes blockIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.block-new{animation:blockIn .22s ease forwards}
+</style>
+</head>
+<body>
+
+<div id="setup">
+  <div class="setup-logo">🎤</div>
+  <div class="setup-title">Karaoke Player</div>
+  <div class="setup-sub">Nahraj audio a volitelně GIF pozadí</div>
+
+  <label class="file-btn" id="audio-lbl">
+    <span class="icon">🎵</span>
+    <span class="info"><span id="audio-name">Nahrát audio soubor</span><span class="hint">MP3, WAV, AAC, M4A…</span></span>
+    <input type="file" id="audio-inp" accept="audio/*">
+  </label>
+
+  <label class="file-btn">
+    <span class="icon">🖼</span>
+    <span class="info"><span id="gif-name">Nahrát GIF / obrázek pozadí</span><span class="hint">volitelné — GIF, JPG, PNG</span></span>
+    <input type="file" id="gif-inp" accept="image/*">
+  </label>
+
+  <button class="start-btn" id="start-btn" disabled>▶&ensp;Spustit player</button>
+</div>
+
+<div id="player">
+  <div id="bg-solid"></div>
+  <img id="bg-img" style="display:none" alt="">
+  <div id="scrim"></div>
+  <div id="stage">
+    <div class="ln-ctx" id="prev-line"></div>
+    <div id="cur-line"></div>
+    <div class="ln-ctx" id="next-line"></div>
+  </div>
+  <div id="pbar-bg"><div id="pbar"></div></div>
+  <div id="tap-zone"></div>
+  <div id="ctrl">
+    <span id="time-disp">0:00</span>
+    <button id="pp-btn">▶</button>
+  </div>
+</div>
+
+<script>
+const D={"blocks":[{"lw":["Lalalalalalala"],"bs":14.975,"be":28.69,"w":[{"t":21.835,"i":0}]},{"lw":["Lalalalalalala"],"bs":28.69,"be":33.953,"w":[{"t":28.923,"i":0}]},{"lw":["Nebe","je","modrý","a","zlatý"],"bs":33.953,"be":36.555,"w":[{"t":34.264,"i":0},{"t":34.907,"i":1},{"t":35.124,"i":2},{"t":35.478,"i":3},{"t":35.812,"i":4}]},{"lw":["Bílá","sluneční","záře"],"bs":36.555,"be":39.821,"w":[{"t":37.288,"i":0},{"t":38.297,"i":1},{"t":39.083,"i":2}]},{"lw":["Horko","a","sváteční","šaty"],"bs":39.821,"be":42.848,"w":[{"t":40.6,"i":0},{"t":41.332,"i":1},{"t":41.576,"i":2},{"t":42.089,"i":3}]},{"lw":["Vřava","a","spocený","tváře"],"bs":42.848,"be":46.484,"w":[{"t":43.71,"i":0},{"t":44.493,"i":1},{"t":44.849,"i":2},{"t":45.245,"i":3}]},{"lw":["Vím","co","se","bude","dít"],"bs":46.484,"be":49.703,"w":[{"t":46.808,"i":0},{"t":47.671,"i":1},{"t":48.056,"i":2},{"t":48.402,"i":3},{"t":48.663,"i":4}]},{"lw":["Býk","už","se","v","ohradě","spíná"],"bs":49.703,"be":52.287,"w":[{"t":50.046,"i":0},{"t":50.397,"i":1},{"t":50.647,"i":2},{"t":51.06,"i":3},{"t":51.337,"i":4},{"t":51.611,"i":5}]},{"lw":["Kdo","chce","ten","může","jít"],"bs":52.287,"be":55.494,"w":[{"t":53.172,"i":0},{"t":53.86,"i":1},{"t":54.216,"i":2},{"t":54.498,"i":3},{"t":54.771,"i":4}]},{"lw":["Já","si","dám","sklenici","vína"],"bs":55.494,"be":58.664,"w":[{"t":56.326,"i":0},{"t":56.57,"i":1},{"t":56.948,"i":2},{"t":57.305,"i":3},{"t":57.754,"i":4}]},{"lw":["Žízeň","je","veliká"],"bs":58.664,"be":60.891,"w":[{"t":59.426,"i":0},{"t":59.726,"i":1},{"t":60.06,"i":2}]},{"lw":["Život","mi","utíká"],"bs":60.891,"be":62.566,"w":[{"t":61.125,"i":0},{"t":61.363,"i":1},{"t":61.802,"i":2}]},{"lw":["Nechte","mě","příjemně","snít"],"bs":62.566,"be":64.974,"w":[{"t":62.779,"i":0},{"t":63.014,"i":1},{"t":63.474,"i":2},{"t":64.165,"i":3}]},{"lw":["Ve","stínu","pod","fíky"],"bs":64.974,"be":67.163,"w":[{"t":65.767,"i":0},{"t":66.064,"i":1},{"t":66.355,"i":2},{"t":66.649,"i":3}]},{"lw":["Poslouchat","slavíky"],"bs":67.163,"be":68.514,"w":[{"t":67.39,"i":0},{"t":67.671,"i":1}]},{"lw":["Zpívat","s","nimi","a","pít"],"bs":68.514,"be":71.229,"w":[{"t":68.777,"i":0},{"t":69.138,"i":1},{"t":69.453,"i":2},{"t":69.751,"i":3},{"t":70.237,"i":4}]},{"lw":["Ženy","jsou","a","krásný","a","cudný"],"bs":71.229,"be":74.843,"w":[{"t":71.997,"i":0},{"t":72.73,"i":1},{"t":73.036,"i":2},{"t":73.451,"i":3},{"t":73.72,"i":4},{"t":74.163,"i":5}]},{"lw":["Mnoha","se","ve","mně","zhlídla"],"bs":74.843,"be":77.484,"w":[{"t":75.2,"i":0},{"t":76.005,"i":1},{"t":76.221,"i":2},{"t":76.477,"i":3},{"t":76.788,"i":4}]},{"lw":["Oči","jako","dvě","studny"],"bs":77.484,"be":80.687,"w":[{"t":78.346,"i":0},{"t":79.114,"i":1},{"t":79.4,"i":2},{"t":79.874,"i":3}]},{"lw":["Vlasy","jak","havraní","křídla"],"bs":80.687,"be":83.789,"w":[{"t":81.478,"i":0},{"t":82.279,"i":1},{"t":82.553,"i":2},{"t":82.918,"i":3}]},{"lw":["Dobře","vím","co","znamená","pád"],"bs":83.789,"be":87.172,"w":[{"t":84.662,"i":0},{"t":85.578,"i":1},{"t":85.883,"i":2},{"t":86.22,"i":3},{"t":86.575,"i":4}]},{"lw":["Do","nástrah","dívčího","klína"],"bs":87.172,"be":90.117,"w":[{"t":88.039,"i":0},{"t":88.642,"i":1},{"t":88.892,"i":2},{"t":89.33,"i":3}]},{"lw":["Někdo","má","pletky","rád"],"bs":90.117,"be":93.156,"w":[{"t":90.975,"i":0},{"t":91.765,"i":1},{"t":92.044,"i":2},{"t":92.443,"i":3}]},{"lw":["Já","radši","sklenici","vína"],"bs":93.156,"be":96.348,"w":[{"t":94.086,"i":0},{"t":94.322,"i":1},{"t":94.798,"i":2},{"t":95.192,"i":3}]},{"lw":["Žízeň","je","veliká"],"bs":96.348,"be":99.267,"w":[{"t":97.197,"i":0},{"t":97.427,"i":1},{"t":97.933,"i":2}]},{"lw":["Život","mi","utíká"],"bs":99.267,"be":100.303,"w":[{"t":99.474,"i":0},{"t":99.672,"i":1},{"t":99.894,"i":2}]},{"lw":["Nechte","mě","příjemně","snít"],"bs":100.303,"be":228.02,"w":[{"t":100.504,"i":0},{"t":100.707,"i":1},{"t":100.923,"i":2},{"t":101.18,"i":3}]}],"dur":228.02};
+const blocks=D.blocks;
+let audio=null,gifURL=null,raf=null;
+let lastBlock=-1,lastColored=-1;
+
+/* helpers */
+function fmtT(s){if(!s||isNaN(s))s=0;return Math.floor(s/60)+':'+(Math.floor(s%60)).toString().padStart(2,'0');}
+function getState(t){
+  const ci=blocks.findIndex(b=>t>=b.bs&&t<b.be);
+  if(ci<0)return null;
+  const cb=blocks[ci];
+  let nc=0;for(const w of cb.w){if(t>=w.t)nc=w.i+1;}
+  return{cb,nc,ci,prev:ci>0?blocks[ci-1]:null,next:ci<blocks.length-1?blocks[ci+1]:null};
+}
+
+/* setup */
+const audioInp=document.getElementById('audio-inp');
+const gifInp=document.getElementById('gif-inp');
+const startBtn=document.getElementById('start-btn');
+audioInp.addEventListener('change',e=>{
+  const f=e.target.files[0];if(!f)return;
+  if(audio){audio.pause();URL.revokeObjectURL(audio.src);}
+  audio=new Audio(URL.createObjectURL(f));
+  audio.preload='auto';
+  document.getElementById('audio-name').textContent=f.name;
+  startBtn.disabled=false;startBtn.classList.add('ready');
+});
+gifInp.addEventListener('change',e=>{
+  const f=e.target.files[0];if(!f)return;
+  if(gifURL)URL.revokeObjectURL(gifURL);
+  gifURL=URL.createObjectURL(f);
+  document.getElementById('gif-name').textContent=f.name;
+  const img=document.getElementById('bg-img');img.src=gifURL;img.style.display='block';
+});
+startBtn.addEventListener('click',()=>{
+  if(!audio||startBtn.disabled)return;
+  document.getElementById('setup').style.display='none';
+  document.getElementById('player').style.display='block';
+  audio.play();updateBtn();startTick();
+});
+
+/* playback */
+function updateBtn(){const b=document.getElementById('pp-btn');if(b)b.textContent=audio&&!audio.paused?'⏸':'▶';}
+function togglePlay(){if(!audio)return;audio.paused?audio.play():audio.pause();updateBtn();}
+document.getElementById('tap-zone').addEventListener('click',togglePlay);
+document.getElementById('pp-btn').addEventListener('click',e=>{e.stopPropagation();togglePlay();});
+document.getElementById('pbar-bg').addEventListener('click',e=>{
+  if(!audio||!audio.duration)return;
+  const r=e.currentTarget.getBoundingClientRect();
+  audio.currentTime=(e.clientX-r.left)/r.width*audio.duration;
+  e.stopPropagation();
+});
+if(audio){audio.addEventListener('pause',updateBtn);audio.addEventListener('play',updateBtn);audio.addEventListener('ended',()=>{updateBtn();});}
+
+/* render */
+function renderState(state){
+  const prev=document.getElementById('prev-line');
+  const cur=document.getElementById('cur-line');
+  const next=document.getElementById('next-line');
+  if(!state){prev.textContent='';cur.innerHTML='';next.textContent='';return;}
+  const{cb,nc,ci,prev:pb,next:nb}=state;
+  prev.textContent=pb?pb.lw.join(' '):'';
+  next.textContent=nb?nb.lw.join(' '):'';
+  if(ci!==lastBlock){
+    cur.innerHTML=cb.lw.map((w,i)=>'<span class="word '+(i<nc?'on':'off')+'">'+w+'</span>').join(' ');
+    cur.classList.remove('block-new');void cur.offsetWidth;cur.classList.add('block-new');
+    lastBlock=ci;lastColored=nc;
+  } else if(nc!==lastColored){
+    const spans=cur.querySelectorAll('.word');
+    spans.forEach((s,i)=>{s.className='word '+(i<nc?'on':'off');});
+    lastColored=nc;
+  }
+}
+
+function tick(){
+  if(!audio)return;
+  const t=audio.currentTime,dur=audio.duration||1;
+  const pb=document.getElementById('pbar');if(pb)pb.style.width=(t/dur*100)+'%';
+  const td=document.getElementById('time-disp');if(td)td.textContent=fmtT(t)+' / '+fmtT(dur);
+  const state=getState(t);renderState(state);
+  raf=requestAnimationFrame(tick);
+}
+function startTick(){if(raf)cancelAnimationFrame(raf);raf=requestAnimationFrame(tick);}
+
+/* keyboard (desktop) */
+document.addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();togglePlay();}});
+
+/* wake lock (keep screen on) */
+if('wakeLock' in navigator){
+  navigator.wakeLock.request('screen').catch(()=>{});
+}
+</script>
+</body>
+</html>
