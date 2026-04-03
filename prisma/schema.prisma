@@ -7,22 +7,20 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Auth.js built-in models
 model Account {
-  id                 String  @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?  @db.Text
-  access_token       String?  @db.Text
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String?  @db.Text
-  session_state      String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -39,10 +37,10 @@ model User {
   id            String    @id @default(cuid())
   name          String?
   email         String?   @unique
-  password      String?
   emailVerified DateTime?
   image         String?
   role          Role      @default(USER)
+  password      String?
   accounts      Account[]
   sessions      Session[]
 }
@@ -55,34 +53,42 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+model Song {
+  id            String    @id @default(cuid())
+  title         String
+  genre         String?
+  tags          String[]
+  year          Int?
+  lyrics        String?
+  maxBlockChars Int       @default(40)
+  playCount     Int       @default(0)
+  rating        Float     @default(0.0)
+  state         SongState @default(NEW)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  artist        String?
+  audioUrl      String?
+  backgroundUrl String?
+  jsonUrl       String?
+  videoUrl      String?
+  timingData    Json?
+  tracks        Track[]
+}
+
+model Track {
+  id         String   @id @default(cuid())
+  name       String
+  url        String
+  timingData Json?
+  songId     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  song       Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
+}
+
 enum Role {
   USER
   ADMIN
-}
-
-// Karacho App Models
-model Song {
-  id             String   @id @default(cuid())
-  title          String
-  artist         String?
-  audioUrl       String?
-  jsonUrl        String?
-  videoUrl       String?
-  backgroundUrl  String?
-  genre          String?
-  tags           String[] // Uses native PostgreSQL arrays
-  year           Int?
-  lyrics         String?  @db.Text   // Úplný text písně před zpracováním
-  timingData     Json?               // Uložená data časování ze Studia
-  maxBlockChars  Int      @default(40) // Omezení znaků na jeden blok
-  playCount      Int      @default(0)
-  rating         Float    @default(0.0)
-  state          SongState @default(NEW)
-  
-  tracks         Track[]
-  
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
 }
 
 enum SongState {
@@ -91,17 +97,4 @@ enum SongState {
   ANIMATION
   TESTING
   ACTIVE
-}
-
-model Track {
-  id         String   @id @default(cuid())
-  name       String   // e.g. "Original", "Instrumental"
-  url        String   // Cloudinary/Supabase storage URL
-  timingData Json?    // Stores JSON timing text data from Designer
-  
-  songId     String
-  song       Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
-  
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
 }

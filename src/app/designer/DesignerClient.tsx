@@ -322,6 +322,7 @@ export default function DesignerClient({ song }: { song: any }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ timingData: data, lyrics: rawText }),
       });
+      alert("Uloženo do databáze! ✅");
     } catch (e) {
       console.error(e);
       alert("Chyba sítě.");
@@ -426,8 +427,9 @@ export default function DesignerClient({ song }: { song: any }) {
          <div style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', margin: 0, fontWeight: 600 }}>Timeline</h3>
             <div style={{ display: 'flex', gap: '6px' }}>
-                <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px' }} onClick={() => { dlSRT(JSON.stringify(generateBlocksJSON(), null, 2), "karaoke-data.json"); }}>📥</button>
-                <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px', background: 'var(--color-teal)' }} onClick={handleSave} disabled={saving}>{saving ? '...' : '💾'}</button>
+                <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px', background: 'var(--color-teal)' }} title="Renderovat video" onClick={() => window.open(`/renderer?songId=${song.id}`, '_blank')}>🎬</button>
+                <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px' }} title="Stáhnout JSON" onClick={() => { dlSRT(JSON.stringify(generateBlocksJSON(), null, 2), "karaoke-data.json"); }}>📥</button>
+                <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px', background: 'var(--color-gold)' }} onClick={handleSave} disabled={saving}>{saving ? '...' : '💾'}</button>
             </div>
          </div>
          <div style={{ flex: 1, overflowY: 'auto', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
