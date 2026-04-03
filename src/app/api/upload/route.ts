@@ -22,7 +22,6 @@ export async function POST(request: Request) {
     const command = new PutObjectCommand({
       Bucket: BUCKET_NAME,
       Key: key,
-      ContentType: contentType,
     });
 
     // Generujeme tzn. "Presigned URL" - exkluzivní platnou nahrávací linku pro prohlížeč na 15 min
