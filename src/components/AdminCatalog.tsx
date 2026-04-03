@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import AudioUploader from '@/components/AudioUploader';
+import SongEditModal from '@/components/SongEditModal';
 import { createSong, deleteSong } from '@/app/admin/actions';
 import { useTranslation } from '@/lib/translations';
 
@@ -12,6 +13,7 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
   const [genreFilter, setGenreFilter] = useState('ALL');
   const [tagFilter, setTagFilter] = useState('ALL');
   const [search, setSearch] = useState('');
+  const [editingSong, setEditingSong] = useState<any>(null);
 
   const allGenres = Array.from(new Set(initialSongs.map(s => s.genre).filter(Boolean)));
   const allTags = Array.from(new Set(initialSongs.flatMap(s => s.tags || []).filter(Boolean)));
@@ -151,6 +153,12 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
                   </button>
                 </div>
 
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                   <button onClick={() => setEditingSong(song)} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '11px', borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                     ⚙️ {t('edit_btn') || 'Detail / Upravit'}
+                   </button>
+                </div>
+
                 {/* STATUS BAR */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', background: 'rgba(0,0,0,0.3)', padding: '1.2rem', borderRadius: '12px' }}>
                     
@@ -203,6 +211,7 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
           })}
          </div>
       )}
+      {editingSong && <SongEditModal song={editingSong} onClose={() => setEditingSong(null)} />}
     </div>
   );
 }

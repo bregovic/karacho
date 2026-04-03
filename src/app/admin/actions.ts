@@ -50,6 +50,22 @@ export async function updateSongVideo(songId: string, videoUrl: string) {
   revalidatePath('/renderer');
 }
 
+export async function updateSong(songId: string, data: any) {
+  const session = await auth();
+  if (!session?.user) throw new Error('Nejste přihlášeni');
+
+  // Pokud jsou v datech tagy jako string, převedeme je na pole
+  if (typeof data.tags === 'string') {
+    data.tags = data.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+  }
+
+  await db.song.update({ 
+    where: { id: songId }, 
+    data 
+  });
+  revalidatePath('/admin');
+}
+
 export async function deleteSong(songId: string) {
   await db.song.delete({ where: { id: songId } });
   revalidatePath('/admin');
