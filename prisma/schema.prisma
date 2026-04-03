@@ -73,6 +73,7 @@ model Song {
   tags           String[] // Uses native PostgreSQL arrays
   year           Int?
   lyrics         String?  @db.Text   // Úplný text písně před zpracováním
+  timingData     Json?               // Uložená data časování ze Studia
   maxBlockChars  Int      @default(40) // Omezení znaků na jeden blok
   playCount      Int      @default(0)
   rating         Float    @default(0.0)
