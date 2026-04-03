@@ -30,7 +30,7 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
       {/* Hero sekce s animovaným logem */}
       <div style={{ textAlign: 'center', marginBottom: '1rem', paddingTop: '2rem' }}>
         
-        <div className="hero-logo-wrap" style={{ marginBottom: '3rem' }}>
+        <div className="hero-logo-wrap" style={{ marginBottom: '3rem', width: '320px', height: '320px', margin: '0 auto' }}>
           <div className="hero-logo-ring-2"></div>
           <div className="hero-logo-ring"></div>
           <img 
@@ -40,14 +40,6 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
           />
         </div>
 
-        <p className="hero-subtitle" style={{ 
-          color: 'var(--text-secondary)', 
-          fontSize: '1.1rem',
-          maxWidth: '400px', 
-          margin: '0 auto 2rem' 
-        }}>
-          Katalog hotových karaoke skladeb připravených k přehrání.
-        </p>
       </div>
 
       {/* Filtrační ovládací prvky */}
