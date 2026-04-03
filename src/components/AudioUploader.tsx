@@ -1,8 +1,8 @@
 'use client';
 import { useState } from 'react';
-import { updateSongAudio, updateSongInstrumental } from '@/app/admin/actions';
+import { updateSongAudio, updateSongInstrumental, updateSongJson } from '@/app/admin/actions';
 
-export default function AudioUploader({ songId, type = 'audio' }: { songId: string, type?: 'audio' | 'instrumental' }) {
+export default function AudioUploader({ songId, type = 'audio' }: { songId: string, type?: 'audio' | 'instrumental' | 'json' }) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
 
@@ -33,12 +33,14 @@ export default function AudioUploader({ songId, type = 'audio' }: { songId: stri
           // Uložení finálního linku do správného pole v DB
           if (type === 'instrumental') {
             await updateSongInstrumental(songId, data.finalUrl);
+          } else if (type === 'json') {
+            await updateSongJson(songId, data.finalUrl);
           } else {
             await updateSongAudio(songId, data.finalUrl);
           }
           setUploading(false);
           setProgress(100);
-          alert(type === 'instrumental' ? 'Instrumentál uložen! 🎻' : 'Audio úspěšně uloženo! 🎵');
+          alert('Uloženo! 💾');
         } else {
           try {
             const errData = JSON.parse(xhr.responseText);
@@ -51,7 +53,7 @@ export default function AudioUploader({ songId, type = 'audio' }: { songId: stri
       };
 
       xhr.onerror = () => {
-        alert('Nahrávání selhalo (chyba sítě).');
+        alert('Nahrávání selhalo.');
         setUploading(false);
       };
 
@@ -64,23 +66,28 @@ export default function AudioUploader({ songId, type = 'audio' }: { songId: stri
     }
   };
 
-  const currentIcon = type === 'instrumental' ? '🎻' : '🎵';
-  const labelText = type === 'instrumental' ? 'Nahrát Instrumentál' : 'Nahrát Originál MP3';
+  const getLabelInfo = () => {
+    if (type === 'instrumental') return { icon: '🎻', text: 'Nahrát Instr.' };
+    if (type === 'json') return { icon: '📄', text: 'Nahrát JSON' };
+    return { icon: '🎵', text: 'Nahrát MP3' };
+  };
+
+  const { icon, text } = getLabelInfo();
 
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
       <label style={{ 
         cursor: uploading ? 'not-allowed' : 'pointer', 
-        background: type === 'instrumental' ? 'rgba(0,229,255,0.05)' : 'rgba(255,255,255,0.05)', 
+        background: 'rgba(255,255,255,0.05)', 
         padding: '8px 16px', 
         borderRadius: '8px', 
-        border: `1px solid ${type === 'instrumental' ? 'rgba(0,229,255,0.2)' : 'rgba(255,255,255,0.1)'}`, 
+        border: '1px solid rgba(255,255,255,0.1)', 
         fontSize: '13px', 
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'center',
         gap: '8px', 
-        color: type === 'instrumental' ? 'var(--color-teal)' : 'white',
+        color: 'white',
         opacity: uploading ? 0.7 : 1,
         transition: 'all 0.2s ease',
         boxShadow: uploading ? 'none' : '0 2px 4px rgba(0,0,0,0.2)'
@@ -91,8 +98,8 @@ export default function AudioUploader({ songId, type = 'audio' }: { songId: stri
            </span>
         ) : (
            <>
-             <span style={{ fontSize: '18px' }}>{currentIcon}</span> {labelText}
-             <input type="file" accept="audio/*" onChange={handleUpload} style={{ display: 'none' }} disabled={uploading} />
+             <span style={{ fontSize: '18px' }}>{icon}</span> {text}
+             <input type="file" accept={type === 'json' ? '.json' : 'audio/*'} onChange={handleUpload} style={{ display: 'none' }} disabled={uploading} />
            </>
         )}
       </label>
