@@ -63,7 +63,11 @@ enum Role {
 model Song {
   id             String   @id @default(cuid())
   title          String
-  author         String?
+  artist         String?
+  audioUrl       String?
+  jsonUrl        String?
+  videoUrl       String?
+  backgroundUrl  String?
   genre          String?
   tags           String[] // Uses native PostgreSQL arrays
   year           Int?
