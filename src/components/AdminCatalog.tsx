@@ -175,15 +175,20 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
                     </div>
 
                     {/* Studio Flow */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: hasAudio ? 1 : 0.4 }}>
-                      <span style={{ fontSize: '13px', color: hasJson ? 'var(--color-teal)' : '#666' }}>{t('step_studio')}</span>
-                      {hasJson ? (
-                         <span style={{ color: '#4ade80', fontSize: '13px' }}>✓ Zklíčováno</span>
-                      ) : (
-                         <Link href={`/designer?songId=${song.id}`}>
-                            <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '11px' }} disabled={!hasAudio}>Spustit Studio</button>
-                         </Link>
-                      )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', opacity: hasAudio ? 1 : 0.4 }}>
+                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                         <span style={{ fontSize: '13px', color: hasJson ? 'var(--color-teal)' : '#666' }}>{t('step_studio')} (Timing)</span>
+                         {hasJson ? (
+                            <span style={{ color: '#4ade80', fontSize: '13px' }}>✓ Zklíčováno</span>
+                         ) : (
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                               <Link href={`/designer?songId=${song.id}`}>
+                                  <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '11px' }} disabled={!hasAudio}>Spustit Studio</button>
+                               </Link>
+                               <AudioUploader songId={song.id} type="json" />
+                            </div>
+                         )}
+                       </div>
                     </div>
 
                     {/* Render Flow */}
