@@ -1,7 +1,30 @@
-import NextAuth from "next-auth"
+import NextAuth, { type DefaultSession } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { db } from "@/lib/db"
 import bcrypt from "bcryptjs"
+import { Role } from "@prisma/client"
+
+// Augmentace typů pro NextAuth
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+      role: Role;
+    } & DefaultSession["user"]
+  }
+
+  interface User {
+    id?: string;
+    role?: Role;
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    id: string;
+    role: Role;
+  }
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
@@ -27,7 +50,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const isCorrect = await bcrypt.compare(credentials.password as string, user.password);
         if (!isCorrect) return null;
 
-        // Vrátíme jen bezpečná data (ne heslo)
         return {
           id: user.id,
           name: user.name,
@@ -41,15 +63,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     jwt({ token, user }) {
       if (user) {
-        token.role = (user as any).role;
-        token.id = (user as any).id;
+        token.role = user.role as Role;
+        token.id = user.id as string;
       }
       return token;
     },
     session({ session, token }) {
       if (token && session.user) {
-        (session.user as any).role = token.role;
-        (session.user as any).id = token.id;
+        session.user.role = token.role;
+        session.user.id = token.id;
       }
       return session;
     }
