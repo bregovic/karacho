@@ -331,6 +331,31 @@ export default function DesignerClient({ song }: { song: any }) {
     forceUpdate();
   };
 
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!song?.id) return;
+    setSaving(true);
+    try {
+      const data = generateBlocksJSON();
+      const res = await fetch(`/api/songs/${song.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timingData: data, lyrics: rawText }),
+      });
+      if (res.ok) {
+        alert("✓ Karaoke data byla úspěšně uložena do knihovny!");
+      } else {
+        alert("Chyba při ukládání do DB.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Chyba sítě.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#0a0a14', zIndex: 9999, overflow: 'hidden', display: 'flex' }} onClick={togglePlay}>
       
@@ -376,7 +401,10 @@ export default function DesignerClient({ song }: { song: any }) {
       <div style={{ width: '340px', background: '#0e0e16', borderLeft: '1px solid rgba(255,255,255,0.05)', zIndex: 10, display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
          <div style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', margin: 0, fontWeight: 600 }}>Timeline</h3>
-            <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px' }} onClick={() => { dlSRT(JSON.stringify(generateBlocksJSON(), null, 2), "karaoke-data.json"); }}>📥 EXPORT</button>
+            <div style={{ display: 'flex', gap: '6px' }}>
+                <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px' }} onClick={() => { dlSRT(JSON.stringify(generateBlocksJSON(), null, 2), "karaoke-data.json"); }}>📥 EXPORT</button>
+                <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px', background: 'var(--color-teal)' }} onClick={handleSave} disabled={saving}>{saving ? 'Ukládání...' : '💾 ULOŽIT'}</button>
+            </div>
          </div>
 
          <div style={{ flex: 1, overflowY: 'auto', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>

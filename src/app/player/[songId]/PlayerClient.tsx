@@ -1,0 +1,206 @@
+'use client';
+import { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
+
+interface PlayerBlock {
+  lw: string[];
+  bs: number;
+  be: number;
+  w: { t: number; i: number }[];
+}
+
+interface TimingData {
+  blocks: PlayerBlock[];
+  dur: number;
+}
+
+export default function PlayerClient({ song }: { song: any }) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [renderTick, setRenderTick] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  const prevLineEl = useRef<HTMLDivElement>(null);
+  const curLineEl = useRef<HTMLDivElement>(null);
+  const nextLineEl = useRef<HTMLDivElement>(null);
+  const pbarEl = useRef<HTMLDivElement>(null);
+  const timeEl = useRef<HTMLSpanElement>(null);
+
+  const lastBlock = useRef<number>(-1);
+  const lastColored = useRef<number>(-1);
+
+  const data: TimingData = (song.timingData as any) || { blocks: [], dur: 0 };
+  const blocks = data.blocks || [];
+  const dur = data.dur || 0;
+
+  useEffect(() => {
+    if (song.audioUrl) {
+      const a = new Audio();
+      a.crossOrigin = "anonymous";
+      a.src = song.audioUrl;
+      a.preload = "auto";
+      a.onplay = () => setIsPlaying(true);
+      a.onpause = () => setIsPlaying(false);
+      a.onended = () => { setIsPlaying(false); lastBlock.current = -1; };
+      audioRef.current = a;
+    }
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (audioRef.current) audioRef.current.pause();
+    };
+  }, [song.audioUrl]);
+
+  const togglePlay = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!audioRef.current) return;
+    if (audioRef.current.paused) {
+      audioRef.current.play();
+      startTick();
+    } else {
+      audioRef.current.pause();
+    }
+  };
+
+  const startTick = () => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(tick);
+  };
+
+  const getState = (t: number) => {
+    const ci = blocks.findIndex(b => t >= b.bs && t < b.be);
+    if (ci < 0) return null;
+    const cb = blocks[ci];
+    let nc = 0;
+    for (const w of cb.w) {
+      if (t >= w.t) nc = w.i + 1;
+    }
+    return {
+      cb, nc, ci,
+      prev: ci > 0 ? blocks[ci - 1] : null,
+      next: ci < blocks.length - 1 ? blocks[ci + 1] : null
+    };
+  };
+
+  const tick = () => {
+    if (!audioRef.current) return;
+    const t = audioRef.current.currentTime;
+    const d = audioRef.current.duration || dur || 1;
+
+    // Progress bar
+    if (pbarEl.current) pbarEl.current.style.width = `${(t / d) * 100}%`;
+    if (timeEl.current) {
+        const fmt = (s: number) => `${Math.floor(s/60)}:${Math.floor(s%60).toString().padStart(2,'0')}`;
+        timeEl.current.textContent = `${fmt(t)} / ${fmt(d)}`;
+    }
+
+    const state = getState(t);
+    renderState(state);
+
+    if (!audioRef.current.paused) {
+      rafRef.current = requestAnimationFrame(tick);
+    }
+  };
+
+  const renderState = (state: any) => {
+    const prev = prevLineEl.current;
+    const cur = curLineEl.current;
+    const nextText = nextLineEl.current;
+
+    if (!state) {
+      if (prev) prev.textContent = '';
+      if (cur) cur.innerHTML = '';
+      if (nextText) nextText.textContent = '';
+      lastBlock.current = -1;
+      return;
+    }
+
+    const { cb, nc, ci, prev: pb, next: nb } = state;
+
+    if (prev) prev.textContent = pb ? pb.lw.join(' ') : '';
+    if (nextText) nextText.textContent = nb ? nb.lw.join(' ') : '';
+
+    if (ci !== lastBlock.current) {
+      // NOVÝ BLOK
+      if (cur) {
+        cur.innerHTML = cb.lw.map((w: string, i: number) => 
+          `<span class="word ${i < nc ? 'on' : 'off'}">${w}</span>`
+        ).join(' ');
+
+        // Animace blockIn
+        cur.classList.remove('block-new');
+        void cur.offsetWidth; // force reflow
+        cur.classList.add('block-new');
+      }
+      lastBlock.current = ci;
+      lastColored.current = nc;
+    } else if (nc !== lastColored.current) {
+      // NOVÉ SLOVO v bloku
+      if (cur) {
+        const spans = cur.querySelectorAll('.word');
+        spans.forEach((s: any, i: number) => {
+          s.className = `word ${i < nc ? 'on' : 'off'}`;
+        });
+      }
+      lastColored.current = nc;
+    }
+  };
+
+  const handleSeek = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!audioRef.current || !audioRef.current.duration) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    audioRef.current.currentTime = ((e.clientX - r.left) / r.width) * audioRef.current.duration;
+    if (audioRef.current.paused) {
+        const state = getState(audioRef.current.currentTime);
+        renderState(state);
+    }
+  };
+
+  return (
+    <div className="player-root" style={{ position: 'fixed', inset: 0, background: '#0a0a14', color: 'white', overflow: 'hidden', fontFamily: 'var(--font-outfit)' }} onClick={() => togglePlay()}>
+      <style dangerouslySetInnerHTML={{ __html: `
+        .player-root { --glow: rgba(255, 215, 0, 0.55); }
+        .word.off { color: rgba(255,255,255,0.82); text-shadow: 0 2px 6px rgba(0,0,0,0.95); transition: color 0.1s; }
+        .word.on { color: #ffd700; text-shadow: 0 2px 6px rgba(0,0,0,0.95), 0 0 24px var(--glow); transition: color 0.1s; }
+        
+        .ln-ctx { font-size: clamp(13px, 3.2vw, 26px); color: rgba(255,255,255,0.35); font-weight: 700; text-align: center; min-height: 1.4em; }
+        #cur-line { font-size: clamp(24px, 6vw, 78px); font-weight: 900; text-align: center; min-height: 1.2em; line-height: 1.2; letter-spacing: -0.01em; }
+        
+        @keyframes blockIn {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: none; }
+        }
+        .block-new { animation: blockIn 0.25s ease-out forwards; }
+        
+        #scrim { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0.2) 100%); z-index: 2; pointer-events: none; }
+      `}} />
+
+      <div id="bg-solid" style={{ position: 'absolute', inset: 0, background: '#0a0a14', zIndex: 0 }} />
+      <div id="scrim" />
+
+      <div id="stage" style={{ position: 'absolute', inset: 0, zIndex: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 8vw', gap: '2vh', pointerEvents: 'none' }}>
+        <div ref={prevLineEl} className="ln-ctx" />
+        <div ref={curLineEl} id="cur-line" />
+        <div ref={nextLineEl} className="ln-ctx" />
+      </div>
+
+      <div id="ui-layer" style={{ position: 'absolute', inset: 0, zIndex: 10, pointerEvents: 'none', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+         <div id="controls" style={{ padding: '2rem', display: 'flex', alignItems: 'center', gap: '1.5rem', pointerEvents: 'auto', background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }}>
+            <button onClick={togglePlay} style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--color-gold)', border: 'none', color: '#000', fontSize: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+               {isPlaying ? '⏸' : '▶'}
+            </button>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>
+                   <span>{song.artist} – {song.title}</span>
+                   <span ref={timeEl}>0:00 / 0:00</span>
+                </div>
+                <div onClick={handleSeek} style={{ height: '6px', background: 'rgba(255,255,255,0.15)', borderRadius: '3px', cursor: 'pointer', position: 'relative' }}>
+                   <div ref={pbarEl} style={{ height: '100%', background: 'var(--color-gold)', width: '0%', borderRadius: '3px', boxShadow: '0 0 12px var(--glow)' }} />
+                </div>
+            </div>
+            <Link href="/admin" style={{ padding: '8px 16px', background: 'rgba(255,255,255,0.1)', color: 'white', borderRadius: '8px', textDecoration: 'none', fontSize: '13px', border: '1px solid rgba(255,255,255,0.1)' }} onClick={e=>e.stopPropagation()}>Zavřít</Link>
+         </div>
+      </div>
+    </div>
+  );
+}
