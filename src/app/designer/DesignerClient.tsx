@@ -68,7 +68,6 @@ export default function DesignerClient({ song }: { song: any }) {
     linesRef.current = parsedLines;
     setView('editor');
     restoreState();
-    audioRef.current.play();
     startTick();
   };
 
@@ -338,8 +337,8 @@ export default function DesignerClient({ song }: { song: any }) {
                       const r = e.currentTarget.getBoundingClientRect(); 
                       audioRef.current.currentTime = (e.clientX - r.left) / r.width * audioRef.current.duration; 
                     } 
-                  }} style={{ flex: 1, height: '24px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', cursor: 'pointer', position: 'relative', overflow: 'hidden' }}>
-                    <div ref={pbarEl} style={{ height: '100%', background: 'var(--color-teal)', width: '0%', pointerEvents: 'none' }} />
+                  }} style={{ flex: 1, height: '24px', background: 'rgba(255,255,255,0.2)', borderRadius: '12px', cursor: 'pointer', position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.4)', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.5)' }}>
+                    <div ref={pbarEl} style={{ height: '100%', background: 'var(--color-gold)', width: '0%', pointerEvents: 'none', boxShadow: '0 0 10px rgba(255,215,0,0.5)' }} />
                  </div>
              </div>
           </div>
