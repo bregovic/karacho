@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { updateSongAudio, updateSongInstrumental, updateSongJson, updateSongVideo } from '@/app/admin/actions';
 
 function RendererContent() {
   const searchParams = useSearchParams();
@@ -13,6 +14,8 @@ function RendererContent() {
   
   const [status, setStatus] = useState<'idle' | 'rendering' | 'done'>('idle');
   const [progress, setProgress] = useState(0);
+  const [finalBlob, setFinalBlob] = useState<Blob | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const jsonRef = useRef<File | null>(null);
   const audioRef = useRef<File | null>(null);
@@ -66,6 +69,32 @@ function RendererContent() {
     if (f) { bgRef.current = f; setBgName(f.name); }
   };
 
+  const handleUploadToCloud = async () => {
+    if (!finalBlob || !songId) return;
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      const filename = `render-${songId}-${Date.now()}.webm`;
+      formData.append('file', new File([finalBlob], filename, { type: 'video/webm' }));
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      
+      if (data.finalUrl) {
+        await updateSongVideo(songId, data.finalUrl);
+        alert("Video bylo úspěšně nahráno do Katalogu! ✅");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Chyba při nahrávání do Katalogu.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleStartRender = async () => {
     if ((!jsonRef.current && !remoteJsonData) || (!audioRef.current && !remoteAudioUrl)) {
         alert("Chybí timing data nebo audio! Není z čeho sestavit karaoke.");
@@ -74,6 +103,7 @@ function RendererContent() {
     
     setStatus('rendering');
     setProgress(0);
+    setFinalBlob(null);
 
     try {
         let data = remoteJsonData;
@@ -115,11 +145,12 @@ function RendererContent() {
         const stream = (canvas as any).captureStream(30);
         stream.addTrack(dest.stream.getAudioTracks()[0]);
 
-        const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 8000000 });
+        const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 12000000 });
         const chunks: Blob[] = [];
         recorder.ondataavailable = e => chunks.push(e.data);
         recorder.onstop = () => {
            const blob = new Blob(chunks, { type: 'video/webm' });
+           setFinalBlob(blob);
            const url = URL.createObjectURL(blob);
            const a = document.createElement('a');
            a.href = url;
@@ -280,9 +311,21 @@ function RendererContent() {
           )}
 
           {status === 'done' && (
-             <div style={{ width: '100%', textAlign: 'center', padding: '1rem', background: 'rgba(0,255,0,0.1)', border: '1px solid rgba(0,255,0,0.2)', borderRadius: '8px' }}>
-                <h3 style={{ color: '#0f0', margin: 0 }}>Hotovo! Video se stahuje.</h3>
-                <button className="btn-secondary" style={{ marginTop: '1rem' }} onClick={() => setStatus('idle')}>Zkusit znovu</button>
+             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
+                <div style={{ width: '100%', textAlign: 'center', padding: '1rem', background: 'rgba(0,255,0,0.1)', border: '1px solid rgba(0,255,0,0.2)', borderRadius: '8px' }}>
+                   <h3 style={{ color: '#0f0', margin: 0 }}>Hotovo! Video se stahuje.</h3>
+                </div>
+                {songId && (
+                   <button 
+                     className="btn-primary" 
+                     style={{ width: '100%', background: 'var(--color-teal)' }} 
+                     onClick={handleUploadToCloud}
+                     disabled={isUploading}
+                   >
+                     {isUploading ? 'Nahrávám video do cloudu...' : '☁️ Publikovat do Katalogu'}
+                   </button>
+                )}
+                <button className="btn-secondary" style={{ width: '100%' }} onClick={() => setStatus('idle')}>Zkusit znovu</button>
              </div>
           )}
 
