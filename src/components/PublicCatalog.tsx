@@ -165,8 +165,8 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
 
                 <div style={{ flex: 1 }} />
 
-                {song.videoUrl ? (
-                  <Link href={`/player?songId=${song.id}`} style={{ textDecoration: 'none' }}>
+                {song.videoUrl || song.timingData || song.jsonUrl ? (
+                  <Link href={`/player/${song.id}`} style={{ textDecoration: 'none' }}>
                     <button className="btn-primary" style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
                       ▶ Přehrát Karaoke
                     </button>
