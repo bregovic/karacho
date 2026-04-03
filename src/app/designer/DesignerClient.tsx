@@ -22,13 +22,20 @@ export default function DesignerClient({ song }: { song: any }) {
   useEffect(() => {
     if (song?.audioUrl) {
       if (audioRef.current) audioRef.current.pause();
-      const a = new Audio(song.audioUrl);
+      const a = new Audio();
+      a.crossOrigin = "anonymous"; // ZÁSADNÍ FIX: povolení pro přehrávání z jiné domény
+      a.src = song.audioUrl;
       a.preload = 'auto';
       a.onplay = () => { setIsPlaying(true); forceUpdate(); };
       a.onpause = () => { setIsPlaying(false); forceUpdate(); };
       a.onended = () => { setIsPlaying(false); forceUpdate(); };
       // Zásadní fix: počkáme na metadata, aby UI vědělo délku
       a.onloadedmetadata = () => forceUpdate();
+      a.onerror = (e) => {
+        console.error("Audio Load Error:", e);
+        setAudioName("CHYBA: Soubor nelze načíst (zkontrolujte CORS)");
+        forceUpdate();
+      };
       audioRef.current = a;
       setAudioName(`Cloud: ${song.title}.mp3`);
     }
@@ -65,7 +72,9 @@ export default function DesignerClient({ song }: { song: any }) {
       audioRef.current.pause();
       if (audioRef.current.src.startsWith('blob:')) URL.revokeObjectURL(audioRef.current.src);
     }
-    const a = new Audio(URL.createObjectURL(f));
+    const a = new Audio();
+    a.crossOrigin = "anonymous";
+    a.src = URL.createObjectURL(f);
     a.preload = 'auto';
     a.onplay = () => { setIsPlaying(true); forceUpdate(); };
     a.onpause = () => { setIsPlaying(false); forceUpdate(); };
