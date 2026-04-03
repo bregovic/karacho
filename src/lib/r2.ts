@@ -7,7 +7,7 @@ export const r2 = new S3Client({
     accessKeyId: process.env.R2_ACCESS_KEY_ID!,
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
   },
-  forcePathStyle: false, // Pro CORS u R2 je lepší používat bucket v subdoméně
+  forcePathStyle: true, // Pro nahrávání ze serveru (proxy) je toto nejstabilnější
   requestChecksumCalculation: "WHEN_REQUIRED",
   responseChecksumValidation: "WHEN_REQUIRED",
 });
