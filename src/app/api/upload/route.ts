@@ -1,48 +1,46 @@
-import { NextResponse } from 'next/server';
-import { PutObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { r2, BUCKET_NAME } from '@/lib/r2';
+import { NextRequest, NextResponse } from "next/server";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { r2, BUCKET_NAME } from "@/lib/r2";
 import { auth } from '@/auth';
 
-export async function POST(request: Request) {
+export async function POST(req: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { filename, contentType } = await request.json();
-    if (!filename || !contentType) {
-      return NextResponse.json({ error: 'Missing filename or contentType' }, { status: 400 });
+    const formData = await req.formData();
+    const file = formData.get('file') as File;
+    
+    if (!file) {
+      return NextResponse.json({ error: "Soubor nebyl nalezen ve formuláři" }, { status: 400 });
     }
 
-    // Bezpečnost: Vytvoření unikátního jména souboru (např. '167890123-nazev.mp3')
-    const key = `${Date.now()}-${filename.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const filename = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
 
-    const command = new PutObjectCommand({
+    // Nahrání přímo ze serveru do R2
+    await r2.send(new PutObjectCommand({
       Bucket: BUCKET_NAME,
-      Key: key,
-    });
+      Key: filename,
+      Body: buffer,
+      ContentType: file.type || 'audio/mpeg',
+    }));
 
-    // Generujeme tzn. "Presigned URL" - exkluzivní platnou nahrávací linku pro prohlížeč na 15 min
-    const presignedUrl = await getSignedUrl(r2, command, { expiresIn: 900 });
+    const finalUrl = `${process.env.R2_PUBLIC_URL}/${filename}`;
 
     return NextResponse.json({ 
-      uploadUrl: presignedUrl, 
-      finalUrl: `${process.env.R2_PUBLIC_URL}/${key}`,
-      key 
+      success: true,
+      finalUrl,
+      key: filename
     });
 
   } catch (error: any) {
-    console.error('--- S3 Upload Error Detailed ---');
-    console.error('Message:', error.message);
-    console.error('Code:', error.code);
-    console.error('Stack:', error.stack);
-    console.error('---------------------------------');
-    
+    console.error("--- Server Proxy Upload Error ---", error);
     return NextResponse.json({ 
-      error: 'Failed to generate upload URL', 
-      details: error.message 
+      error: error.message || "Selhalo nahrávání na server",
+      details: error.stack 
     }, { status: 500 });
   }
 }
