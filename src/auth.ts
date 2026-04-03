@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import bcrypt from "bcryptjs"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: true,
   pages: {
     signIn: '/login',
   },
