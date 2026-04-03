@@ -19,6 +19,7 @@ export default function PlayerClient({ song }: { song: any }) {
   const [isInstrumental, setIsInstrumental] = useState(false);
   const [renderTick, setRenderTick] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const videoElRef = useRef<HTMLVideoElement | null>(null);
   const rafRef = useRef<number | null>(null);
 
   const prevLineEl = useRef<HTMLDivElement>(null);
@@ -61,8 +62,11 @@ export default function PlayerClient({ song }: { song: any }) {
     
     audioRef.current.src = nextMode ? song.instrumentalUrl : song.audioUrl;
     audioRef.current.currentTime = t;
+    if (videoElRef.current) videoElRef.current.currentTime = t;
+
     if (!paused) {
       audioRef.current.play();
+      if (videoElRef.current) videoElRef.current.play();
       startTick();
     }
     setIsInstrumental(nextMode);
@@ -73,9 +77,11 @@ export default function PlayerClient({ song }: { song: any }) {
     if (!audioRef.current) return;
     if (audioRef.current.paused) {
       audioRef.current.play();
+      if (videoElRef.current) videoElRef.current.play();
       startTick();
     } else {
       audioRef.current.pause();
+      if (videoElRef.current) videoElRef.current.pause();
     }
   };
 
@@ -106,6 +112,7 @@ export default function PlayerClient({ song }: { song: any }) {
 
     // Progress bar
     if (pbarEl.current) pbarEl.current.style.width = `${(t / d) * 100}%`;
+    if (videoElRef.current) videoElRef.current.currentTime = t;
     if (timeEl.current) {
         const fmt = (s: number) => `${Math.floor(s/60)}:${Math.floor(s%60).toString().padStart(2,'0')}`;
         timeEl.current.textContent = `${fmt(t)} / ${fmt(d)}`;
@@ -167,9 +174,11 @@ export default function PlayerClient({ song }: { song: any }) {
     e.stopPropagation();
     if (!audioRef.current || !audioRef.current.duration) return;
     const r = e.currentTarget.getBoundingClientRect();
-    audioRef.current.currentTime = ((e.clientX - r.left) / r.width) * audioRef.current.duration;
+    const t = ((e.clientX - r.left) / r.width) * audioRef.current.duration;
+    audioRef.current.currentTime = t;
+    if (videoElRef.current) videoElRef.current.currentTime = t;
     if (audioRef.current.paused) {
-        const state = getState(audioRef.current.currentTime);
+        const state = getState(t);
         renderState(state);
     }
   };
@@ -194,13 +203,24 @@ export default function PlayerClient({ song }: { song: any }) {
       `}} />
 
       <div id="bg-solid" style={{ position: 'absolute', inset: 0, background: '#0a0a14', zIndex: 0 }} />
-      <div id="scrim" />
+      {song.videoUrl ? (
+         <video 
+           ref={videoElRef}
+           src={song.videoUrl} 
+           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 1 }}
+           muted 
+           autoPlay={false}
+           playsInline
+         />
+      ) : <div id="scrim" />}
 
-      <div id="stage" style={{ position: 'absolute', inset: 0, zIndex: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 8vw', gap: '2vh', pointerEvents: 'none' }}>
-        <div ref={prevLineEl} className="ln-ctx" />
-        <div ref={curLineEl} id="cur-line" />
-        <div ref={nextLineEl} className="ln-ctx" />
-      </div>
+      {!song.videoUrl && (
+        <div id="stage" style={{ position: 'absolute', inset: 0, zIndex: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 8vw', gap: '2vh', pointerEvents: 'none' }}>
+           <div ref={prevLineEl} className="ln-ctx" />
+           <div ref={curLineEl} id="cur-line" />
+           <div ref={nextLineEl} className="ln-ctx" />
+        </div>
+      )}
 
       <div id="ui-layer" style={{ position: 'absolute', inset: 0, zIndex: 10, pointerEvents: 'none', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
          <div id="controls" style={{ padding: '2rem', display: 'flex', alignItems: 'center', gap: '1.5rem', pointerEvents: 'auto', background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }}>
