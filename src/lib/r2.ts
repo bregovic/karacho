@@ -8,6 +8,9 @@ export const r2 = new S3Client({
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
   },
   forcePathStyle: true,
+  // Zamezení odesílání checksumů, které R2 u přesprezentovaných/signed URL u PUT ne vždy podporuje
+  requestChecksumCalculation: "WHEN_REQUIRED",
+  responseChecksumValidation: "WHEN_REQUIRED",
 });
 
 export const BUCKET_NAME = process.env.R2_BUCKET || "karacho-media";
