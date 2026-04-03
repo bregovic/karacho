@@ -162,11 +162,10 @@ function RendererContent() {
         canvas.height = H;
         const ctx = canvas.getContext('2d')!;
 
-        // Vytvoř Video Stream @30FPS
+        // Vytvoř Video Stream @30FPS (Jen obraz, bez zvuku!)
         const stream = (canvas as any).captureStream(30);
-        stream.addTrack(dest.stream.getAudioTracks()[0]);
 
-        const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 4000000 });
+        const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 600000 });
         const chunks: Blob[] = [];
         recorder.ondataavailable = e => chunks.push(e.data);
         recorder.onstop = () => {
