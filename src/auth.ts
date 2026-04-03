@@ -4,7 +4,7 @@ import { db } from "@/lib/db"
 import bcrypt from "bcryptjs"
 import { Role } from "@prisma/client"
 
-// Augmentace typů pro NextAuth
+// Rozšíření typů přímo v hlavním modulu next-auth
 declare module "next-auth" {
   interface Session {
     user: {
@@ -16,13 +16,6 @@ declare module "next-auth" {
   interface User {
     id?: string;
     role?: Role;
-  }
-}
-
-declare module "next-auth/jwt" {
-  interface JWT {
-    id: string;
-    role: Role;
   }
 }
 
@@ -63,15 +56,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     jwt({ token, user }) {
       if (user) {
-        token.role = user.role as Role;
-        token.id = user.id as string;
+        (token as any).role = (user as any).role;
+        (token as any).id = (user as any).id;
       }
       return token;
     },
     session({ session, token }) {
       if (token && session.user) {
-        session.user.role = token.role;
-        session.user.id = token.id;
+        session.user.role = (token as any).role as Role;
+        session.user.id = (token as any).id as string;
       }
       return session;
     }
