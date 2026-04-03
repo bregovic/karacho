@@ -38,6 +38,11 @@ export async function updateSongAudio(songId: string, audioUrl: string) {
   revalidatePath('/admin');
 }
 
+export async function updateSongInstrumental(songId: string, instrumentalUrl: string) {
+  await db.song.update({ where: { id: songId }, data: { instrumentalUrl } });
+  revalidatePath('/admin');
+}
+
 export async function updateSongJson(songId: string, jsonUrl: string) {
   await db.song.update({ where: { id: songId }, data: { jsonUrl } });
   revalidatePath('/admin');

@@ -16,6 +16,7 @@ interface TimingData {
 
 export default function PlayerClient({ song }: { song: any }) {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isInstrumental, setIsInstrumental] = useState(false);
   const [renderTick, setRenderTick] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -34,21 +35,38 @@ export default function PlayerClient({ song }: { song: any }) {
   const dur = data.dur || 0;
 
   useEffect(() => {
-    if (song.audioUrl) {
-      const a = new Audio();
-      a.crossOrigin = "anonymous";
-      a.src = song.audioUrl;
-      a.preload = "auto";
-      a.onplay = () => setIsPlaying(true);
-      a.onpause = () => setIsPlaying(false);
-      a.onended = () => { setIsPlaying(false); lastBlock.current = -1; };
-      audioRef.current = a;
-    }
+    const a = new Audio();
+    a.crossOrigin = "anonymous";
+    // Pokud máme instrumentál a uživatel ho chce, načteme ho, jinak originál
+    a.src = (isInstrumental && song.instrumentalUrl) ? song.instrumentalUrl : song.audioUrl;
+    a.preload = "auto";
+    a.onplay = () => setIsPlaying(true);
+    a.onpause = () => setIsPlaying(false);
+    a.onended = () => { setIsPlaying(false); lastBlock.current = -1; };
+    audioRef.current = a;
+
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       if (audioRef.current) audioRef.current.pause();
     };
-  }, [song.audioUrl]);
+  }, [song.audioUrl, song.instrumentalUrl]);
+
+  const toggleTrack = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!audioRef.current || !song.instrumentalUrl) return;
+    
+    const t = audioRef.current.currentTime;
+    const paused = audioRef.current.paused;
+    const nextMode = !isInstrumental;
+    
+    audioRef.current.src = nextMode ? song.instrumentalUrl : song.audioUrl;
+    audioRef.current.currentTime = t;
+    if (!paused) {
+      audioRef.current.play();
+      startTick();
+    }
+    setIsInstrumental(nextMode);
+  };
 
   const togglePlay = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -189,6 +207,20 @@ export default function PlayerClient({ song }: { song: any }) {
             <button onClick={togglePlay} style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--color-gold)', border: 'none', color: '#000', fontSize: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                {isPlaying ? '⏸' : '▶'}
             </button>
+            
+            {song.instrumentalUrl && (
+              <button 
+                onClick={toggleTrack} 
+                style={{ 
+                  padding: '10px 14px', borderRadius: '12px', background: isInstrumental ? 'rgba(0,177,64,0.2)' : 'rgba(255,255,255,0.05)', 
+                  border: isInstrumental ? '1px solid #00B140' : '1px solid rgba(255,255,255,0.1)',
+                  color: isInstrumental ? '#00B140' : 'white', cursor: 'pointer', fontWeight: 600, fontSize: '11px', display: 'flex', gap: '8px', alignItems: 'center'
+                }}
+              >
+                {isInstrumental ? <span>🎻 KARAOKE</span> : <span>👤 ORIGINÁL</span>}
+              </button>
+            )}
+
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>
                    <span>{song.artist} – {song.title}</span>

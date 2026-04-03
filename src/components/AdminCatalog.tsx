@@ -163,9 +163,15 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', background: 'rgba(0,0,0,0.3)', padding: '1.2rem', borderRadius: '12px' }}>
                     
                     {/* Audio Flow */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '13px', color: hasAudio ? 'var(--color-teal)' : '#666' }}>{t('step_audio')}</span>
-                      {hasAudio ? <span style={{ color: '#4ade80', fontSize: '13px' }}>✓ OK</span> : <AudioUploader songId={song.id} />}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                         <span style={{ fontSize: '13px', color: hasAudio ? 'var(--color-teal)' : '#666' }}>{t('step_audio')} (Originál)</span>
+                         {hasAudio ? <span style={{ color: '#4ade80', fontSize: '13px' }}>✓ OK</span> : <AudioUploader songId={song.id} />}
+                       </div>
+                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                         <span style={{ fontSize: '13px', color: song.instrumentalUrl ? 'var(--color-teal)' : '#666' }}>🎤 Instrumentál (Karaoke)</span>
+                         {song.instrumentalUrl ? <span style={{ color: '#4ade80', fontSize: '13px' }}>✓ OK</span> : <AudioUploader songId={song.id} type="instrumental" />}
+                       </div>
                     </div>
 
                     {/* Studio Flow */}
