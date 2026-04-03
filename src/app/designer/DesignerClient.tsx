@@ -10,12 +10,13 @@ export default function DesignerClient({ song }: { song: any }) {
   const [view, setView] = useState<'setup' | 'editor'>('setup');
   const [mode, setMode] = useState<'lines' | 'words'>('words');
   const [audioName, setAudioName] = useState('Nahrát audio soubor');
-  const [bgName, setBgName] = useState('Nahrát volitelné pozadí (GIF/PNG)');
-  const [bgUrl, setBgUrl] = useState<string | null>(null);
   
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const rafRef = useRef<number | null>(null);
+
+  // Záznam textu ze setupu
+  const [rawText, setRawText] = useState((song?.lyrics || '') as string);
 
   // Data
   const linesRef = useRef<string[][]>([]);
@@ -33,16 +34,11 @@ export default function DesignerClient({ song }: { song: any }) {
   const timeEl = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
-    if (song?.lyrics) {
-      linesRef.current = song.lyrics.split('\n')
-        .map((l: string) => l.trim().split(/\s+/).filter(w => w))
-        .filter((l: string[]) => l.length > 0);
-    }
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       if (audioRef.current) URL.revokeObjectURL(audioRef.current.src);
     };
-  }, [song]);
+  }, []);
 
   const handleAudioLoad = (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -59,16 +55,15 @@ export default function DesignerClient({ song }: { song: any }) {
     audioRef.current.onended = () => { setIsPlaying(false); setView('setup'); };
   };
 
-  const handleBgLoad = (e: ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    if (bgUrl) URL.revokeObjectURL(bgUrl);
-    setBgUrl(URL.createObjectURL(f));
-    setBgName(f.name);
-  };
-
   const handleStart = () => {
-    if (!audioRef.current || linesRef.current.length === 0) return;
+    // Parsování textu před spuštěním editoru
+    const parsedLines = rawText.split('\n')
+      .map(l => l.trim().split(/\s+/).filter(w => w))
+      .filter(l => l.length > 0);
+      
+    if (!audioRef.current || parsedLines.length === 0) return;
+    
+    linesRef.current = parsedLines;
     setView('editor');
     restoreState();
     audioRef.current.play();
@@ -122,7 +117,6 @@ export default function DesignerClient({ song }: { song: any }) {
       e.preventDefault();
       const nextL = curLineRef.current + 1;
       if (nextL < linesRef.current.length) {
-        // Zaznamená LineEvent a posune se na nový řádek
         eventsRef.current = eventsRef.current.filter(x => !(x.type === 'line' && x.lineIdx === nextL));
         eventsRef.current.push({ type: 'line', time: t, lineIdx: nextL });
         restoreState();
@@ -132,12 +126,11 @@ export default function DesignerClient({ song }: { song: any }) {
 
     if (mode === 'words' && (e.code === 'KeyW' || e.code === 'ArrowRight')) {
       e.preventDefault();
-      if (curLineRef.current < 0) curLineRef.current = 0; // fallback pokud nebylo kliknuto Enter
+      if (curLineRef.current < 0) curLineRef.current = 0; 
       const lineLen = linesRef.current[curLineRef.current]?.length || 0;
       const nextW = curWordRef.current + 1;
 
       if (nextW < lineLen) {
-        // Uložení časování začátku prvního slova jako záložní LineEvent (pokud chybí)
         if (nextW === 0) {
            const hasLineEvent = eventsRef.current.some(x => x.type === 'line' && x.lineIdx === curLineRef.current);
            if (!hasLineEvent) {
@@ -151,7 +144,6 @@ export default function DesignerClient({ song }: { song: any }) {
       return;
     }
     
-    // Rychlá navigace v lines
     if (e.key === '[' || e.key === ']') {
        audioRef.current.pause();
        const inc = e.key === '[' ? -1 : 1;
@@ -221,7 +213,7 @@ export default function DesignerClient({ song }: { song: any }) {
           return `<span style="margin: 0 0.1em; transition: color 0.07s ease, text-shadow 0.07s ease; display: inline-block; color: ${color}; text-shadow: ${shadow}">${w}</span>`;
         }).join(' ');
       } else {
-        curLineEl.current.innerHTML = cl >= linesRef.current.length ? '<span style="color:var(--color-gold)">🎉 HOTOVO!</span>' : '';
+        curLineEl.current.innerHTML = cl >= linesRef.current.length ? '<span style="color:var(--color-gold)">🎉 HOTOVO! Klikni Uložit JSON.</span>' : '<span style="color:var(--text-secondary)">Pauza... Stiskni MEZERNÍK.</span>';
       }
     }
   };
@@ -229,50 +221,58 @@ export default function DesignerClient({ song }: { song: any }) {
   if (view === 'setup') {
     return (
       <div style={{ padding: '2rem', minHeight: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column' }}>
-        <div className="glass-panel" style={{ padding: '4rem 2rem', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2rem', maxWidth: '600px', margin: '0 auto', width: '100%' }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎙️</div>
-            <h2 style={{ color: 'var(--text-primary)' }}>SRT Maker: <span style={{ color: 'var(--color-gold)' }}>{song?.title || 'Nepřiřazeno'}</span></h2>
-            <p style={{ color: 'var(--text-secondary)' }}>Načteno přesně podle dokumentace Karaoke SRT Maker.</p>
+        <div className="glass-panel" style={{ padding: '4rem 2rem', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2rem', maxWidth: '800px', margin: '0 auto', width: '100%' }}>
+          <div style={{ textAlign: 'center', width: '100%' }}>
+            <h2 style={{ color: 'var(--text-primary)', marginBottom: '1rem' }}>Studio: <span style={{ color: 'var(--color-gold)' }}>{song?.title || 'Nepřiřazeno'}</span></h2>
+            
+            <textarea 
+              value={rawText}
+              onChange={(e) => setRawText(e.target.value)}
+              placeholder="Vložte sem text písně..."
+              style={{
+                width: '100%', 
+                height: '250px', 
+                background: 'rgba(0,0,0,0.3)', 
+                color: 'white', 
+                border: '1px solid rgba(255,255,255,0.1)', 
+                padding: '1rem', 
+                borderRadius: '8px',
+                fontFamily: 'monospace',
+                fontSize: '14px',
+                lineHeight: '1.5'
+              }}
+            />
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'right', marginTop: '8px' }}>
+              Znění textu upravte podle potřeby před spuštěním časování. Pro spuštění vložte i zvukový soubor dole.
+            </p>
           </div>
           
           <div style={{ display: 'flex', gap: '1rem', width: '100%' }}>
-            <button onClick={() => setMode('lines')} className={mode === 'lines' ? 'btn-primary' : 'btn-secondary'} style={{ flex: 1 }}>Mód Řádky</button>
-            <button onClick={() => setMode('words')} className={mode === 'words' ? 'btn-primary' : 'btn-secondary'} style={{ flex: 1 }}>Mód Slova</button>
+            <button onClick={() => setMode('lines')} className={mode === 'lines' ? 'btn-primary' : 'btn-secondary'} style={{ flex: 1 }}>Klíčování - Celé Řádky</button>
+            <button onClick={() => setMode('words')} className={mode === 'words' ? 'btn-primary' : 'btn-secondary'} style={{ flex: 1 }}>Klíčování - Jednotlivá Slova</button>
           </div>
 
           <label className="btn-secondary" style={{ width: '100%', textAlign: 'left', position: 'relative', overflow: 'hidden', display: 'flex', gap: '1rem', alignItems: 'center' }}>
             <span style={{ fontSize: '20px' }}>🎵</span>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span>{audioName}</span>
-              <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Nahrát audio (MP3/WAV)</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Otevřít audio k této písni (MP3/WAV) z počítače</span>
             </div>
             <input type="file" accept="audio/*" onChange={handleAudioLoad} style={{ position: 'absolute', opacity: 0, inset: 0, cursor: 'pointer' }} />
           </label>
 
-          <label className="btn-secondary" style={{ width: '100%', textAlign: 'left', position: 'relative', overflow: 'hidden', display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            <span style={{ fontSize: '20px' }}>🖼</span>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span>{bgName}</span>
-              <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Volitelné pozadí</span>
-            </div>
-            <input type="file" accept="image/*" onChange={handleBgLoad} style={{ position: 'absolute', opacity: 0, inset: 0, cursor: 'pointer' }} />
-          </label>
-
-          <button onClick={handleStart} disabled={audioName === 'Nahrát audio soubor' || linesRef.current.length === 0} className={audioName === 'Nahrát audio soubor' ? 'btn-secondary' : 'btn-primary'} style={{ width: '100%', opacity: audioName === 'Nahrát audio soubor' ? 0.5 : 1 }}>
-            ▶ Vstoupit do Editoru
+          <button onClick={handleStart} disabled={audioName === 'Nahrát audio soubor' || rawText.trim() === ''} className={audioName === 'Nahrát audio soubor' ? 'btn-secondary' : 'btn-primary'} style={{ width: '100%', opacity: audioName === 'Nahrát audio soubor' ? 0.5 : 1 }}>
+            ▶ Vstoupit a spustit klíčování
           </button>
         </div>
       </div>
     );
   }
 
-  // Generování bloků pro export databáze
   const generateBlocksJSON = () => {
     const blocks = [];
     const dur = audioRef.current?.duration || 0;
     
-    // Skupina word events podle řádek
     for (let li = 0; li < linesRef.current.length; li++) {
        const lineEvents = eventsRef.current.filter(e => e.type === 'line' && e.lineIdx === li);
        const wordEvs = eventsRef.current.filter(e => e.type === 'word' && e.lineIdx === li).sort((a: any, b: any) => a.wordIdx - b.wordIdx);
@@ -301,21 +301,20 @@ export default function DesignerClient({ song }: { song: any }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#0a0a14', zIndex: 9999, overflow: 'hidden', fontFamily: "-apple-system, 'Inter', sans-serif" }} onClick={togglePlay}>
-      <img src={bgUrl || ''} style={{ display: bgUrl ? 'block' : 'none', position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0 }} alt="bg" />
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top,rgba(0,0,0,.88) 0%,rgba(0,0,0,.45) 42%,rgba(0,0,0,.22) 100%)', zIndex: 1 }}></div>
-
       <header style={{ position: 'absolute', top: '1rem', left: '1rem', zIndex: 10, display: 'flex', gap: '1rem' }}>
         <button className="btn-secondary" style={{ padding: '8px 16px', fontSize: '14px', background: 'rgba(255,255,255,0.1)' }} onClick={(e) => { e.stopPropagation(); setView('setup'); audioRef.current?.pause(); }}>
           ← Zpět
         </button>
         <div style={{ padding: '8px 16px', background: 'rgba(255,255,255,0.1)', color: 'white', borderRadius: '8px', fontWeight: 600 }}>
-          Mód: {mode === 'words' ? '📝 SLOVA (W/Šipka, Enter na konec řádku)' : '📏 ŘÁDKY (Enter, [, ])'} | 🔙 Backspace (Undo)
+          Mód: {mode === 'words' ? '📝 SLOVA (W/Šipka, Enter na konec řádku)' : '📏 ŘÁDKY (Enter, [, ])'} | 🔙 Backspace
         </div>
       </header>
 
       <div style={{ position: 'absolute', inset: 0, zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6vw', gap: '2.5vh', pointerEvents: 'none' }}>
         <div ref={prevLineEl} style={{ fontSize: 'clamp(13px,3.2vw,26px)', fontWeight: 700, color: 'rgba(255,255,255,0.35)', textAlign: 'center', minHeight: '1.3em', textShadow: '0 2px 8px rgba(0,0,0,0.9)', lineHeight: 1.3, padding: '0 2vw' }} />
-        <div ref={curLineEl} style={{ fontSize: 'clamp(24px, 6vw, 78px)', fontWeight: 900, textAlign: 'center', minHeight: '1.2em', lineHeight: 1.2, padding: '0 1vw', letterSpacing: '-0.01em' }} />
+        <div ref={curLineEl} style={{ fontSize: 'clamp(24px, 6vw, 78px)', fontWeight: 900, textAlign: 'center', minHeight: '1.2em', lineHeight: 1.2, padding: '0 1vw', letterSpacing: '-0.01em' }} >
+             <span style={{color: 'rgba(255,255,255,0.5)'}}>Stiskněte mezerník pro zahájení hudby</span>
+        </div>
         <div ref={nextLineEl} style={{ fontSize: 'clamp(13px,3.2vw,26px)', fontWeight: 700, color: 'rgba(255,255,255,0.35)', textAlign: 'center', minHeight: '1.3em', textShadow: '0 2px 8px rgba(0,0,0,0.9)', lineHeight: 1.3, padding: '0 2vw' }} />
       </div>
 
