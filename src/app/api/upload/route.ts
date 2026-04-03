@@ -34,8 +34,16 @@ export async function POST(request: Request) {
       key 
     });
 
-  } catch (error) {
-    console.error('S3 Upload Error:', error);
-    return NextResponse.json({ error: 'Failed to generate upload URL' }, { status: 500 });
+  } catch (error: any) {
+    console.error('--- S3 Upload Error Detailed ---');
+    console.error('Message:', error.message);
+    console.error('Code:', error.code);
+    console.error('Stack:', error.stack);
+    console.error('---------------------------------');
+    
+    return NextResponse.json({ 
+      error: 'Failed to generate upload URL', 
+      details: error.message 
+    }, { status: 500 });
   }
 }

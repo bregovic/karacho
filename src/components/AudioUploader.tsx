@@ -32,9 +32,9 @@ export default function AudioUploader({ songId }: { songId: string }) {
       // Uložení finálního linku z R2 do databáze
       await updateSongAudio(songId, data.finalUrl);
 
-    } catch (err) {
-      console.error(err);
-      alert('Nahrávání selhalo. Zkontrolujte připojení.');
+    } catch (err: any) {
+      console.error('--- Client Upload Error ---', err);
+      alert(`Nahrávání selhalo: ${err.message || 'Neznámá chyba'}`);
     } finally {
       setUploading(false);
     }
