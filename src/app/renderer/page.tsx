@@ -26,34 +26,55 @@ function RendererContent() {
   const [remoteAudioUrl, setRemoteAudioUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (songId) {
-      fetch(`/api/songs/${songId}`)
-        .then(res => res.json())
-        .then(async song => {
-          // 1. TIMING DATA (JSON)
-          if (song.timingData) {
-            setRemoteJsonData(song.timingData);
-            setJsonName(`Načteno z DB: ${song.title}.json`);
-          } else if (song.jsonUrl) {
-            // Pokud je v DB jen link, stáhneme soubor
-            try {
-              const res = await fetch(song.jsonUrl);
-              const data = await res.json();
-              setRemoteJsonData(data);
-              setJsonName(`Staženo z cloudu: ${song.title}.json`);
-            } catch (e) {
-              console.error("Chyba při stahování JSON z URL:", e);
-            }
-          }
-
-          // 2. AUDIO DATA (MP3)
-          if (song.audioUrl) {
-            setRemoteAudioUrl(song.audioUrl);
-            setAudioName(`Načteno z cloudu: ${song.title}.mp3`);
-          }
-        })
-        .catch(err => console.error("Chyba při načítání songu pro renderer:", err));
+    if (!songId) {
+      console.log("Renderer: songId not yet present in searchParams.");
+      return;
     }
+    
+    console.log("Renderer: Starting auto-load for songId:", songId);
+    setJsonName("⏳ Načítám časování...");
+    setAudioName("⏳ Načítám audio...");
+
+    fetch(`/api/songs/${songId}`)
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return res.json();
+      })
+      .then(async song => {
+        console.log("Renderer: Song data fetched successfully:", song.title);
+        
+        // 1. TIMING DATA (JSON)
+        if (song.timingData) {
+          setRemoteJsonData(song.timingData);
+          setJsonName(`✅ DB: ${song.title}.json`);
+        } else if (song.jsonUrl) {
+          // Pokud je v DB jen link, stáhneme soubor
+          try {
+            const res = await fetch(song.jsonUrl);
+            const data = await res.json();
+            setRemoteJsonData(data);
+            setJsonName(`✅ CLOUD: ${song.title}.json`);
+          } catch (e) {
+            console.error("Renderer Error (JSON download):", e);
+            setJsonName("❌ Chyba při stahování JSONu");
+          }
+        } else {
+          setJsonName("❓ Žádné časování v databázi");
+        }
+
+        // 2. AUDIO DATA (MP3)
+        if (song.audioUrl) {
+          setRemoteAudioUrl(song.audioUrl);
+          setAudioName(`✅ CLOUD: ${song.title}.mp3`);
+        } else {
+          setAudioName("❓ Žádné audio v databázi");
+        }
+      })
+      .catch(err => {
+        console.error("Renderer Error (Fetch song):", err);
+        setJsonName("❌ Selhalo spojení s DB");
+        setAudioName("❌ Selhalo spojení s DB");
+      });
   }, [songId]);
 
   const handleJson = (e: React.ChangeEvent<HTMLInputElement>) => {
