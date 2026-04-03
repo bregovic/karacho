@@ -2,11 +2,11 @@ import { db as prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 
-export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PUT(req: Request, context: any) {
   const session = await auth();
   if (!session) return new NextResponse("Unauthorized", { status: 401 });
 
-  const { id } = await params;
+  const { id } = await context.params;
 
   try {
     const body = await req.json();
@@ -27,8 +27,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   }
 }
 
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export async function GET(req: Request, context: any) {
+  const { id } = await context.params;
   const song = await prisma.song.findUnique({
     where: { id },
   });
