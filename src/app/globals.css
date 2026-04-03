@@ -122,8 +122,8 @@ h1, h2, h3 {
 }
 
 .hero-logo-img {
-  width: 320px;
-  height: 320px;
+  width: clamp(240px, 40vw, 420px);
+  height: clamp(240px, 40vw, 420px);
   object-fit: contain;
   animation: 
     heroFloat 5s ease-in-out infinite,
