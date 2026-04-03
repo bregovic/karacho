@@ -332,22 +332,18 @@ export default function DesignerClient({ song }: { song: any }) {
   };
 
   const [saving, setSaving] = useState(false);
+  const [isTimelineOpen, setIsTimelineOpen] = useState(false);
 
   const handleSave = async () => {
     if (!song?.id) return;
     setSaving(true);
     try {
       const data = generateBlocksJSON();
-      const res = await fetch(`/api/songs/${song.id}`, {
+      await fetch(`/api/songs/${song.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ timingData: data, lyrics: rawText }),
       });
-      if (res.ok) {
-        alert("✓ Karaoke data byla úspěšně uložena do knihovny!");
-      } else {
-        alert("Chyba při ukládání do DB.");
-      }
     } catch (e) {
       console.error(e);
       alert("Chyba sítě.");
@@ -356,10 +352,41 @@ export default function DesignerClient({ song }: { song: any }) {
     }
   };
 
+  if (view === 'setup') {
+    return (
+      <div style={{ padding: '2rem', minHeight: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column' }}>
+        <div className="glass-panel" style={{ padding: '4rem 2rem', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2rem', maxWidth: '800px', margin: '0 auto', width: '100%' }}>
+          <div style={{ textAlign: 'center', width: '100%' }}>
+            <h2 style={{ color: 'var(--text-primary)', marginBottom: '1rem' }}>Studio: <span style={{ color: 'var(--color-gold)' }}>{song?.title || 'Nepřiřazeno'}</span></h2>
+            <textarea 
+              value={rawText}
+              onChange={(e) => setRawText(e.target.value)}
+              placeholder="Vložte sem text písně..."
+              style={{
+                width: '100%', height: '250px', background: 'rgba(0,0,0,0.3)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '1rem', borderRadius: '8px', fontFamily: 'monospace', fontSize: '14px', lineHeight: '1.5'
+              }}
+            />
+          </div>
+          <label className="btn-secondary" style={{ width: '100%', textAlign: 'left', position: 'relative', overflow: 'hidden', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            <span style={{ fontSize: '20px' }}>🎵</span>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span>{audioName}</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Změnit audio...</span>
+            </div>
+            <input type="file" accept="audio/*" onChange={handleAudioLoad} style={{ position: 'absolute', opacity: 0, inset: 0, cursor: 'pointer' }} />
+          </label>
+          <button onClick={handleStart} disabled={rawText.trim() === ''} className={rawText.trim() === '' ? 'btn-secondary' : 'btn-primary'} style={{ width: '100%' }}>
+            ▶ Vstoupit do Studia
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ position: 'fixed', inset: 0, background: '#0a0a14', zIndex: 9999, overflow: 'hidden', display: 'flex' }} onClick={togglePlay}>
+    <div style={{ position: 'fixed', inset: 0, background: '#0a0a14', zIndex: 9999, overflow: 'hidden', display: 'flex' }} onClick={() => { if(!isPlaying) togglePlay(); }}>
       
-      {/* LEVÁ ČÁST - STAGE a TIMELINE */}
+      {/* LEVÁ ČÁST - STAGE */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
           <header style={{ position: 'absolute', top: '1rem', left: '1rem', zIndex: 10, display: 'flex', gap: '1rem' }}>
             <button className="btn-secondary" style={{ padding: '8px 16px', fontSize: '13px' }} onClick={(e) => { e.stopPropagation(); setView('setup'); audioRef.current?.pause(); }}>
@@ -368,27 +395,44 @@ export default function DesignerClient({ song }: { song: any }) {
           </header>
 
           <div style={{ flex: 1, position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6vw', gap: '2.5vh', pointerEvents: 'none' }}>
-            <div ref={prevLineEl} style={{ fontSize: 'clamp(13px,2.5vw,20px)', fontWeight: 600, color: 'rgba(255,255,255,0.25)', textAlign: 'center', minHeight: '1.3em' }} />
-            <div ref={curLineEl} style={{ fontSize: 'clamp(24px, 5.5vw, 70px)', fontWeight: 900, textAlign: 'center', minHeight: '1.2em', lineHeight: 1.2 }} />
-            <div ref={nextLineEl} style={{ fontSize: 'clamp(13px,2.5vw,20px)', fontWeight: 600, color: 'rgba(255,255,255,0.25)', textAlign: 'center', minHeight: '1.3em' }} />
+            <div ref={prevLineEl} className="ln-ctx" />
+            <div ref={curLineEl} id="cur-line" />
+            <div ref={nextLineEl} className="ln-ctx" />
           </div>
 
-          {/* Legenda - DECENTNÍ - Dole */}
-          <div style={{ textAlign: 'center', width: '100%', pointerEvents: 'none' }}>
-             <div style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)', padding: '6px 16px', borderRadius: '20px', fontSize: '12px', color: 'rgba(255,255,255,0.4)', display: 'flex', gap: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <style dangerouslySetInnerHTML={{ __html: `
+             @media (max-width: 768px) { .desktop-legend { display: none !important; } .mobile-main-controls { display: flex !important; } }
+             .mobile-main-controls { display: none; }
+          `}} />
+          
+          <div className="desktop-legend" style={{ textAlign: 'center', width: '100%', pointerEvents: 'none', marginBottom: '80px' }}>
+             <div style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)', padding: '6px 16px', borderRadius: '20px', fontSize: '11px', color: 'rgba(255,255,255,0.4)', display: 'inline-flex', gap: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
                 <span><b>W / Šipka →</b> Slovo</span>
-                <span><b>Enter</b> Další blok</span>
+                <span><b>Enter</b> Blok</span>
                 <span><b>Space</b> Pauza</span>
-                <span><b>Backspace</b> Zpět o krok</span>
-                <span><b>Esc</b> Zavřít</span>
+                <span><b>Backspace</b> Zpět</span>
              </div>
+          </div>
+
+          {/* MOBILNÍ OVLÁDÁNÍ */}
+          <div className="mobile-main-controls" style={{ position: 'absolute', bottom: '120px', left: 0, right: 0, justifyContent: 'center', alignItems: 'center', gap: '25px', zIndex: 100, pointerEvents: 'auto' }}>
+              <button onClick={(e) => { e.stopPropagation(); handleKeyDown({ code: 'Enter', preventDefault: () => {} } as any); }} style={{ width: '65px', height: '65px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '2px solid rgba(255,255,255,0.2)', color: 'white', fontSize: '24px', backdropFilter: 'blur(10px)' }}>📏</button>
+              <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                 {!isPlaying && (
+                    <div style={{ position: 'absolute', bottom: '90px', display: 'flex', background: 'rgba(0,0,0,0.8)', padding: '10px', borderRadius: '15px', gap: '15px', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                       <button onClick={(e) => { e.stopPropagation(); handleKeyDown({ code: 'Backspace', preventDefault: () => {} } as any); }} style={{ background: 'none', border: 'none', fontSize: '20px' }}>🔙</button>
+                       <button onClick={(e) => { e.stopPropagation(); handleKeyDown({ key: '[', preventDefault: () => {} } as any); }} style={{ background: 'none', border: 'none', fontSize: '20px' }}>◀</button>
+                       <button onClick={(e) => { e.stopPropagation(); handleKeyDown({ key: ']', preventDefault: () => {} } as any); }} style={{ background: 'none', border: 'none', fontSize: '20px' }}>▶</button>
+                    </div>
+                 )}
+                 <button onClick={(e) => { e.stopPropagation(); togglePlay(); }} style={{ width: '85px', height: '85px', borderRadius: '50%', background: isPlaying ? 'var(--color-gold)' : 'rgba(255,255,255,0.15)', border: 'none', fontSize: '32px', boxShadow: isPlaying ? '0 0 30px rgba(255,215,0,0.3)' : 'none' }}>{isPlaying ? '⏸' : '▶'}</button>
+              </div>
+              <button onClick={(e) => { e.stopPropagation(); handleKeyDown({ code: 'KeyW', preventDefault: () => {} } as any); }} style={{ width: '65px', height: '65px', borderRadius: '50%', background: 'rgba(0,255,180,0.15)', border: '2px solid rgba(0,255,180,0.3)', color: 'white', fontSize: '24px', backdropFilter: 'blur(10px)' }}>✨</button>
           </div>
 
           <div style={{ height: '70px', background: 'rgba(0,0,0,0.9)', borderTop: '1px solid rgba(255,255,255,0.05)', zIndex: 10, display: 'flex', flexDirection: 'column', padding: '0 2rem' }} onClick={e => e.stopPropagation()}>
              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                 <button style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', cursor: 'pointer' }} onClick={togglePlay}>
-                   {isPlaying ? '⏸' : '▶'}
-                 </button>
+                 <button style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', cursor: 'pointer' }} onClick={togglePlay}>{isPlaying ? '⏸' : '▶'}</button>
                  <span ref={timeEl} style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace', minWidth: '90px' }}>0:00 / 0:00</span>
                  <div onClick={(e) => { if (audioRef.current?.duration) { const r = e.currentTarget.getBoundingClientRect(); audioRef.current.currentTime = (e.clientX - r.left) / r.width * audioRef.current.duration; } }} style={{ flex: 1, height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', cursor: 'pointer', position: 'relative' }}>
                     <div ref={pbarEl} style={{ height: '100%', background: 'var(--color-gold)', width: '0%', borderRadius: '4px' }} />
@@ -397,16 +441,15 @@ export default function DesignerClient({ song }: { song: any }) {
           </div>
       </div>
 
-      {/* PRAVÝ SIDEBAR */}
-      <div style={{ width: '340px', background: '#0e0e16', borderLeft: '1px solid rgba(255,255,255,0.05)', zIndex: 10, display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+      <div style={{ width: '340px', background: '#0e0e16', borderLeft: '1px solid rgba(255,255,255,0.05)', zIndex: 1000, display: 'flex', flexDirection: 'column', position: 'absolute', right: 0, top: 0, bottom: 0, transform: isTimelineOpen ? 'translateX(0)' : 'translateX(340px)', transition: 'transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)', boxShadow: isTimelineOpen ? '-10px 0 30px rgba(0,0,0,0.5)' : 'none' }} onClick={e => e.stopPropagation()}>
+         <div onClick={() => setIsTimelineOpen(!isTimelineOpen)} style={{ position: 'absolute', left: '-40px', top: '50%', transform: 'translateY(-50%)', width: '40px', height: '60px', background: '#0e0e16', border: '1px solid rgba(255,255,255,0.05)', borderRight: 'none', borderRadius: '10px 0 0 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '18px', color: isTimelineOpen ? 'var(--color-gold)' : 'white' }}>{isTimelineOpen ? '▶' : '◀'}</div>
          <div style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', margin: 0, fontWeight: 600 }}>Timeline</h3>
             <div style={{ display: 'flex', gap: '6px' }}>
-                <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px' }} onClick={() => { dlSRT(JSON.stringify(generateBlocksJSON(), null, 2), "karaoke-data.json"); }}>📥 EXPORT</button>
-                <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px', background: 'var(--color-teal)' }} onClick={handleSave} disabled={saving}>{saving ? 'Ukládání...' : '💾 ULOŽIT'}</button>
+                <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px' }} onClick={() => { dlSRT(JSON.stringify(generateBlocksJSON(), null, 2), "karaoke-data.json"); }}>📥</button>
+                <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px', background: 'var(--color-teal)' }} onClick={handleSave} disabled={saving}>{saving ? '...' : '💾'}</button>
             </div>
          </div>
-
          <div style={{ flex: 1, overflowY: 'auto', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
             {eventsRef.current.map((ev, idx) => {
                const isLine = ev.type === 'line';
