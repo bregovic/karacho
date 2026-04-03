@@ -91,10 +91,14 @@ export default function SongEditModal({ song, onClose }: SongEditModalProps) {
           <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
              <h4 style={{ margin: '0 0 1rem 0', color: 'var(--color-teal)', fontSize: '14px' }}>Připojené soubory (Evidence)</h4>
              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
-                <li style={{ display: 'flex', justifyContent: 'space-between', opacity: song.audioUrl ? 1 : 0.4 }}>
-                  <span>🎵 Audio Stopa (R2)</span>
-                  {song.audioUrl ? <a href={song.audioUrl} target="_blank" style={{ color: 'var(--color-gold)' }}>Otevřít soubor ↗</a> : <span>Chybí</span>}
-                </li>
+                 <li style={{ display: 'flex', justifyContent: 'space-between', opacity: song.audioUrl ? 1 : 0.4 }}>
+                   <span>🎵 Audio Stopa (Originál)</span>
+                   {song.audioUrl ? <a href={song.audioUrl} target="_blank" style={{ color: 'var(--color-gold)' }}>Otevřít soubor ↗</a> : <span>Chybí</span>}
+                 </li>
+                 <li style={{ display: 'flex', justifyContent: 'space-between', opacity: song.instrumentalUrl ? 1 : 0.4 }}>
+                   <span>🎻 Instrumentál (Karaoke)</span>
+                   {song.instrumentalUrl ? <a href={song.instrumentalUrl} target="_blank" style={{ color: 'var(--color-gold)' }}>Otevřít soubor ↗</a> : <span>Chybí</span>}
+                 </li>
                 <li style={{ display: 'flex', justifyContent: 'space-between', opacity: song.jsonUrl ? 1 : 0.4 }}>
                   <span>⚙️ Časování (LRC/Studio)</span>
                   {song.jsonUrl ? <a href={song.jsonUrl} target="_blank" style={{ color: 'var(--color-gold)' }}>Otevřít soubor ↗</a> : <span>Chybí</span>}

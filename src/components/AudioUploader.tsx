@@ -1,8 +1,8 @@
 'use client';
 import { useState } from 'react';
-import { updateSongAudio } from '@/app/admin/actions';
+import { updateSongAudio, updateSongInstrumental } from '@/app/admin/actions';
 
-export default function AudioUploader({ songId }: { songId: string }) {
+export default function AudioUploader({ songId, type = 'audio' }: { songId: string, type?: 'audio' | 'instrumental' }) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
 
@@ -14,7 +14,6 @@ export default function AudioUploader({ songId }: { songId: string }) {
     setProgress(0);
 
     try {
-      // Odesíláme soubor jako FormData přímo na naše API (tím obcházíme CORS)
       const formData = new FormData();
       formData.append('file', file);
 
@@ -31,11 +30,15 @@ export default function AudioUploader({ songId }: { songId: string }) {
       xhr.onload = async () => {
         if (xhr.status >= 200 && xhr.status < 300) {
           const data = JSON.parse(xhr.responseText);
-          // Uložení finálního linku z R2 do databáze (zavolá Server Action)
-          await updateSongAudio(songId, data.finalUrl);
+          // Uložení finálního linku do správného pole v DB
+          if (type === 'instrumental') {
+            await updateSongInstrumental(songId, data.finalUrl);
+          } else {
+            await updateSongAudio(songId, data.finalUrl);
+          }
           setUploading(false);
           setProgress(100);
-          alert('Audio úspěšně uloženo! 🎵');
+          alert(type === 'instrumental' ? 'Instrumentál uložen! 🎻' : 'Audio úspěšně uloženo! 🎵');
         } else {
           try {
             const errData = JSON.parse(xhr.responseText);
@@ -48,7 +51,7 @@ export default function AudioUploader({ songId }: { songId: string }) {
       };
 
       xhr.onerror = () => {
-        alert('Nahrávání selhalo (chyba sítě nebo spojení se serverem).');
+        alert('Nahrávání selhalo (chyba sítě).');
         setUploading(false);
       };
 
@@ -61,30 +64,34 @@ export default function AudioUploader({ songId }: { songId: string }) {
     }
   };
 
+  const currentIcon = type === 'instrumental' ? '🎻' : '🎵';
+  const labelText = type === 'instrumental' ? 'Nahrát Instrumentál' : 'Nahrát Originál MP3';
+
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
       <label style={{ 
         cursor: uploading ? 'not-allowed' : 'pointer', 
-        background: 'rgba(255,255,255,0.05)', 
+        background: type === 'instrumental' ? 'rgba(0,229,255,0.05)' : 'rgba(255,255,255,0.05)', 
         padding: '8px 16px', 
         borderRadius: '8px', 
-        border: '1px solid rgba(255,255,255,0.1)', 
+        border: `1px solid ${type === 'instrumental' ? 'rgba(0,229,255,0.2)' : 'rgba(255,255,255,0.1)'}`, 
         fontSize: '13px', 
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'center',
         gap: '8px', 
+        color: type === 'instrumental' ? 'var(--color-teal)' : 'white',
         opacity: uploading ? 0.7 : 1,
         transition: 'all 0.2s ease',
         boxShadow: uploading ? 'none' : '0 2px 4px rgba(0,0,0,0.2)'
       }}>
         {uploading ? (
            <span style={{ color: 'var(--color-gold)', fontWeight: 'bold' }}>
-             Nahrávám: {progress}%
+             {progress}%
            </span>
         ) : (
            <>
-             <span style={{ fontSize: '18px' }}>🎵</span> Nahrát MP3 do Cloudu
+             <span style={{ fontSize: '18px' }}>{currentIcon}</span> {labelText}
              <input type="file" accept="audio/*" onChange={handleUpload} style={{ display: 'none' }} disabled={uploading} />
            </>
         )}

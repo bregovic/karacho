@@ -68,6 +68,7 @@ model Song {
   updatedAt     DateTime  @updatedAt
   artist        String?
   audioUrl      String?
+  instrumentalUrl String?
   backgroundUrl String?
   jsonUrl       String?
   videoUrl      String?
