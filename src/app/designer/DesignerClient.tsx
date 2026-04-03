@@ -151,54 +151,46 @@ export default function DesignerClient({ song }: { song: any }) {
       return;
     }
 
-    // --- LOGIKA KLÍČOVÁNÍ SLOV (D = Mark Start, F = Next Word) ---
-    if (mode === 'words') {
-       if (e.code === 'KeyD') { // ZAPISOVAT START SLOVA
-          e.preventDefault();
-          if (curLineRef.current < 0) curLineRef.current = 0;
-          const nextW = curWordRef.current + 1;
-          const lineLen = linesRef.current[curLineRef.current]?.length || 0;
-
-          if (nextW < lineLen) {
-             if (nextW === 0) {
-                eventsRef.current.push({ type: 'line', time: t, lineIdx: curLineRef.current });
-             }
-             eventsRef.current.push({ type: 'word', time: t, lineIdx: curLineRef.current, wordIdx: nextW });
-             restoreState();
-             forceUpdate();
-          } else {
-             // Konec řádku, skočíme na další
-             const nextL = curLineRef.current + 1;
-             if (nextL < linesRef.current.length) {
-                curLineRef.current = nextL;
-                curWordRef.current = -1;
-                eventsRef.current.push({ type: 'line', time: t, lineIdx: nextL });
-                restoreState();
-                forceUpdate();
-             }
-          }
-       }
-       if (e.code === 'KeyF') { // JEN POSUNOUT KURZOR (Next)
-          e.preventDefault();
-          if (curLineRef.current >= 0) {
-             const nextW = curWordRef.current + 1;
-             if (nextW < linesRef.current[curLineRef.current]?.length) {
-                curWordRef.current = nextW;
-                restoreState();
-                forceUpdate();
-             }
-          }
-       }
-    }
-
     if (e.code === 'Enter') {
       e.preventDefault();
       const nextL = curLineRef.current + 1;
       if (nextL < linesRef.current.length) {
-        eventsRef.current = eventsRef.current.filter(x => !(x.type === 'line' && x.lineIdx === nextL));
+        // Pokud do této linky ještě nebylo vstoupeno, označíme její začátek
         eventsRef.current.push({ type: 'line', time: t, lineIdx: nextL });
+        curLineRef.current = nextL;
+        curWordRef.current = -1;
         restoreState();
         forceUpdate();
+      }
+      return;
+    }
+
+    if (e.code === 'KeyW' || e.code === 'ArrowRight') {
+      e.preventDefault();
+      if (curLineRef.current < 0) {
+        // Pokud jsme ještě nezačali, první W označí začátek první linky
+        curLineRef.current = 0;
+        eventsRef.current.push({ type: 'line', time: t, lineIdx: 0 });
+      }
+
+      const nextW = curWordRef.current + 1;
+      const lineLen = linesRef.current[curLineRef.current]?.length || 0;
+
+      if (nextW < lineLen) {
+        eventsRef.current.push({ type: 'word', time: t, lineIdx: curLineRef.current, wordIdx: nextW });
+        restoreState();
+        forceUpdate();
+      } else {
+        // PO POSLEDNÍM SLOVĚ SKOČÍME NA DALŠÍ ŘÁDEK (Enter chování)
+        const nextL = curLineRef.current + 1;
+        if (nextL < linesRef.current.length) {
+          curLineRef.current = nextL;
+          curWordRef.current = 0;
+          eventsRef.current.push({ type: 'line', time: t, lineIdx: nextL });
+          eventsRef.current.push({ type: 'word', time: t, lineIdx: nextL, wordIdx: 0 });
+          restoreState();
+          forceUpdate();
+        }
       }
       return;
     }
@@ -282,10 +274,6 @@ export default function DesignerClient({ song }: { song: any }) {
               }}
             />
           </div>
-          <div style={{ display: 'flex', gap: '1rem', width: '100%' }}>
-            <button onClick={() => setMode('lines')} className={mode === 'lines' ? 'btn-primary' : 'btn-secondary'} style={{ flex: 1 }}>Klíčování - Celé Řádky</button>
-            <button onClick={() => setMode('words')} className={mode === 'words' ? 'btn-primary' : 'btn-secondary'} style={{ flex: 1 }}>Klíčování - Jednotlivá Slova</button>
-          </div>
           <label className="btn-secondary" style={{ width: '100%', textAlign: 'left', position: 'relative', overflow: 'hidden', display: 'flex', gap: '1rem', alignItems: 'center' }}>
             <span style={{ fontSize: '20px' }}>🎵</span>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -294,7 +282,7 @@ export default function DesignerClient({ song }: { song: any }) {
             </div>
             <input type="file" accept="audio/*" onChange={handleAudioLoad} style={{ position: 'absolute', opacity: 0, inset: 0, cursor: 'pointer' }} />
           </label>
-          <button onClick={handleStart} disabled={rawText.trim() === ''} className="btn-primary" style={{ width: '100%' }}>
+          <button onClick={handleStart} disabled={rawText.trim() === ''} className={rawText.trim() === '' ? 'btn-secondary' : 'btn-primary'} style={{ width: '100%' }}>
             ▶ Vstoupit do Studia
           </button>
         </div>
@@ -361,10 +349,10 @@ export default function DesignerClient({ song }: { song: any }) {
           </div>
 
           {/* Legenda - DECENTNÍ - Dole */}
-          <div style={{ position: 'absolute', bottom: '100px', width: '100%', display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
+          <div style={{ textAlign: 'center', width: '100%', pointerEvents: 'none' }}>
              <div style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)', padding: '6px 16px', borderRadius: '20px', fontSize: '12px', color: 'rgba(255,255,255,0.4)', display: 'flex', gap: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <span><b>D</b> Označit</span>
-                <span><b>F</b> Další slovo</span>
+                <span><b>W / Šipka →</b> Slovo</span>
+                <span><b>Enter</b> Další blok</span>
                 <span><b>Space</b> Pauza</span>
                 <span><b>Backspace</b> Zpět o krok</span>
                 <span><b>Esc</b> Zavřít</span>
