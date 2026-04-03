@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { r2, BUCKET_NAME } from "@/lib/r2";
+import { r2, BUCKET_NAME, PUBLIC_URL } from "@/lib/r2";
 import { auth } from '@/auth';
 
 export async function POST(req: NextRequest) {
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       ContentType: file.type || 'audio/mpeg',
     }));
 
-    const finalUrl = `${process.env.R2_PUBLIC_URL}/${filename}`;
+    const finalUrl = `${PUBLIC_URL}/${filename}`;
 
     return NextResponse.json({ 
       success: true,
