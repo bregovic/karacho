@@ -18,6 +18,21 @@ export default function DesignerClient({ song }: { song: any }) {
 
   const [rawText, setRawText] = useState((song?.lyrics || '') as string);
 
+  // --- AUTO-LOAD AUDIO Z CLOUDU ---
+  useEffect(() => {
+    if (song?.audioUrl) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      audioRef.current = new Audio(song.audioUrl);
+      audioRef.current.preload = 'auto';
+      setAudioName(`Cloud: ${song.title}.mp3`);
+      audioRef.current.onplay = () => { setIsPlaying(true); forceUpdate(); };
+      audioRef.current.onpause = () => { setIsPlaying(false); forceUpdate(); };
+      audioRef.current.onended = () => { setIsPlaying(false); forceUpdate(); };
+    }
+  }, [song?.audioUrl]);
+
   const linesRef = useRef<string[][]>([]);
   const eventsRef = useRef<TimingEvent[]>([]);
   
@@ -35,7 +50,10 @@ export default function DesignerClient({ song }: { song: any }) {
   useEffect(() => {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      if (audioRef.current) URL.revokeObjectURL(audioRef.current.src);
+      // Pokud máme v paměti local Blob URL, uvolníme ji
+      if (audioRef.current && audioRef.current.src.startsWith('blob:')) {
+        URL.revokeObjectURL(audioRef.current.src);
+      }
     };
   }, []);
 
@@ -44,18 +62,13 @@ export default function DesignerClient({ song }: { song: any }) {
     if (!f) return;
     if (audioRef.current) {
       audioRef.current.pause();
-      URL.revokeObjectURL(audioRef.current.src);
+      if (audioRef.current.src.startsWith('blob:')) URL.revokeObjectURL(audioRef.current.src);
     }
     audioRef.current = new Audio(URL.createObjectURL(f));
     audioRef.current.preload = 'auto';
     setAudioName(f.name);
     audioRef.current.onplay = () => { setIsPlaying(true); forceUpdate(); };
     audioRef.current.onpause = () => { setIsPlaying(false); forceUpdate(); };
-    audioRef.current.onended = () => { 
-      setIsPlaying(false); 
-      forceUpdate(); 
-      // OPRAVA BUGU: Nesmíme vracet view na Setup, uživatel by přišel o práci
-    };
   };
 
   const handleStart = () => {
@@ -91,9 +104,15 @@ export default function DesignerClient({ song }: { song: any }) {
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
+    // Esc pro návrat domů/zpět
+    if (e.code === 'Escape') {
+      window.location.href = '/admin';
+      return;
+    }
+
     if (view !== 'editor' || !audioRef.current) return;
     
-    // Ignorujeme klávesy pokud uživatel přepisuje uvnitř inputu (při pauze)
+    // Ignorujeme klávesy pokud uživatel přepisuje uvnitř inputu
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
        return;
     }
@@ -120,6 +139,46 @@ export default function DesignerClient({ song }: { song: any }) {
       return;
     }
 
+    // --- LOGIKA KLÍČOVÁNÍ SLOV (D = Mark Start, F = Next Word) ---
+    if (mode === 'words') {
+       if (e.code === 'KeyD') { // ZAPISOVAT START SLOVA
+          e.preventDefault();
+          if (curLineRef.current < 0) curLineRef.current = 0;
+          const nextW = curWordRef.current + 1;
+          const lineLen = linesRef.current[curLineRef.current]?.length || 0;
+
+          if (nextW < lineLen) {
+             if (nextW === 0) {
+                eventsRef.current.push({ type: 'line', time: t, lineIdx: curLineRef.current });
+             }
+             eventsRef.current.push({ type: 'word', time: t, lineIdx: curLineRef.current, wordIdx: nextW });
+             restoreState();
+             forceUpdate();
+          } else {
+             // Konec řádku, skočíme na další
+             const nextL = curLineRef.current + 1;
+             if (nextL < linesRef.current.length) {
+                curLineRef.current = nextL;
+                curWordRef.current = -1;
+                eventsRef.current.push({ type: 'line', time: t, lineIdx: nextL });
+                restoreState();
+                forceUpdate();
+             }
+          }
+       }
+       if (e.code === 'KeyF') { // JEN POSUNOUT KURZOR (Next)
+          e.preventDefault();
+          if (curLineRef.current >= 0) {
+             const nextW = curWordRef.current + 1;
+             if (nextW < linesRef.current[curLineRef.current]?.length) {
+                curWordRef.current = nextW;
+                restoreState();
+                forceUpdate();
+             }
+          }
+       }
+    }
+
     if (e.code === 'Enter') {
       e.preventDefault();
       const nextL = curLineRef.current + 1;
@@ -132,27 +191,6 @@ export default function DesignerClient({ song }: { song: any }) {
       return;
     }
 
-    if (mode === 'words' && (e.code === 'KeyW' || e.code === 'ArrowRight')) {
-      e.preventDefault();
-      if (curLineRef.current < 0) curLineRef.current = 0; 
-      const lineLen = linesRef.current[curLineRef.current]?.length || 0;
-      const nextW = curWordRef.current + 1;
-
-      if (nextW < lineLen) {
-        if (nextW === 0) {
-           const hasLineEvent = eventsRef.current.some(x => x.type === 'line' && x.lineIdx === curLineRef.current);
-           if (!hasLineEvent) {
-             eventsRef.current.push({ type: 'line', time: t, lineIdx: curLineRef.current });
-           }
-        }
-        
-        eventsRef.current.push({ type: 'word', time: t, lineIdx: curLineRef.current, wordIdx: nextW });
-        restoreState();
-        forceUpdate();
-      }
-      return;
-    }
-    
     if (e.key === '[' || e.key === ']') {
        e.preventDefault();
        audioRef.current.pause();
@@ -169,8 +207,8 @@ export default function DesignerClient({ song }: { song: any }) {
   };
 
   useEffect(() => {
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   });
 
   const tick = () => {
@@ -311,8 +349,8 @@ export default function DesignerClient({ song }: { song: any }) {
             <button className="btn-secondary" style={{ padding: '8px 16px', fontSize: '14px', background: 'rgba(255,255,255,0.1)' }} onClick={(e) => { e.stopPropagation(); setView('setup'); audioRef.current?.pause(); }}>
               ← Zpět
             </button>
-            <div style={{ padding: '8px 16px', background: 'rgba(255,0,0,0.2)', color: 'white', borderRadius: '8px', fontWeight: 600 }}>
-              {mode === 'words' ? '📝 SLOVA (W/Šipka)' : '📏 ŘÁDKY (Enter)'} | 🔙 Backspace
+            <div style={{ padding: '8px 16px', background: 'rgba(255,180,0,0.2)', color: 'white', borderRadius: '8px', fontWeight: 600, border: '1px solid rgba(255,180,0,0.3)' }}>
+              {mode === 'words' ? '📝 SLOVA: [D] Začátek | [F] Další' : '📏 ŘÁDKY: [D] Začátek | [Enter] Další'} | [Esc] Zpět
             </div>
           </header>
 

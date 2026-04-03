@@ -3,6 +3,7 @@ import { Outfit } from "next/font/google";
 import "./globals.css";
 import { auth, signOut } from "@/auth";
 import AuthProvider from "@/components/AuthProvider";
+import GlobalEscape from "@/components/GlobalEscape";
 
 const font = Outfit({
   variable: "--font-outfit",
@@ -29,7 +30,12 @@ export default async function RootLayout({
     <html lang="cs">
       <body className={font.className} style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <AuthProvider>
-          <nav style={{ padding: '0.75rem 2rem', background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', position: 'sticky', top: 0, zIndex: 1000 }}>
+          <GlobalEscape />
+          <nav style={{ padding: '0.75rem 2rem', background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 1000 }}>
+            <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none' }}>
+              <img src="/icon.png" alt="Karacho Logo" style={{ width: '32px', height: '32px', borderRadius: '6px' }} />
+              <span style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-gold)', letterSpacing: '-0.02em', textDecoration: 'none' }}>KARACHO</span>
+            </a>
             <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
               
               {session?.user ? (
