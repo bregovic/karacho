@@ -20,11 +20,10 @@ export default function AudioUploader({ songId }: { songId: string }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      // Přímý upload do R2 přes PUT
+      // Přímý upload do R2 přes PUT bez specifických hlaviček (pro maximalizaci CORS shody)
       const uploadRes = await fetch(data.uploadUrl, {
         method: 'PUT',
         body: file,
-        headers: { 'Content-Type': file.type || 'audio/mpeg' }
       });
 
       if (!uploadRes.ok) throw new Error('Nepodařilo se odeslat data do R2.');
