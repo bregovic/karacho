@@ -7,8 +7,7 @@ export const r2 = new S3Client({
     accessKeyId: process.env.R2_ACCESS_KEY_ID!,
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
   },
-  forcePathStyle: true,
-  // Zamezení odesílání checksumů, které R2 u přesprezentovaných/signed URL u PUT ne vždy podporuje
+  forcePathStyle: false, // Pro CORS u R2 je lepší používat bucket v subdoméně
   requestChecksumCalculation: "WHEN_REQUIRED",
   responseChecksumValidation: "WHEN_REQUIRED",
 });
