@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Outfit } from "next/font/google";
 import "./globals.css";
 import { auth, signIn, signOut } from "@/auth";
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
+const font = Outfit({
+  variable: "--font-outfit",
+  subsets: ["latin", "latin-ext"],
 });
 
 export const metadata: Metadata = {
   title: "Karacho Karaoke Platform",
   description: "Modern, playful karaoke platform for web, TV, and mobile.",
+  icons: { icon: "/logo.png" }
 };
 
 export default async function RootLayout({
@@ -22,18 +23,15 @@ export default async function RootLayout({
 
   return (
     <html lang="cs">
-      <body className={inter.className} style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <body className={font.className} style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <nav style={{ padding: '1rem 2rem', background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 1000 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '1rem', textDecoration: 'none' }}>
-              <img src="/logo.png" alt="Karacho Logo" style={{ height: '36px', objectFit: 'contain' }} />
-              <span style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Karacho<span style={{ color: 'var(--color-teal)' }}>.</span></span>
+            <a href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+              <img src="/logo.png" alt="Karacho Logo" style={{ height: '48px', objectFit: 'contain' }} />
             </a>
           </div>
           <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-            <a href="/admin" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: 500, fontSize: '15px' }}>Katalog písní</a>
-            <a href="/designer" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: 500, fontSize: '15px' }}>Studio (Klíčování)</a>
-            <a href="/renderer" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: 500, fontSize: '15px' }}>Renderovna videa</a>
+            <a href="/admin" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: 500, fontSize: '15px' }}>Katalog & Administrace</a>
             <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.1)', margin: '0 0.5rem' }}></div>
             
             {session?.user ? (
