@@ -128,8 +128,8 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 400px), 1fr))', gap: '1.5rem' }}>
           {filteredSongs.map((song) => {
             const hasAudio = !!song.audioUrl;
+            const canPlay = !!song.videoUrl || !!song.timingData || !!song.jsonUrl;
             const hasJson = !!song.jsonUrl || !!song.timingData;
-            const hasVideo = !!song.videoUrl || !!song.timingData;
 
             return (
               <div key={song.id} className="glass-panel song-card-admin" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.2rem', position: 'relative' }}>
@@ -193,8 +193,8 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
 
                     {/* Render Flow */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: hasJson ? 1 : 0.4 }}>
-                      <span style={{ fontSize: '13px', color: hasVideo ? 'var(--color-teal)' : '#666' }}>{t('step_render')}</span>
-                      {hasVideo ? (
+                      <span style={{ fontSize: '13px', color: song.videoUrl ? 'var(--color-teal)' : '#666' }}>{t('step_render')}</span>
+                      {song.videoUrl ? (
                          <span style={{ color: '#4ade80', fontSize: '13px' }}>✓ Publikováno</span>
                       ) : (
                          <Link href={`/renderer?songId=${song.id}`}>
@@ -206,13 +206,13 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
 
                 {/* PLAY BUTTON JEN ADMINI KONTROLA */}
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  {hasVideo && (
+                  {canPlay && (
                     <Link href={`/player/${song.id}`} title="Zpívat" style={{ flex: 1 }}>
                       <button className="btn-primary" style={{ width: '100%', padding: '10px' }}>🎤 Zpívat</button>
                     </Link>
                   )}
                   {hasJson && (
-                    <Link href={`/designer?songId=${song.id}`} style={{ flex: hasVideo ? 0 : 1 }}>
+                    <Link href={`/designer?songId=${song.id}`} style={{ flex: canPlay ? 0 : 1 }}>
                        <button className="btn-secondary" style={{ width: '100%', padding: '10px' }} title="Upravit časování">⚙️ Studio</button>
                     </Link>
                   )}
