@@ -128,8 +128,8 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 400px), 1fr))', gap: '1.5rem' }}>
           {filteredSongs.map((song) => {
             const hasAudio = !!song.audioUrl;
-            const hasJson = !!song.jsonUrl;
-            const hasVideo = !!song.videoUrl;
+            const hasJson = !!song.jsonUrl || !!song.timingData;
+            const hasVideo = !!song.videoUrl || !!song.timingData;
 
             return (
               <div key={song.id} className="glass-panel song-card-admin" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.2rem', position: 'relative' }}>
@@ -196,8 +196,8 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
                 {/* PLAY BUTTON JEN ADMINI KONTROLA */}
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   {hasVideo && (
-                    <Link href={`/player?songId=${song.id}`} style={{ flex: 1 }}>
-                      <button className="btn-primary" style={{ width: '100%', padding: '10px' }}>▶ {t('play_karaoke')}</button>
+                    <Link href={`/player/${song.id}`} title="Zpívat" style={{ flex: 1 }}>
+                      <button className="btn-primary" style={{ width: '100%', padding: '10px' }}>🎤 Zpívat</button>
                     </Link>
                   )}
                   {hasJson && (
