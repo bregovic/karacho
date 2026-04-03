@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { auth, signIn, signOut } from "@/auth";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -12,11 +13,13 @@ export const metadata: Metadata = {
   description: "Modern, playful karaoke platform for web, TV, and mobile.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+
   return (
     <html lang="cs">
       <body className={inter.className} style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -31,8 +34,21 @@ export default function RootLayout({
             <a href="/admin" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: 500, fontSize: '15px' }}>Katalog písní</a>
             <a href="/designer" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: 500, fontSize: '15px' }}>Studio</a>
             <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.1)', margin: '0 0.5rem' }}></div>
-            {/* Zástupce pro přihlášení, než nasadíme Auth.js */}
-            <button className="btn-primary" style={{ padding: '10px 20px', fontSize: '14px' }}>Přihlásit se</button>
+            
+            {session?.user ? (
+              <form action={async () => { "use server"; await signOut(); }} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{session.user.name}</span>
+                <button type="submit" className="btn-secondary" style={{ padding: '8px 16px', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {session.user.image && <img src={session.user.image} alt="Avatar" style={{ width: 20, height: 20, borderRadius: '50%' }} />}
+                  Odhlásit
+                </button>
+              </form>
+            ) : (
+              <form action={async () => { "use server"; await signIn("github"); }}>
+                <button type="submit" className="btn-primary" style={{ padding: '10px 20px', fontSize: '14px' }}>Přihlásit se Githubem</button>
+              </form>
+            )}
+            
           </div>
         </nav>
         <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
