@@ -14,19 +14,12 @@ export default function AudioUploader({ songId }: { songId: string }) {
     setProgress(0);
 
     try {
-      // 1. Získání Signed URL
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: file.name, contentType: file.type || 'audio/mpeg' })
-      });
-      
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      // Odesíláme soubor jako FormData přímo na naše API (tím obcházíme CORS)
+      const formData = new FormData();
+      formData.append('file', file);
 
-      // 2. Upload pomocí XMLHttpRequest (pro progress bar)
       const xhr = new XMLHttpRequest();
-      xhr.open('PUT', data.uploadUrl, true);
+      xhr.open('POST', '/api/upload', true);
       
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable) {
@@ -37,24 +30,29 @@ export default function AudioUploader({ songId }: { songId: string }) {
 
       xhr.onload = async () => {
         if (xhr.status >= 200 && xhr.status < 300) {
+          const data = JSON.parse(xhr.responseText);
           // Uložení finálního linku z R2 do databáze (zavolá Server Action)
           await updateSongAudio(songId, data.finalUrl);
           setUploading(false);
           setProgress(100);
-          alert('Audio úspěšně nahráno! 🎵');
+          alert('Audio úspěšně uloženo! 🎵');
         } else {
-          alert('Chyba při nahrávání do R2.');
+          try {
+            const errData = JSON.parse(xhr.responseText);
+            alert(`Chyba serveru: ${errData.error || 'Neznámá chyba'}`);
+          } catch {
+            alert('Chyba při komunikaci se serverem.');
+          }
           setUploading(false);
         }
       };
 
       xhr.onerror = () => {
-        alert('Nahrávání selhalo (síťová chyba).');
+        alert('Nahrávání selhalo (chyba sítě nebo spojení se serverem).');
         setUploading(false);
       };
 
-      // Odeslání souboru
-      xhr.send(file);
+      xhr.send(formData);
 
     } catch (err: any) {
       console.error('--- Client Upload Error ---', err);
