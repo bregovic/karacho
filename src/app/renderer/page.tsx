@@ -26,11 +26,24 @@ function RendererContent() {
     if (songId) {
       fetch(`/api/songs/${songId}`)
         .then(res => res.json())
-        .then(song => {
+        .then(async song => {
+          // 1. TIMING DATA (JSON)
           if (song.timingData) {
             setRemoteJsonData(song.timingData);
-            setJsonName(`Načteno automaticky: ${song.title}.json`);
+            setJsonName(`Načteno z DB: ${song.title}.json`);
+          } else if (song.jsonUrl) {
+            // Pokud je v DB jen link, stáhneme soubor
+            try {
+              const res = await fetch(song.jsonUrl);
+              const data = await res.json();
+              setRemoteJsonData(data);
+              setJsonName(`Staženo z cloudu: ${song.title}.json`);
+            } catch (e) {
+              console.error("Chyba při stahování JSON z URL:", e);
+            }
           }
+
+          // 2. AUDIO DATA (MP3)
           if (song.audioUrl) {
             setRemoteAudioUrl(song.audioUrl);
             setAudioName(`Načteno z cloudu: ${song.title}.mp3`);
