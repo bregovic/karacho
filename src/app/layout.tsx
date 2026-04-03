@@ -27,25 +27,27 @@ export default async function RootLayout({
         <nav style={{ padding: '1rem 2rem', background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 1000 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <a href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-              <img src="/logo.png" alt="Karacho Logo" style={{ height: '48px', objectFit: 'contain' }} />
+              <img src="/logo.png" alt="Karacho Logo" style={{ height: '64px', objectFit: 'contain' }} />
             </a>
           </div>
           <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-            <a href="/admin" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: 500, fontSize: '15px' }}>Katalog & Administrace</a>
-            <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.1)', margin: '0 0.5rem' }}></div>
             
             {session?.user ? (
-              <form action={async () => { "use server"; await signOut(); }} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{session.user.name}</span>
-                <button type="submit" className="btn-secondary" style={{ padding: '8px 16px', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  {session.user.image && <img src={session.user.image} alt="Avatar" style={{ width: 20, height: 20, borderRadius: '50%' }} />}
-                  Odhlásit
-                </button>
-              </form>
+              <>
+                <a href="/admin" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: 500, fontSize: '15px' }}>Administrace</a>
+                <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.1)', margin: '0 0.5rem' }}></div>
+                <form action={async () => { "use server"; await signOut(); }} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{session.user.name}</span>
+                  <button type="submit" className="btn-secondary" style={{ padding: '8px 16px', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {session.user.image && <img src={session.user.image} alt="Avatar" style={{ width: 20, height: 20, borderRadius: '50%' }} />}
+                    Odhlásit
+                  </button>
+                </form>
+              </>
             ) : (
-              <form action={async () => { "use server"; await signIn("github"); }}>
-                <button type="submit" className="btn-primary" style={{ padding: '10px 20px', fontSize: '14px' }}>Přihlásit se Githubem</button>
-              </form>
+              <a href="/login" style={{ textDecoration: 'none' }}>
+                <button className="btn-primary" style={{ padding: '10px 20px', fontSize: '14px' }}>Přihlášení</button>
+              </a>
             )}
             
           </div>
