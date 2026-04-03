@@ -5,7 +5,178 @@ export default function RendererPage() {
   const [jsonName, setJsonName] = useState('1. Nahrát JSON soubor (z klíčování)');
   const [audioName, setAudioName] = useState('2. Nahrát originální audio');
   const [bgName, setBgName] = useState('3. Nahrát pozadí (Grafika/Zelené plátno)');
-  const [animStyle, setAnimStyle] = useState('karaoke-gold'); // Zvolený styl
+  const [animStyle, setAnimStyle] = useState('karaoke-gold'); 
+  
+  const [status, setStatus] = useState<'idle' | 'rendering' | 'done'>('idle');
+  const [progress, setProgress] = useState(0);
+
+  const jsonRef = useRef<File | null>(null);
+  const audioRef = useRef<File | null>(null);
+  const bgRef = useRef<File | null>(null);
+
+  const handleJson = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) { jsonRef.current = f; setJsonName(f.name); }
+  };
+  const handleAudio = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) { audioRef.current = f; setAudioName(f.name); }
+  };
+  const handleBg = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) { bgRef.current = f; setBgName(f.name); }
+  };
+
+  const handleStartRender = async () => {
+    if (!jsonRef.current || !audioRef.current) {
+        alert("Chybí JSON data nebo originální Audio! Není z čeho sestavit grafiku.");
+        return;
+    }
+    
+    setStatus('rendering');
+    setProgress(0);
+
+    try {
+        const text = await jsonRef.current.text();
+        const data = JSON.parse(text);
+        const blocks = data.blocks;
+
+        // Vytvoř Obrázek
+        let img: HTMLImageElement | null = null;
+        if (bgRef.current) {
+            img = new window.Image();
+            img.src = URL.createObjectURL(bgRef.current);
+            await new Promise(r => { img!.onload = r; });
+        }
+
+        // Vytvoř AudioContext pro nahrání zvuku s Canvasem dohromady
+        const au = new window.Audio(URL.createObjectURL(audioRef.current));
+        await new Promise(r => { au.oncanplaythrough = r; });
+        
+        // Povolení k automatickému přehrání získáno (uživatel klikl na button)
+        const actx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const dest = actx.createMediaStreamDestination();
+        const source = actx.createMediaElementSource(au);
+        source.connect(dest);
+        source.connect(actx.destination); 
+
+        // Vytvoř Canvas 1920x1080
+        const W = 1920; 
+        const H = 1080;
+        const canvas = document.createElement('canvas');
+        canvas.width = W; 
+        canvas.height = H;
+        const ctx = canvas.getContext('2d')!;
+
+        // Vytvoř Video Stream @30FPS
+        const stream = canvas.captureStream(30);
+        stream.addTrack(dest.stream.getAudioTracks()[0]);
+
+        const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 8000000 });
+        const chunks: Blob[] = [];
+        recorder.ondataavailable = e => chunks.push(e.data);
+        recorder.onstop = () => {
+           const blob = new Blob(chunks, { type: 'video/webm' });
+           const url = URL.createObjectURL(blob);
+           const a = document.createElement('a');
+           a.href = url;
+           a.download = `karacho-render-${Date.now()}.webm`;
+           document.body.appendChild(a);
+           a.click();
+           document.body.removeChild(a);
+           setStatus('done');
+        };
+
+        recorder.start();
+        au.play();
+
+        const renderWords = (ctx: CanvasRenderingContext2D, y: number, fontSize: number, words: string[], numColored: number, alpha: number) => {
+            ctx.font = `900 ${fontSize}px "Inter", sans-serif`;
+            let totalWidth = 0;
+            const widths: number[] = [];
+            words.forEach(w => {
+               const m = ctx.measureText(w).width;
+               widths.push(m);
+               totalWidth += m;
+            });
+            const spaceW = ctx.measureText(" ").width;
+            totalWidth += spaceW * (words.length - 1);
+        
+            let sx = (W / 2) - (totalWidth / 2);
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            
+            words.forEach((w, i) => {
+                const isColored = i < numColored;
+                ctx.globalAlpha = alpha;
+                
+                ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+                ctx.lineWidth = fontSize * 0.1;
+                ctx.lineJoin = 'round';
+                ctx.strokeText(w, sx, y);
+                
+                if (isColored) {
+                   ctx.fillStyle = animStyle === 'karaoke-neon' ? '#00e5ff' : '#ffd700';
+                   // Add extra glow shadow for active word
+                   ctx.shadowColor = animStyle === 'karaoke-neon' ? '#00e5ff' : 'rgba(255,215,0,0.5)';
+                   ctx.shadowBlur = 24;
+                   
+                } else {
+                   ctx.fillStyle = `rgba(255,255,255,${alpha * 0.85})`;
+                   ctx.shadowBlur = 0;
+                }
+                
+                ctx.fillText(w, sx, y);
+                ctx.shadowBlur = 0; // reset
+                
+                sx += widths[i] + spaceW;
+            });
+        };
+
+        const interval = setInterval(() => {
+            const t = au.currentTime;
+            setProgress((t / au.duration) * 100);
+            
+            ctx.globalAlpha = 1;
+            // Výchozí klíčovací zelená barva (Green Screen)
+            ctx.fillStyle = '#00B140';
+            ctx.fillRect(0, 0, W, H);
+    
+            if (img) {
+               ctx.drawImage(img, 0, 0, W, H);
+               // Ztmavení, aby text nezanikl
+               ctx.fillStyle = 'rgba(0,0,0,0.6)';
+               ctx.fillRect(0, 0, W, H);
+            }
+    
+            const ci = blocks.findIndex((b: any) => t >= b.bs && t < b.be);
+            if (ci >= 0) {
+                const prev = ci > 0 ? blocks[ci - 1] : null;
+                const curr = blocks[ci];
+                const next = ci < blocks.length - 1 ? blocks[ci + 1] : null;
+
+                let nc = 0;
+                for (const we of curr.w) { if (t >= we.t) nc = we.i + 1; }
+    
+                if (prev) renderWords(ctx, H * 0.25, 48, prev.lw, prev.lw.length, 0.4);
+                renderWords(ctx, H * 0.50, 90, curr.lw, nc, 1.0);
+                if (next) renderWords(ctx, H * 0.75, 48, next.lw, 0, 0.4);
+            }
+    
+            if (t >= au.duration || au.paused) {
+                clearInterval(interval);
+                // Ukončí stream, zapauzuje audio a vygeneruje soubor
+                recorder.stop();
+                actx.close();
+            }
+        }, 1000 / 30); // 30 FPS Render loop
+
+    } catch (err) {
+        console.error(err);
+        alert('Došlo k chybě při generování videa. Ujistěte se, že je okno zaostřeno a je použit prohlížeč Chrome/Edge.');
+        setStatus('idle');
+    }
+  };
 
   return (
     <div style={{ padding: '2rem', minHeight: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column' }}>
@@ -14,42 +185,63 @@ export default function RendererPage() {
             <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎬</div>
             <h2 style={{ color: 'var(--text-primary)', marginBottom: '1rem' }}>Renderovna <span style={{ color: 'var(--color-teal)' }}>Videa</span></h2>
             <p style={{ color: 'var(--text-secondary)' }}>
-              Tady vznikne tvoje produkční studio. Zde vezmeš tvůj vyrobený JSON, audio a zvolené pozadí, a my ti z toho zkompilujeme .WebM video připravené pro Premiere Pro.
+              Produkční jádro s hardwarovou akcelerací. Složíme ti video vizualizaci, která přímo klíčuje hudbu, JSON stopy a obrázky snímek po snímku.
             </p>
           </div>
           
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', pointerEvents: status === 'rendering' ? 'none' : 'auto', opacity: status === 'rendering' ? 0.3 : 1 }}>
             <label className="btn-secondary" style={{ width: '100%', textAlign: 'left', position: 'relative', overflow: 'hidden', display: 'flex', gap: '1rem', alignItems: 'center' }}>
               <span style={{ fontSize: '20px' }}>📄</span>
               <div style={{ display: 'flex', flexDirection: 'column' }}>{jsonName}</div>
-              <input type="file" accept=".json" onChange={e => setJsonName(e.target.files?.[0]?.name || jsonName)} style={{ position: 'absolute', opacity: 0, inset: 0, cursor: 'pointer' }} />
+              <input type="file" accept=".json" onChange={handleJson} style={{ position: 'absolute', opacity: 0, inset: 0, cursor: 'pointer' }} />
             </label>
 
             <label className="btn-secondary" style={{ width: '100%', textAlign: 'left', position: 'relative', overflow: 'hidden', display: 'flex', gap: '1rem', alignItems: 'center' }}>
               <span style={{ fontSize: '20px' }}>🎵</span>
               <div style={{ display: 'flex', flexDirection: 'column' }}>{audioName}</div>
-              <input type="file" accept="audio/*" onChange={e => setAudioName(e.target.files?.[0]?.name || audioName)} style={{ position: 'absolute', opacity: 0, inset: 0, cursor: 'pointer' }} />
+              <input type="file" accept="audio/*" onChange={handleAudio} style={{ position: 'absolute', opacity: 0, inset: 0, cursor: 'pointer' }} />
             </label>
 
             <label className="btn-secondary" style={{ width: '100%', textAlign: 'left', position: 'relative', overflow: 'hidden', display: 'flex', gap: '1rem', alignItems: 'center' }}>
               <span style={{ fontSize: '20px' }}>🖼</span>
               <div style={{ display: 'flex', flexDirection: 'column' }}>{bgName}</div>
-              <input type="file" accept="image/*" onChange={e => setBgName(e.target.files?.[0]?.name || bgName)} style={{ position: 'absolute', opacity: 0, inset: 0, cursor: 'pointer' }} />
+              <input type="file" accept="image/*" onChange={handleBg} style={{ position: 'absolute', opacity: 0, inset: 0, cursor: 'pointer' }} />
             </label>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: '0.5rem', background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
              <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Výběr enginu animace:</span>
-             <select value={animStyle} onChange={e => setAnimStyle(e.target.value)} style={{ padding: '8px', background: '#111', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px' }}>
+             <select value={animStyle} onChange={e => setAnimStyle(e.target.value)} disabled={status==='rendering'} style={{ padding: '8px', background: '#111', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px' }}>
                 <option value="karaoke-gold">Původní Karacho Zlato-Bílý Styl</option>
                 <option value="karaoke-neon">Moderní Neonový Styl (Glow)</option>
-                <option value="subtitles-simple">Jen spodní titulky (Šedé)</option>
              </select>
           </div>
 
-          <button className="btn-primary" style={{ width: '100%' }}>
-            ▶ Vytvořit finální WebM Video
-          </button>
+          {status === 'idle' && (
+            <button className="btn-primary" style={{ width: '100%' }} onClick={handleStartRender}>
+              ▶ Vytvořit finální WebM Video
+            </button>
+          )}
+
+          {status === 'rendering' && (
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', color: 'var(--color-gold)', fontWeight: 'bold' }}>
+                    <div className="spinner"></div> Probíhá renderování snímků ({progress.toFixed(1)}%)
+                </div>
+                <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ width: `${progress}%`, height: '100%', background: 'var(--color-gold)' }} />
+                </div>
+                <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>Prosím, nepřeklikávejte okno, generování využívá Canvas prohlížeče.</p>
+            </div>
+          )}
+
+          {status === 'done' && (
+             <div style={{ width: '100%', textAlign: 'center', padding: '1rem', background: 'rgba(0,255,0,0.1)', border: '1px solid rgba(0,255,0,0.2)', borderRadius: '8px' }}>
+                <h3 style={{ color: '#0f0', margin: 0 }}>Video bylo úspěšně vygenerováno a staženo!</h3>
+                <button className="btn-secondary" style={{ marginTop: '1rem' }} onClick={() => setStatus('idle')}>Renderovat další video</button>
+             </div>
+          )}
+
         </div>
       </div>
   );
