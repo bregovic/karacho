@@ -90,18 +90,30 @@ export default function RendererPage() {
         recorder.start();
         au.play();
 
-        const renderWords = (ctx: CanvasRenderingContext2D, y: number, fontSize: number, words: string[], numColored: number, alpha: number) => {
-            ctx.font = `900 ${fontSize}px "Inter", sans-serif`;
+        const renderWords = (ctx: CanvasRenderingContext2D, y: number, initialFontSize: number, words: string[], numColored: number, alpha: number) => {
+            let fontSize = initialFontSize;
             let totalWidth = 0;
             const widths: number[] = [];
-            words.forEach(w => {
-               const m = ctx.measureText(w).width;
-               widths.push(m);
-               totalWidth += m;
-            });
-            const spaceW = ctx.measureText(" ").width;
-            totalWidth += spaceW * (words.length - 1);
-        
+            let spaceW = 0;
+            
+            // Loop pro automatický Auto-Scaling dlouhého textu
+            do {
+                ctx.font = `900 ${fontSize}px "Inter", sans-serif`;
+                totalWidth = 0;
+                widths.length = 0;
+                words.forEach(w => {
+                   const m = ctx.measureText(w).width;
+                   widths.push(m);
+                   totalWidth += m;
+                });
+                spaceW = ctx.measureText(" ").width;
+                totalWidth += spaceW * (words.length - 1);
+                
+                if (totalWidth > W * 0.85) {
+                    fontSize -= 4; // Zmenšuj dokud to není menší než 85% šířky obrazovky
+                }
+            } while (totalWidth > W * 0.85 && fontSize > 16);
+
             let sx = (W / 2) - (totalWidth / 2);
             ctx.textAlign = 'left';
             ctx.textBaseline = 'middle';
