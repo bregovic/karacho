@@ -259,37 +259,6 @@ export default function DesignerClient({ song }: { song: any }) {
     }
   };
 
-  if (view === 'setup') {
-    return (
-      <div style={{ padding: '2rem', minHeight: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column' }}>
-        <div className="glass-panel" style={{ padding: '4rem 2rem', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2rem', maxWidth: '800px', margin: '0 auto', width: '100%' }}>
-          <div style={{ textAlign: 'center', width: '100%' }}>
-            <h2 style={{ color: 'var(--text-primary)', marginBottom: '1rem' }}>Studio: <span style={{ color: 'var(--color-gold)' }}>{song?.title || 'Nepřiřazeno'}</span></h2>
-            <textarea 
-              value={rawText}
-              onChange={(e) => setRawText(e.target.value)}
-              placeholder="Vložte sem text písně..."
-              style={{
-                width: '100%', height: '250px', background: 'rgba(0,0,0,0.3)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '1rem', borderRadius: '8px', fontFamily: 'monospace', fontSize: '14px', lineHeight: '1.5'
-              }}
-            />
-          </div>
-          <label className="btn-secondary" style={{ width: '100%', textAlign: 'left', position: 'relative', overflow: 'hidden', display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            <span style={{ fontSize: '20px' }}>🎵</span>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span>{audioName}</span>
-              <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Změnit audio...</span>
-            </div>
-            <input type="file" accept="audio/*" onChange={handleAudioLoad} style={{ position: 'absolute', opacity: 0, inset: 0, cursor: 'pointer' }} />
-          </label>
-          <button onClick={handleStart} disabled={rawText.trim() === ''} className={rawText.trim() === '' ? 'btn-secondary' : 'btn-primary'} style={{ width: '100%' }}>
-            ▶ Vstoupit do Studia
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   const generateBlocksJSON = () => {
     const blocks = [];
     const dur = audioRef.current?.duration || 0;
