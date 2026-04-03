@@ -1,7 +1,11 @@
 'use client';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 
-export default function RendererPage() {
+function RendererContent() {
+  const searchParams = useSearchParams();
+  const songId = searchParams.get('songId');
+
   const [jsonName, setJsonName] = useState('1. Nahrát JSON soubor (z klíčování)');
   const [audioName, setAudioName] = useState('2. Nahrát originální audio');
   const [bgName, setBgName] = useState('3. Nahrát pozadí (Grafika/Zelené plátno)');
@@ -14,13 +18,35 @@ export default function RendererPage() {
   const audioRef = useRef<File | null>(null);
   const bgRef = useRef<File | null>(null);
 
+  // Fallback data pro auto-load z DB
+  const [remoteJsonData, setRemoteJsonData] = useState<any>(null);
+  const [remoteAudioUrl, setRemoteAudioUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (songId) {
+      fetch(`/api/songs/${songId}`)
+        .then(res => res.json())
+        .then(song => {
+          if (song.timingData) {
+            setRemoteJsonData(song.timingData);
+            setJsonName(`Načteno automaticky: ${song.title}.json`);
+          }
+          if (song.audioUrl) {
+            setRemoteAudioUrl(song.audioUrl);
+            setAudioName(`Načteno z cloudu: ${song.title}.mp3`);
+          }
+        })
+        .catch(err => console.error("Chyba při načítání songu pro renderer:", err));
+    }
+  }, [songId]);
+
   const handleJson = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
-    if (f) { jsonRef.current = f; setJsonName(f.name); }
+    if (f) { jsonRef.current = f; setJsonName(f.name); setRemoteJsonData(null); }
   };
   const handleAudio = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
-    if (f) { audioRef.current = f; setAudioName(f.name); }
+    if (f) { audioRef.current = f; setAudioName(f.name); setRemoteAudioUrl(null); }
   };
   const handleBg = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -28,8 +54,8 @@ export default function RendererPage() {
   };
 
   const handleStartRender = async () => {
-    if (!jsonRef.current || !audioRef.current) {
-        alert("Chybí JSON data nebo originální Audio! Není z čeho sestavit grafiku.");
+    if ((!jsonRef.current && !remoteJsonData) || (!audioRef.current && !remoteAudioUrl)) {
+        alert("Chybí timing data nebo audio! Není z čeho sestavit karaoke.");
         return;
     }
     
@@ -37,8 +63,11 @@ export default function RendererPage() {
     setProgress(0);
 
     try {
-        const text = await jsonRef.current.text();
-        const data = JSON.parse(text);
+        let data = remoteJsonData;
+        if (jsonRef.current) {
+           const text = await jsonRef.current.text();
+           data = JSON.parse(text);
+        }
         const blocks = data.blocks;
 
         // Vytvoř Obrázek
@@ -50,10 +79,11 @@ export default function RendererPage() {
         }
 
         // Vytvoř AudioContext pro nahrání zvuku s Canvasem dohromady
-        const au = new window.Audio(URL.createObjectURL(audioRef.current));
+        const audioSrc = audioRef.current ? URL.createObjectURL(audioRef.current) : remoteAudioUrl;
+        const au = new window.Audio(audioSrc!);
+        au.crossOrigin = "anonymous";
         await new Promise(r => { au.oncanplaythrough = r; });
         
-        // Povolení k automatickému přehrání získáno (uživatel klikl na button)
         const actx = new (window.AudioContext || (window as any).webkitAudioContext)();
         const dest = actx.createMediaStreamDestination();
         const source = actx.createMediaElementSource(au);
@@ -69,7 +99,7 @@ export default function RendererPage() {
         const ctx = canvas.getContext('2d')!;
 
         // Vytvoř Video Stream @30FPS
-        const stream = canvas.captureStream(30);
+        const stream = (canvas as any).captureStream(30);
         stream.addTrack(dest.stream.getAudioTracks()[0]);
 
         const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 8000000 });
@@ -96,7 +126,6 @@ export default function RendererPage() {
             const widths: number[] = [];
             let spaceW = 0;
             
-            // Loop pro automatický Auto-Scaling dlouhého textu
             do {
                 ctx.font = `900 ${fontSize}px "Inter", sans-serif`;
                 totalWidth = 0;
@@ -110,7 +139,7 @@ export default function RendererPage() {
                 totalWidth += spaceW * (words.length - 1);
                 
                 if (totalWidth > W * 0.85) {
-                    fontSize -= 4; // Zmenšuj dokud to není menší než 85% šířky obrazovky
+                    fontSize -= 4;
                 }
             } while (totalWidth > W * 0.85 && fontSize > 16);
 
@@ -121,7 +150,6 @@ export default function RendererPage() {
             words.forEach((w, i) => {
                 const isColored = i < numColored;
                 ctx.globalAlpha = alpha;
-                
                 ctx.strokeStyle = 'rgba(0,0,0,0.85)';
                 ctx.lineWidth = fontSize * 0.1;
                 ctx.lineJoin = 'round';
@@ -129,18 +157,14 @@ export default function RendererPage() {
                 
                 if (isColored) {
                    ctx.fillStyle = animStyle === 'karaoke-neon' ? '#00e5ff' : '#ffd700';
-                   // Add extra glow shadow for active word
                    ctx.shadowColor = animStyle === 'karaoke-neon' ? '#00e5ff' : 'rgba(255,215,0,0.5)';
                    ctx.shadowBlur = 24;
-                   
                 } else {
                    ctx.fillStyle = `rgba(255,255,255,${alpha * 0.85})`;
                    ctx.shadowBlur = 0;
                 }
-                
                 ctx.fillText(w, sx, y);
-                ctx.shadowBlur = 0; // reset
-                
+                ctx.shadowBlur = 0;
                 sx += widths[i] + spaceW;
             });
         };
@@ -150,13 +174,11 @@ export default function RendererPage() {
             setProgress((t / au.duration) * 100);
             
             ctx.globalAlpha = 1;
-            // Výchozí klíčovací zelená barva (Green Screen)
             ctx.fillStyle = '#00B140';
             ctx.fillRect(0, 0, W, H);
     
             if (img) {
                ctx.drawImage(img, 0, 0, W, H);
-               // Ztmavení, aby text nezanikl
                ctx.fillStyle = 'rgba(0,0,0,0.6)';
                ctx.fillRect(0, 0, W, H);
             }
@@ -177,15 +199,14 @@ export default function RendererPage() {
     
             if (t >= au.duration || au.paused) {
                 clearInterval(interval);
-                // Ukončí stream, zapauzuje audio a vygeneruje soubor
                 recorder.stop();
                 actx.close();
             }
-        }, 1000 / 30); // 30 FPS Render loop
+        }, 1000 / 30);
 
     } catch (err) {
         console.error(err);
-        alert('Došlo k chybě při generování videa. Ujistěte se, že je okno zaostřeno a je použit prohlížeč Chrome/Edge.');
+        alert('Došlo k chybě při generování. Ujistěte se, že je okno zaostřeno.');
         setStatus('idle');
     }
   };
@@ -197,7 +218,7 @@ export default function RendererPage() {
             <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎬</div>
             <h2 style={{ color: 'var(--text-primary)', marginBottom: '1rem' }}>Renderovna <span style={{ color: 'var(--color-teal)' }}>Videa</span></h2>
             <p style={{ color: 'var(--text-secondary)' }}>
-              Produkční jádro s hardwarovou akcelerací. Složíme ti video vizualizaci, která přímo klíčuje hudbu, JSON stopy a obrázky snímek po snímku.
+              Teď už jen jeden klik a tvé na mobilu naťukané karaoke bude ve WebM! 🚀
             </p>
           </div>
           
@@ -222,7 +243,6 @@ export default function RendererPage() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: '0.5rem', background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
-             <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Výběr enginu animace:</span>
              <select value={animStyle} onChange={e => setAnimStyle(e.target.value)} disabled={status==='rendering'} style={{ padding: '8px', background: '#111', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px' }}>
                 <option value="karaoke-gold">Původní Karacho Zlato-Bílý Styl</option>
                 <option value="karaoke-neon">Moderní Neonový Styl (Glow)</option>
@@ -238,23 +258,30 @@ export default function RendererPage() {
           {status === 'rendering' && (
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', color: 'var(--color-gold)', fontWeight: 'bold' }}>
-                    <div className="spinner"></div> Probíhá renderování snímků ({progress.toFixed(1)}%)
+                    Probíhá renderování ({progress.toFixed(1)}%)
                 </div>
                 <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden' }}>
                     <div style={{ width: `${progress}%`, height: '100%', background: 'var(--color-gold)' }} />
                 </div>
-                <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>Prosím, nepřeklikávejte okno, generování využívá Canvas prohlížeče.</p>
             </div>
           )}
 
           {status === 'done' && (
              <div style={{ width: '100%', textAlign: 'center', padding: '1rem', background: 'rgba(0,255,0,0.1)', border: '1px solid rgba(0,255,0,0.2)', borderRadius: '8px' }}>
-                <h3 style={{ color: '#0f0', margin: 0 }}>Video bylo úspěšně vygenerováno a staženo!</h3>
-                <button className="btn-secondary" style={{ marginTop: '1rem' }} onClick={() => setStatus('idle')}>Renderovat další video</button>
+                <h3 style={{ color: '#0f0', margin: 0 }}>Hotovo! Video se stahuje.</h3>
+                <button className="btn-secondary" style={{ marginTop: '1rem' }} onClick={() => setStatus('idle')}>Zkusit znovu</button>
              </div>
           )}
 
         </div>
       </div>
+  );
+}
+
+export default function RendererPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: '4rem', color: '#fff', textAlign: 'center' }}>Načítám renderovnu...</div>}>
+      <RendererContent />
+    </Suspense>
   );
 }
