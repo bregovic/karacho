@@ -34,10 +34,10 @@ export default async function RootLayout({
               
               {session?.user ? (
                 <>
-                  <a href="/admin" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: 500, fontSize: '15px' }}>Administrace</a>
+                  <a href="/profile" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: 500, fontSize: '15px' }}>Můj Profil</a>
                   <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.1)', margin: '0 0.5rem' }}></div>
                   <form action={async () => { "use server"; await signOut(); }} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{session.user.name}</span>
+                    <span style={{ fontSize: '14px', color: 'var(--text-secondary)', opacity: 0.8 }}>{session.user.name}</span>
                     <button type="submit" className="btn-secondary" style={{ padding: '8px 16px', fontSize: '14px' }}>
                       Odhlásit
                     </button>
