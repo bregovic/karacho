@@ -10,7 +10,9 @@ export default function DesignerClient({ song }: { song: any }) {
   const [view, setView] = useState<'setup' | 'editor'>('setup');
   const [mode, setMode] = useState<'lines' | 'words'>('words');
   const [audioName, setAudioName] = useState('Nahrát audio soubor');
-  const [renderTick, setRenderTick] = useState(0); // Pro vynucené re-rendery postranního panelu
+  const [renderTick, setRenderTick] = useState(0); 
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -23,17 +25,22 @@ export default function DesignerClient({ song }: { song: any }) {
     if (song?.audioUrl) {
       if (audioRef.current) audioRef.current.pause();
       const a = new Audio();
-      a.crossOrigin = "anonymous"; // ZÁSADNÍ FIX: povolení pro přehrávání z jiné domény
+      a.crossOrigin = "anonymous";
       a.src = song.audioUrl;
       a.preload = 'auto';
       a.onplay = () => { setIsPlaying(true); forceUpdate(); };
       a.onpause = () => { setIsPlaying(false); forceUpdate(); };
       a.onended = () => { setIsPlaying(false); forceUpdate(); };
-      // Zásadní fix: počkáme na metadata, aby UI vědělo délku
-      a.onloadedmetadata = () => forceUpdate();
+      a.onloadedmetadata = () => {
+        setDuration(a.duration);
+        forceUpdate();
+      };
+      a.ontimeupdate = () => {
+        setCurrentTime(a.currentTime);
+      };
       a.onerror = (e) => {
         console.error("Audio Load Error:", e);
-        setAudioName("CHYBA: Soubor nelze načíst (zkontrolujte CORS)");
+        setAudioName("CHYBA: Soubor nelze načíst");
         forceUpdate();
       };
       audioRef.current = a;
@@ -51,7 +58,6 @@ export default function DesignerClient({ song }: { song: any }) {
   const prevLineEl = useRef<HTMLDivElement>(null);
   const nextLineEl = useRef<HTMLDivElement>(null);
   const pbarEl = useRef<HTMLDivElement>(null);
-  const timeEl = useRef<HTMLSpanElement>(null);
 
   const forceUpdate = () => setRenderTick(t => t + 1);
 
@@ -78,7 +84,13 @@ export default function DesignerClient({ song }: { song: any }) {
     a.preload = 'auto';
     a.onplay = () => { setIsPlaying(true); forceUpdate(); };
     a.onpause = () => { setIsPlaying(false); forceUpdate(); };
-    a.onloadedmetadata = () => forceUpdate();
+    a.onloadedmetadata = () => {
+      setDuration(a.duration);
+      forceUpdate();
+    };
+    a.ontimeupdate = () => {
+      setCurrentTime(a.currentTime);
+    };
     audioRef.current = a;
     setAudioName(f.name);
   };
@@ -217,22 +229,19 @@ export default function DesignerClient({ song }: { song: any }) {
 
   const tick = () => {
     if (!audioRef.current || view !== 'editor') return;
-    
-    const t = audioRef.current.currentTime;
-    const dur = audioRef.current.duration || 1;
-    
-    if (pbarEl.current) pbarEl.current.style.width = `${(t / dur) * 100}%`;
-    if (timeEl.current) {
-      const fmt = (s: number) => `${Math.floor(s/60)}:${Math.floor(s%60).toString().padStart(2,'0')}`;
-      timeEl.current.textContent = `${fmt(t)} / ${fmt(dur)}`;
-    }
-
     rafRef.current = requestAnimationFrame(tick);
   };
 
   const startTick = () => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(tick);
+  };
+
+  const fmtTime = (s: number) => {
+    if (isNaN(s)) return '0:00';
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, '0')}`;
   };
 
   const renderUI = () => {
@@ -402,9 +411,11 @@ export default function DesignerClient({ song }: { song: any }) {
           <div style={{ height: '70px', background: 'rgba(0,0,0,0.9)', borderTop: '1px solid rgba(255,255,255,0.05)', zIndex: 10, display: 'flex', flexDirection: 'column', padding: '0 2rem' }} onClick={e => e.stopPropagation()}>
              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '1rem' }}>
                  <button style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', cursor: 'pointer' }} onClick={togglePlay}>{isPlaying ? '⏸' : '▶'}</button>
-                 <span ref={timeEl} style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace', minWidth: '90px' }}>0:00 / 0:00</span>
+                 <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace', minWidth: '90px' }}>
+                   {fmtTime(currentTime)} / {fmtTime(duration)}
+                 </span>
                  <div onClick={(e) => { if (audioRef.current?.duration) { const r = e.currentTarget.getBoundingClientRect(); audioRef.current.currentTime = (e.clientX - r.left) / r.width * audioRef.current.duration; } }} style={{ flex: 1, height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', cursor: 'pointer', position: 'relative' }}>
-                    <div ref={pbarEl} style={{ height: '100%', background: 'var(--color-gold)', width: '0%', borderRadius: '4px' }} />
+                    <div style={{ height: '100%', background: 'var(--color-gold)', width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`, borderRadius: '4px' }} />
                  </div>
              </div>
           </div>
