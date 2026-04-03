@@ -11,7 +11,10 @@ const font = Outfit({
 export const metadata: Metadata = {
   title: "Karacho Karaoke Platform",
   description: "Modern, playful karaoke platform for web, TV, and mobile.",
-  icons: { icon: "/logo.png" }
+  icons: [
+    { rel: 'icon', url: '/logo.png', type: 'image/png' },
+    { rel: 'apple-touch-icon', url: '/logo.png' },
+  ]
 };
 
 export default async function RootLayout({
