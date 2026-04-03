@@ -27,10 +27,27 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
   return (
     <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       
-      {/* Veřejný katalog písní */}
-      <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
-         <h1 style={{ fontSize: '3rem', color: 'var(--text-primary)' }}>Vyberte si <span style={{ color: 'var(--color-teal)' }}>Karacho.</span></h1>
-         <p style={{ color: 'var(--text-secondary)' }}>Katalog hotových karaoke skladeb připravených k přehrání.</p>
+      {/* Hero sekce s animovaným logem */}
+      <div style={{ textAlign: 'center', marginBottom: '1rem', paddingTop: '2rem' }}>
+        
+        <div className="hero-logo-wrap" style={{ marginBottom: '3rem' }}>
+          <div className="hero-logo-ring-2"></div>
+          <div className="hero-logo-ring"></div>
+          <img 
+            src="/logo.png" 
+            alt="Karacho" 
+            className="hero-logo-img"
+          />
+        </div>
+
+        <p className="hero-subtitle" style={{ 
+          color: 'var(--text-secondary)', 
+          fontSize: '1.1rem',
+          maxWidth: '400px', 
+          margin: '0 auto 2rem' 
+        }}>
+          Katalog hotových karaoke skladeb připravených k přehrání.
+        </p>
       </div>
 
       {/* Filtrační ovládací prvky */}
