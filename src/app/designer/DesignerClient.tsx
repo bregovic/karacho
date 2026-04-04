@@ -266,6 +266,29 @@ export default function DesignerClient({ song }: { song: any }) {
 
   const tick = () => {
     if (!audioRef.current || view !== 'editor') return;
+    
+    // Automatický náhled: Pokud hrajeme a zrovna nemačkáme klávesy pro nahrávání,
+    // najdeme v eventsRef co má právě teď svítit.
+    const t = audioRef.current.currentTime;
+    const allEvs = eventsRef.current;
+    
+    if (allEvs.length > 0) {
+      // Najdeme poslední událost, která už nastala
+      const activeEvs = [...allEvs]
+        .sort((a,b) => a.time - b.time)
+        .filter(e => e.time <= t);
+        
+      if (activeEvs.length > 0) {
+        const lastEv = activeEvs[activeEvs.length - 1];
+        curLineRef.current = lastEv.lineIdx;
+        curWordRef.current = lastEv.type === 'word' ? lastEv.wordIdx : -1;
+      } else {
+        curLineRef.current = -1;
+        curWordRef.current = -1;
+      }
+    }
+
+    renderUI();
     rafRef.current = requestAnimationFrame(tick);
   };
 
