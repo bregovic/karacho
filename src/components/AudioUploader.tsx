@@ -8,14 +8,11 @@ interface AudioUploaderProps {
   type?: 'audio' | 'instrumental' | 'json' | 'background';
 }
 
-export default function AudioUploader({ songId, type = 'audio' }: AudioUploaderProps) {
+export default function AudioUploader({ songId, onUploaded, type = 'audio' }: AudioUploaderProps) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const uploadFile = async (file: File) => {
     setUploading(true);
     setProgress(0);
 
@@ -46,8 +43,10 @@ export default function AudioUploader({ songId, type = 'audio' }: AudioUploaderP
           } else {
             await updateSongAudio(songId, data.finalUrl);
           }
+          
+          if (onUploaded) onUploaded(data.finalUrl);
           setUploading(false);
-          setProgress(100);
+          setProgress(0);
           alert('Uloženo! 💾');
         } else {
           try {
@@ -131,7 +130,7 @@ export default function AudioUploader({ songId, type = 'audio' }: AudioUploaderP
                    return;
                  }
 
-                 handleUpload(file);
+                 uploadFile(file);
                }} 
                style={{ display: 'none' }} 
                disabled={uploading} 
