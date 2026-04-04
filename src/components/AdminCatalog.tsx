@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import AudioUploader from '@/components/AudioUploader';
 import SongEditModal from '@/components/SongEditModal';
-import { createSong, deleteSong } from '@/app/admin/actions';
+import { createSong, deleteSong, removeSongResource } from '@/app/admin/actions';
 import { autoAlignSong } from '@/app/admin/auto-align';
 import { useTranslation } from '@/lib/translations';
 
@@ -163,13 +163,22 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
                 {/* STATUS BAR */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', background: 'rgba(0,0,0,0.3)', padding: '1.2rem', borderRadius: '12px' }}>
                     
-                    {/* Audio Flow */}
+                    {/* BG & JSON Flow */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ fontSize: '13px', color: song.backgroundUrl ? 'var(--color-teal)' : '#666' }}>🖼️ Pozadí (Grafika)</span>
                         {song.backgroundUrl && <span style={{ color: '#4ade80', fontSize: '11px' }}>✓ OK</span>}
                       </div>
-                      <AudioUploader songId={song.id} type="background" />
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                         {song.backgroundUrl && (
+                           <button 
+                             onClick={async () => { if(confirm("Opravdu smazat pozadí?")) await removeSongResource(song.id, 'background'); }}
+                             style={{ background: 'rgba(255,0,0,0.1)', border: 'none', color: '#ff4444', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}
+                             title="Smazat soubor"
+                           >🗑️</button>
+                         )}
+                         <AudioUploader songId={song.id} type="background" />
+                      </div>
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -177,17 +186,44 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
                         <span style={{ fontSize: '13px', color: hasJson ? 'var(--color-teal)' : '#666' }}>2. Časování (Studio)</span>
                         {hasJson && <span style={{ color: '#4ade80', fontSize: '11px' }}>✓ Zklíčováno</span>}
                       </div>
-                      <AudioUploader songId={song.id} type="json" />
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                         {song.jsonUrl && (
+                           <button 
+                             onClick={async () => { if(confirm("Opravdu smazat soubor časování?")) await removeSongResource(song.id, 'json'); }}
+                             style={{ background: 'rgba(255,0,0,0.1)', border: 'none', color: '#ff4444', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}
+                             title="Smazat soubor"
+                           >🗑️</button>
+                         )}
+                         <AudioUploader songId={song.id} type="json" />
+                      </div>
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                          <span style={{ fontSize: '13px', color: hasAudio ? 'var(--color-teal)' : '#666' }}>{t('step_audio')} (Originál)</span>
-                         {hasAudio ? <span style={{ color: '#4ade80', fontSize: '13px' }}>✓ OK</span> : <AudioUploader songId={song.id} />}
+                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            {song.audioUrl && (
+                               <button 
+                                 onClick={async () => { if(confirm("Opravdu smazat originální audio?")) await removeSongResource(song.id, 'audio'); }}
+                                 style={{ background: 'rgba(255,0,0,0.1)', border: 'none', color: '#ff4444', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}
+                                 title="Smazat soubor"
+                               >🗑️</button>
+                            )}
+                            {hasAudio ? <span style={{ color: '#4ade80', fontSize: '13px' }}>✓ OK</span> : <AudioUploader songId={song.id} />}
+                         </div>
                        </div>
                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
                          <span style={{ fontSize: '13px', color: song.instrumentalUrl ? 'var(--color-teal)' : '#666' }}>🎤 Instrumentál (Karaoke)</span>
-                         {song.instrumentalUrl ? <span style={{ color: '#4ade80', fontSize: '13px' }}>✓ OK</span> : <AudioUploader songId={song.id} type="instrumental" />}
+                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            {song.instrumentalUrl && (
+                               <button 
+                                 onClick={async () => { if(confirm("Opravdu smazat instrumentální audio?")) await removeSongResource(song.id, 'instrumental'); }}
+                                 style={{ background: 'rgba(255,0,0,0.1)', border: 'none', color: '#ff4444', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}
+                                 title="Smazat soubor"
+                               >🗑️</button>
+                            )}
+                            {song.instrumentalUrl ? <span style={{ color: '#4ade80', fontSize: '13px' }}>✓ OK</span> : <AudioUploader songId={song.id} type="instrumental" />}
+                         </div>
                        </div>
                     </div>
 

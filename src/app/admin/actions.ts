@@ -58,6 +58,23 @@ export async function updateSongVideo(songId: string, videoUrl: string, videoSiz
   revalidatePath('/renderer');
 }
 
+export async function removeSongResource(songId: string, type: 'audio' | 'instrumental' | 'background' | 'json' | 'video') {
+  const data: any = {};
+  if (type === 'audio') data.audioUrl = null;
+  if (type === 'instrumental') data.instrumentalUrl = null;
+  if (type === 'background') data.backgroundUrl = null;
+  if (type === 'json') data.jsonUrl = null;
+  if (type === 'video') {
+    data.videoUrl = null;
+    data.videoSize = null;
+  }
+
+  await db.song.update({ where: { id: songId }, data });
+  revalidatePath('/admin');
+  revalidatePath('/renderer');
+  revalidatePath('/designer');
+}
+
 export async function updateSongAnimation(songId: string, animationStyle: string) {
   await db.song.update({ where: { id: songId }, data: { animationStyle } });
   revalidatePath('/admin');
