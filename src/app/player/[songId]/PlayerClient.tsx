@@ -112,7 +112,10 @@ export default function PlayerClient({ song }: { song: any }) {
 
     // Progress bar
     if (pbarEl.current) pbarEl.current.style.width = `${(t / d) * 100}%`;
-    if (videoElRef.current) videoElRef.current.currentTime = t;
+    if (videoElRef.current) {
+        const diffInput = Math.abs(videoElRef.current.currentTime - t);
+        if (diffInput > 0.5) videoElRef.current.currentTime = t;
+    }
     if (timeEl.current) {
         const fmt = (s: number) => `${Math.floor(s/60)}:${Math.floor(s%60).toString().padStart(2,'0')}`;
         timeEl.current.textContent = `${fmt(t)} / ${fmt(d)}`;
@@ -236,12 +239,14 @@ export default function PlayerClient({ song }: { song: any }) {
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 40%, transparent 60%, rgba(0,0,0,0.8) 100%)' }} />
       </div>
 
-      {/* TEXTOVÁ VRSTVA (PRO OBA PŘÍPADY) */}
-      <div id="stage" style={{ position: 'absolute', inset: 0, zIndex: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 10vw', gap: '3vh', pointerEvents: 'none' }}>
-         <div ref={prevLineEl} className="ln-ctx" />
-         <div ref={curLineEl} id="cur-line" />
-         <div ref={nextLineEl} className="ln-ctx" />
-      </div>
+      {/* TEXTOVÁ VRSTVA (POUZE POKUD NEMÁME VIDEO) */}
+      {!hasVideo && (
+        <div id="stage" style={{ position: 'absolute', inset: 0, zIndex: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 10vw', gap: '3vh', pointerEvents: 'none' }}>
+           <div ref={prevLineEl} className="ln-ctx" />
+           <div ref={curLineEl} id="cur-line" />
+           <div ref={nextLineEl} className="ln-ctx" />
+        </div>
+      )}
 
       <div id="ui-layer" style={{ position: 'absolute', inset: 0, zIndex: 10, pointerEvents: 'none', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
          <div id="controls" style={{ padding: '2rem', display: 'flex', alignItems: 'center', gap: '1.5rem', pointerEvents: 'auto', background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }}>
