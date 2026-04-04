@@ -22,13 +22,16 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
 
   const filteredSongs = initialSongs.filter(song => {
     const hasAudio = !!song.audioUrl;
-    const hasJson = !!song.jsonUrl;
-    const hasVideo = !!song.videoUrl;
+    const hasJson = !!song.jsonUrl || !!song.timingData;
+    const hasLyrics = !!song.lyrics && song.lyrics.trim().length > 0;
+    const isPublic = song.state === 'ACTIVE';
 
+    if (statusFilter === 'PUBLISHED' && !isPublic) return false;
+    if (statusFilter === 'DRAFTS' && isPublic) return false;
+    if (statusFilter === 'MISSING_LYRICS' && hasLyrics) return false;
     if (statusFilter === 'MISSING_AUDIO' && hasAudio) return false;
-    if (statusFilter === 'MISSING_TIMING' && (!hasAudio || hasJson)) return false;
-    if (statusFilter === 'MISSING_RENDER' && (!hasJson || hasVideo)) return false;
-    if (statusFilter === 'DONE' && !hasVideo) return false;
+    if (statusFilter === 'MISSING_TIMING' && hasJson) return false;
+    if (statusFilter === 'READY_TO_PUBLISH' && (!hasAudio || !hasJson || !hasLyrics || isPublic)) return false;
 
     if (genreFilter !== 'ALL' && song.genre !== genreFilter) return false;
     if (tagFilter !== 'ALL' && !(song.tags || []).includes(tagFilter)) return false;
@@ -100,11 +103,13 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
            style={{ padding: '10px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(0,0,0,0.4)', color: '#fff', flex: 1, minWidth: '220px' }}
         />
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ padding: '10px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.12)', background: '#1a1a1a', color: '#fff' }}>
-            <option value="ALL">{t('all_status')}</option>
-            <option value="MISSING_AUDIO">1. {t('status_audio')}</option>
-            <option value="MISSING_TIMING">2. {t('status_timing')}</option>
-            <option value="MISSING_RENDER">3. {t('status_render')}</option>
-            <option value="DONE">4. {t('status_done')}</option>
+            <option value="ALL">🔍 VŠECHNY STAVY</option>
+            <option value="PUBLISHED">🟢 PUBLIKOVÁNO</option>
+            <option value="DRAFTS">⏳ ROZPRACOVÁNO (Draft)</option>
+            <option value="READY_TO_PUBLISH">🌟 PŘIPRAVENO KE ZVEŘEJNĚNÍ</option>
+            <option value="MISSING_LYRICS">📝 CHYBÍ TEXT</option>
+            <option value="MISSING_AUDIO">🎵 CHYBÍ HUDBA</option>
+            <option value="MISSING_TIMING">⚙️ CHYBÍ ČASOVÁNÍ</option>
         </select>
         {allGenres.length > 0 && (
           <select value={genreFilter} onChange={e => setGenreFilter(e.target.value)} style={{ padding: '10px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.12)', background: '#1a1a1a', color: '#fff' }}>
@@ -130,8 +135,9 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 400px), 1fr))', gap: '1.5rem' }}>
           {filteredSongs.map((song) => {
             const hasAudio = !!song.audioUrl;
-            const canPlay = !!song.videoUrl || !!song.timingData || !!song.jsonUrl;
             const hasJson = !!song.jsonUrl || !!song.timingData;
+            const hasLyrics = !!song.lyrics && song.lyrics.trim().length > 0;
+            const canPlay = !!song.videoUrl || hasJson;
 
             return (
               <div key={song.id} className="glass-panel song-card-admin" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.2rem', position: 'relative' }}>
@@ -144,6 +150,9 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
                          {Array.isArray(song.tags) && song.tags.map((t: string) => (
                            <span key={t} style={{ fontSize: '10px', background: 'rgba(0,229,255,0.08)', color: 'var(--color-teal)', padding: '2px 8px', borderRadius: '10px' }}>#{t}</span>
                          ))}
+                         {(hasAudio && hasJson && hasLyrics && song.state !== 'ACTIVE') && (
+                            <span style={{ fontSize: '10px', background: 'rgba(255,215,0,0.1)', color: 'var(--color-gold)', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>🌟 PŘIPRAVENO!</span>
+                          )}
                       </div>
                   </div>
                   {/* Tlačítka akcí */}
