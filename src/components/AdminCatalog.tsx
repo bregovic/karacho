@@ -98,7 +98,7 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
            value={search} onChange={e => setSearch(e.target.value)}
            style={{ padding: '10px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(0,0,0,0.4)', color: '#fff', flex: 1, minWidth: '220px' }}
         />
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ padding: '10px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(0,0,0,0.2)', color: '#fff' }}>
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ padding: '10px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.12)', background: '#1a1a1a', color: '#fff' }}>
             <option value="ALL">{t('all_status')}</option>
             <option value="MISSING_AUDIO">1. {t('status_audio')}</option>
             <option value="MISSING_TIMING">2. {t('status_timing')}</option>
@@ -106,13 +106,13 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
             <option value="DONE">4. {t('status_done')}</option>
         </select>
         {allGenres.length > 0 && (
-          <select value={genreFilter} onChange={e => setGenreFilter(e.target.value)} style={{ padding: '10px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(0,0,0,0.2)', color: '#fff' }}>
+          <select value={genreFilter} onChange={e => setGenreFilter(e.target.value)} style={{ padding: '10px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.12)', background: '#1a1a1a', color: '#fff' }}>
               <option value="ALL">{t('all_genres')}</option>
               {allGenres.map(g => <option key={g as string} value={g as string}>{g as string}</option>)}
           </select>
         )}
         {allTags.length > 0 && (
-          <select value={tagFilter} onChange={e => setTagFilter(e.target.value)} style={{ padding: '10px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(0,0,0,0.2)', color: '#fff' }}>
+          <select value={tagFilter} onChange={e => setTagFilter(e.target.value)} style={{ padding: '10px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.12)', background: '#1a1a1a', color: '#fff' }}>
               <option value="ALL">{t('all_tags')}</option>
               {allTags.map(tag => <option key={tag as string} value={tag as string}>#{tag as string}</option>)}
           </select>
@@ -291,7 +291,7 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
           })}
          </div>
       )}
-      {editingSong && <SongEditModal song={editingSong} onClose={() => setEditingSong(null)} />}
+      {editingSong && <SongEditModal song={editingSong} onClose={() => setEditingSong(null)} allGenres={allGenres as string[]} />}
     </div>
   );
 }
