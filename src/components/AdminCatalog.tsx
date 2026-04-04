@@ -4,6 +4,7 @@ import Link from 'next/link';
 import AudioUploader from '@/components/AudioUploader';
 import SongEditModal from '@/components/SongEditModal';
 import { createSong, deleteSong } from '@/app/admin/actions';
+import { autoAlignSong } from '@/app/admin/auto-align';
 import { useTranslation } from '@/lib/translations';
 
 export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) {
@@ -190,20 +191,37 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
                        </div>
                     </div>
 
-                    {/* Studio Flow */}
+                     {/* Studio Flow */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', opacity: hasAudio ? 1 : 0.4 }}>
                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                          <span style={{ fontSize: '13px', color: hasJson ? 'var(--color-teal)' : '#666' }}>{t('step_studio')} (Timing)</span>
-                         {hasJson ? (
-                            <span style={{ color: '#4ade80', fontSize: '13px' }}>✓ Zklíčováno</span>
-                         ) : (
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                               <Link href={`/designer?songId=${song.id}`}>
-                                  <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '11px' }} disabled={!hasAudio}>Spustit Studio</button>
-                               </Link>
-                               <AudioUploader songId={song.id} type="json" />
-                            </div>
-                         )}
+                         <div style={{ display: 'flex', gap: '8px' }}>
+                            {hasAudio && !hasJson && (
+                               <button 
+                                 onClick={async () => {
+                                   if(confirm("Spustit AI klíčování? (Může to trvat až minutu)")) {
+                                      const res = await autoAlignSong(song.id);
+                                      if (res.success) alert("🪄 AI kouzlo dokončeno! Zkontrolujte v Designeru.");
+                                      else alert("❌ AI se nepodařilo zklíčovat audio: " + res.error);
+                                   }
+                                 }}
+                                 className="btn-secondary" 
+                                 style={{ padding: '6px 12px', fontSize: '11px', background: 'rgba(125,86,243,0.15)', color: 'var(--color-gold)', border: '1px solid rgba(255,215,0,0.2)' }}
+                               >
+                                 🪄 AI Auto-Klíčovat
+                               </button>
+                            )}
+                            {hasJson ? (
+                               <span style={{ color: '#4ade80', fontSize: '13px' }}>✓ Zklíčováno</span>
+                            ) : (
+                               <div style={{ display: 'flex', gap: '8px' }}>
+                                  <Link href={`/designer?songId=${song.id}`}>
+                                     <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '11px' }} disabled={!hasAudio}>Spustit Studio</button>
+                                  </Link>
+                                  <AudioUploader songId={song.id} type="json" />
+                               </div>
+                            )}
+                         </div>
                        </div>
                     </div>
 
