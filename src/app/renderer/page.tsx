@@ -184,7 +184,7 @@ function RendererContent() {
         recorder.start();
         au.play();
 
-        const renderWords = (ctx: CanvasRenderingContext2D, y: number, initialFontSize: number, words: string[], numColored: number, alpha: number) => {
+        const renderWords = (ctx: CanvasRenderingContext2D, y: number, initialFontSize: number, words: string[], block: any, currentTime: number, alpha: number) => {
             let fontSize = initialFontSize;
             let totalWidth = 0;
             const widths: number[] = [];
@@ -212,23 +212,42 @@ function RendererContent() {
             ctx.textBaseline = 'middle';
             
             words.forEach((w, i) => {
-                const isColored = i < numColored;
+                const wordStart = block.w[i].t;
+                const wordEnd = (i < block.w.length - 1) ? block.w[i+1].t : block.be;
+                
+                // Výpočet progresu v aktuálním slově (0 až 1)
+                let p = 0;
+                if (currentTime >= wordStart && currentTime < wordEnd) {
+                    p = (currentTime - wordStart) / (wordEnd - wordStart);
+                } else if (currentTime >= wordEnd) {
+                    p = 1;
+                }
+
+                ctx.save();
                 ctx.globalAlpha = alpha;
+                
+                // 1. Nakreslíme "vypnuté" slovo (podklad)
                 ctx.strokeStyle = 'rgba(0,0,0,0.85)';
                 ctx.lineWidth = fontSize * 0.1;
                 ctx.lineJoin = 'round';
                 ctx.strokeText(w, sx, y);
                 
-                if (isColored) {
-                   ctx.fillStyle = animStyle === 'karaoke-neon' ? '#00e5ff' : '#ffd700';
-                   ctx.shadowColor = animStyle === 'karaoke-neon' ? '#00e5ff' : 'rgba(255,215,0,0.5)';
-                   ctx.shadowBlur = 24;
-                } else {
-                   ctx.fillStyle = `rgba(255,255,255,${alpha * 0.85})`;
-                   ctx.shadowBlur = 0;
-                }
+                ctx.fillStyle = `rgba(255,255,255,${alpha * 0.85})`;
                 ctx.fillText(w, sx, y);
-                ctx.shadowBlur = 0;
+
+                // 2. Nakreslíme "zapnutou" část slova přes to (oříznutí)
+                if (p > 0) {
+                    ctx.beginPath();
+                    ctx.rect(sx - 10, y - fontSize, (widths[i] + 15) * p, fontSize * 2);
+                    ctx.clip();
+                    
+                    ctx.fillStyle = animStyle === 'karaoke-neon' ? '#00e5ff' : '#ffd700';
+                    ctx.shadowColor = animStyle === 'karaoke-neon' ? '#00e5ff' : 'rgba(255,215,0,0.5)';
+                    ctx.shadowBlur = 24;
+                    ctx.fillText(w, sx, y);
+                }
+
+                ctx.restore();
                 sx += widths[i] + spaceW;
             });
         };
@@ -253,12 +272,9 @@ function RendererContent() {
                 const curr = blocks[ci];
                 const next = ci < blocks.length - 1 ? blocks[ci + 1] : null;
 
-                let nc = 0;
-                for (const we of curr.w) { if (t >= we.t) nc = we.i + 1; }
-    
-                if (prev) renderWords(ctx, H * 0.25, 48, prev.lw, prev.lw.length, 0.4);
-                renderWords(ctx, H * 0.50, 90, curr.lw, nc, 1.0);
-                if (next) renderWords(ctx, H * 0.75, 48, next.lw, 0, 0.4);
+                if (prev) renderWords(ctx, H * 0.25, 48, prev.lw, prev, t, 0.4);
+                renderWords(ctx, H * 0.50, 90, curr.lw, curr, t, 1.0);
+                if (next) renderWords(ctx, H * 0.75, 48, next.lw, next, t, 0.4);
             }
     
             if (t >= au.duration || au.paused) {

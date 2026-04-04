@@ -119,14 +119,14 @@ export default function PlayerClient({ song }: { song: any }) {
     }
 
     const state = getState(t);
-    renderState(state);
+    renderState(state, t);
 
     if (!audioRef.current.paused) {
       rafRef.current = requestAnimationFrame(tick);
     }
   };
 
-  const renderState = (state: any) => {
+  const renderState = (state: any, t: number) => {
     const prev = prevLineEl.current;
     const cur = curLineEl.current;
     const nextText = nextLineEl.current;
@@ -139,7 +139,7 @@ export default function PlayerClient({ song }: { song: any }) {
       return;
     }
 
-    const { cb, nc, ci, prev: pb, next: nb } = state;
+    const { cb, ci, prev: pb, next: nb } = state;
 
     if (prev) prev.textContent = pb ? pb.lw.join(' ') : '';
     if (nextText) nextText.textContent = nb ? nb.lw.join(' ') : '';
@@ -148,25 +148,34 @@ export default function PlayerClient({ song }: { song: any }) {
       // NOVÝ BLOK
       if (cur) {
         cur.innerHTML = cb.lw.map((w: string, i: number) => 
-          `<span class="word ${i < nc ? 'on' : 'off'}">${w}</span>`
+          `<span class="w-wrap"><span class="w-off">${w}</span><span class="w-on">${w}</span></span>`
         ).join(' ');
 
-        // Animace blockIn
         cur.classList.remove('block-new');
-        void cur.offsetWidth; // force reflow
+        void cur.offsetWidth; 
         cur.classList.add('block-new');
       }
       lastBlock.current = ci;
-      lastColored.current = nc;
-    } else if (nc !== lastColored.current) {
-      // NOVÉ SLOVO v bloku
-      if (cur) {
-        const spans = cur.querySelectorAll('.word');
-        spans.forEach((s: any, i: number) => {
-          s.className = `word ${i < nc ? 'on' : 'off'}`;
-        });
-      }
-      lastColored.current = nc;
+    }
+
+    // Plynulý progres slov
+    if (cur) {
+      const wraps = cur.querySelectorAll('.w-wrap');
+      wraps.forEach((wrap: any, i: number) => {
+        const on = wrap.querySelector('.w-on');
+        if (!on) return;
+        
+        const wordStart = cb.w[i].t;
+        const wordEnd = (i < cb.w.length - 1) ? cb.w[i+1].t : cb.be;
+        
+        let p = 0;
+        if (t >= wordStart && t < wordEnd) {
+          p = (t - wordStart) / (wordEnd - wordStart);
+        } else if (t >= wordEnd) {
+          p = 1;
+        }
+        on.style.width = `${p * 100}%`;
+      });
     }
   };
 
@@ -177,18 +186,27 @@ export default function PlayerClient({ song }: { song: any }) {
     const t = ((e.clientX - r.left) / r.width) * audioRef.current.duration;
     audioRef.current.currentTime = t;
     if (videoElRef.current) videoElRef.current.currentTime = t;
-    if (audioRef.current.paused) {
-        const state = getState(t);
-        renderState(state);
-    }
+    const state = getState(t);
+    renderState(state, t);
   };
 
   return (
     <div className="player-root" style={{ position: 'fixed', inset: 0, background: '#0a0a14', color: 'white', overflow: 'hidden', fontFamily: 'var(--font-outfit)' }} onClick={() => togglePlay()}>
       <style dangerouslySetInnerHTML={{ __html: `
         .player-root { --glow: rgba(255, 215, 0, 0.55); }
-        .word.off { color: rgba(255,255,255,0.82); text-shadow: 0 2px 6px rgba(0,0,0,0.95); transition: color 0.1s; }
-        .word.on { color: #ffd700; text-shadow: 0 2px 6px rgba(0,0,0,0.95), 0 0 24px var(--glow); transition: color 0.1s; }
+        
+        .w-wrap { position: relative; display: inline-block; padding: 0 4px; }
+        .w-off { color: rgba(255,255,255,0.82); text-shadow: 0 2px 6px rgba(0,0,0,0.95); }
+        .w-on { 
+          position: absolute; 
+          left: 4px; top: 0; 
+          width: 0%; 
+          overflow: hidden; 
+          white-space: nowrap; 
+          color: #ffd700; 
+          text-shadow: 0 2px 6px rgba(0,0,0,0.95), 0 0 24px var(--glow);
+          transition: width 0.05s linear;
+        }
         
         .ln-ctx { font-size: clamp(13px, 3.2vw, 26px); color: rgba(255,255,255,0.35); font-weight: 700; text-align: center; min-height: 1.4em; }
         #cur-line { font-size: clamp(24px, 6vw, 78px); font-weight: 900; text-align: center; min-height: 1.2em; line-height: 1.2; letter-spacing: -0.01em; }
