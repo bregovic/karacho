@@ -75,8 +75,9 @@ export default function AudioUploader({ songId, onUploaded, type = 'audio' }: Au
 
   const getLabelInfo = () => {
     if (type === 'instrumental') return { icon: '🎻', text: 'Nahrát Instr.' };
-    if (type === 'json') return { icon: '📄', text: 'Nahrát JSON' };
-    return { icon: '🎵', text: 'Nahrát MP3' };
+    const icon = type === 'json' ? '📄' : (type === 'background' ? '🖼️' : '🎵');
+    const text = type === 'json' ? 'Nahrát JSON' : (type === 'background' ? 'Nahrát Obrázek' : 'Nahrát MP3');
+    return { icon, text };
   };
 
   const { icon, text } = getLabelInfo();
