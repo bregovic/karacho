@@ -24,6 +24,7 @@ function RendererContent() {
   // Fallback data pro auto-load z DB
   const [remoteJsonData, setRemoteJsonData] = useState<any>(null);
   const [remoteAudioUrl, setRemoteAudioUrl] = useState<string | null>(null);
+  const [remoteBgUrl, setRemoteBgUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!songId) {
@@ -34,6 +35,7 @@ function RendererContent() {
     console.log("Renderer: Starting auto-load for songId:", songId);
     setJsonName("⏳ Načítám časování...");
     setAudioName("⏳ Načítám audio...");
+    setBgName("⏳ Načítám pozadí...");
 
     fetch(`/api/songs/${songId}`)
       .then(res => {
@@ -48,7 +50,6 @@ function RendererContent() {
           setRemoteJsonData(song.timingData);
           setJsonName(`✅ DB: ${song.title}.json`);
         } else if (song.jsonUrl) {
-          // Pokud je v DB jen link, stáhneme soubor
           try {
             const res = await fetch(song.jsonUrl);
             const data = await res.json();
@@ -69,11 +70,20 @@ function RendererContent() {
         } else {
           setAudioName("❓ Žádné audio v databázi");
         }
+
+        // 3. BACKGROUND IMAGE
+        if (song.backgroundUrl) {
+          setRemoteBgUrl(song.backgroundUrl);
+          setBgName(`✅ CLOUD: Pozadí z DB`);
+        } else {
+          setBgName("❓ Žádné pozadí v DB");
+        }
       })
       .catch(err => {
         console.error("Renderer Error (Fetch song):", err);
         setJsonName("❌ Selhalo spojení s DB");
         setAudioName("❌ Selhalo spojení s DB");
+        setBgName("❌ Selhalo spojení s DB");
       });
   }, [songId]);
 
@@ -136,9 +146,11 @@ function RendererContent() {
 
         // Vytvoř Obrázek
         let img: HTMLImageElement | null = null;
-        if (bgRef.current) {
+        const finalBgUrl = bgRef.current ? URL.createObjectURL(bgRef.current) : remoteBgUrl;
+        if (finalBgUrl) {
             img = new window.Image();
-            img.src = URL.createObjectURL(bgRef.current);
+            img.src = finalBgUrl;
+            img.crossOrigin = "anonymous";
             await new Promise(r => { img!.onload = r; });
         }
 

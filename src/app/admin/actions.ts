@@ -55,6 +55,12 @@ export async function updateSongVideo(songId: string, videoUrl: string) {
   revalidatePath('/renderer');
 }
 
+export async function updateSongBackground(songId: string, backgroundUrl: string) {
+  await db.song.update({ where: { id: songId }, data: { backgroundUrl } });
+  revalidatePath('/admin');
+  revalidatePath('/renderer');
+}
+
 export async function updateSong(songId: string, data: any) {
   const session = await auth();
   if (!session?.user) throw new Error('Nejste přihlášeni');
