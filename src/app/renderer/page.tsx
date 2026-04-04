@@ -297,6 +297,33 @@ function RendererContent() {
                 if (prev) renderWords(ctx, H * 0.25, 48, prev.lw, prev, visualTime, 0.4);
                 renderWords(ctx, H * 0.50, 90, curr.lw, curr, visualTime, 1.0);
                 if (next) renderWords(ctx, H * 0.75, 48, next.lw, next, visualTime, 0.4);
+            } else {
+                // Countdown Logic na Canvasu
+                const next = blocks.find((b: any) => b.bs > visualTime);
+                if (next && (next.bs - visualTime) < 5.5 && (next.bs - visualTime) > 0.3) {
+                    const diff = next.bs - visualTime;
+                    ctx.textAlign = 'center';
+                    ctx.fillStyle = '#ffd700';
+                    ctx.font = 'bold 48px "Inter", sans-serif';
+                    ctx.shadowBlur = 20;
+                    ctx.shadowColor = 'rgba(255,215,0,0.5)';
+                    ctx.fillText(`PŘIPRAV SE: ${Math.max(1, Math.ceil(diff))}s`, W/2, H*0.25);
+                    ctx.shadowBlur = 0;
+
+                    const bw = 400;
+                    const bh = 12;
+                    const bx = (W/2) - (bw/2);
+                    const by = H*0.25 + 40;
+                    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+                    ctx.beginPath();
+                    ctx.roundRect(bx, by, bw, bh, 6);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#ffd700';
+                    ctx.beginPath();
+                    ctx.roundRect(bx, by, bw * (Math.min(diff, 5) / 5), bh, 6);
+                    ctx.fill();
+                }
             }
     
             if (t >= au.duration || au.paused) {
