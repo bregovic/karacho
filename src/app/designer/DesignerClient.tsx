@@ -137,6 +137,13 @@ export default function DesignerClient({ song }: { song: any }) {
       setIsAligning(false);
     }
   };
+
+  const handleReset = () => {
+    if (!confirm("Opravdu vymazat veškeré časování a začít znovu? Tato akce je nevratná.")) return;
+    eventsRef.current = [];
+    forceUpdate();
+    alert("🔄 Časová osa byla vymazána. Můžete začít znova (AI nebo ručně).");
+  };
   
   const togglePlay = () => {
     if (!audioRef.current) return;
@@ -404,9 +411,17 @@ export default function DesignerClient({ song }: { song: any }) {
           </header>
 
           <div style={{ flex: 1, position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6vw', gap: '2.5vh', pointerEvents: 'none' }}>
-            <div ref={prevLineEl} className="ln-ctx" />
-            <div ref={curLineEl} id="cur-line" />
-            <div ref={nextLineEl} className="ln-ctx" />
+             {/* TEXTOVÁ VRSTVA */}
+             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: '30px', padding: '0 5vw' }}>
+                {/* Předchozí řádek */}
+                <div ref={prevLineEl} style={{ minHeight: '60px', color: 'rgba(255,255,255,0.15)', fontSize: 'clamp(20px, 4vw, 40px)', fontWeight: 500, letterSpacing: '2px', transition: 'all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)' }} />
+                
+                {/* Aktuální řádek */}
+                <div ref={curLineEl} id="cur-line" style={{ minHeight: '120px', color: 'white', fontSize: 'clamp(40px, 8vw, 85px)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '4px', textShadow: '0 0 40px rgba(255,255,255,0.15)', transition: 'all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1)', filter: isPlaying ? 'none' : 'blur(2px)', opacity: isPlaying ? 1 : 0.6 }} />
+                
+                {/* Následující řádek */}
+                <div ref={nextLineEl} style={{ minHeight: '60px', color: 'rgba(255,255,255,0.15)', fontSize: 'clamp(20px, 4vw, 40px)', fontWeight: 500, letterSpacing: '2px', transition: 'all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)' }} />
+             </div>
           </div>
 
           <style dangerouslySetInnerHTML={{ __html: `
@@ -457,6 +472,14 @@ export default function DesignerClient({ song }: { song: any }) {
          <div style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', margin: 0, fontWeight: 600 }}>Timeline</h3>
              <div style={{ display: 'flex', gap: '6px' }}>
+                <button 
+                  className="btn-primary" 
+                  style={{ padding: '6px 12px', fontSize: '11px', background: 'linear-gradient(45deg, #ef4444, #991b1b)', border: 'none', color: '#fff' }} 
+                  title="🔄 Vymazat veškeré časování (Reset)" 
+                  onClick={handleReset}
+                >
+                  🔄
+                </button>
                 <button 
                   className="btn-primary" 
                   style={{ padding: '6px 12px', fontSize: '11px', background: 'linear-gradient(45deg, #a855f7, #7e22ce)', border: 'none', color: '#fff', opacity: isAligning ? 0.5 : 1 }} 
