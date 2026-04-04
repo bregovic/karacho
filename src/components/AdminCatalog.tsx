@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import AudioUploader from '@/components/AudioUploader';
 import SongEditModal from '@/components/SongEditModal';
-import { createSong, deleteSong, removeSongResource } from '@/app/admin/actions';
+import { createSong, deleteSong, updateSong, removeSongResource } from '@/app/admin/actions';
 import { autoAlignSong } from '@/app/admin/auto-align';
 import { useTranslation } from '@/lib/translations';
 
@@ -146,19 +146,37 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
                          ))}
                       </div>
                   </div>
-                  <button 
-                    onClick={async () => { if(confirm(t('delete_confirm'))) await deleteSong(song.id); }} 
-                    style={{ background: 'rgba(255,0,0,0.1)', border: 'none', color: '#ff4444', width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                    title={t('delete_btn')}
-                  >
-                    🗑️
-                  </button>
-                </div>
-
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                   <button onClick={() => setEditingSong(song)} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '11px', borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                     ⚙️ {t('edit_btn') || 'Detail / Upravit'}
-                   </button>
+                  {/* Tlačítka akcí */}
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                    {song.state === 'ACTIVE' ? (
+                       <span style={{ fontSize: '12px', color: '#00B140', fontWeight: 'bold', background: 'rgba(0,177,64,0.1)', padding: '4px 8px', borderRadius: '4px' }}>✅ Publikováno</span>
+                    ) : (
+                      (hasAudio && hasJson) && (
+                         <button 
+                            onClick={async () => {
+                              if (confirm(`Chcete píseň "${song.title}" rovnou zveřejnit pro lidi?`)) {
+                                await updateSong(song.id, { state: 'ACTIVE' });
+                                window.location.reload();
+                              }
+                            }}
+                            className="btn-primary" 
+                            style={{ padding: '4px 10px', fontSize: '11px', background: 'var(--color-teal)' }}
+                         >🚀 PUBLIKOVAT</button>
+                      )
+                    )}
+                    
+                    <button 
+                       onClick={() => setEditingSong(song)}
+                       className="btn-secondary" 
+                       style={{ padding: '6px 12px', fontSize: '11px', borderRadius: '4px' }}
+                    >⚙️ Upravit</button>
+                    
+                    <button 
+                       onClick={() => { if(confirm('Smazat?')) deleteSong(song.id); }}
+                       className="btn-secondary" 
+                       style={{ padding: '6px 10px', fontSize: '11px', color: '#ff4d4d', borderRadius: '4px' }}
+                    >🗑️</button>
+                  </div>
                 </div>
 
                 {/* STATUS BAR */}

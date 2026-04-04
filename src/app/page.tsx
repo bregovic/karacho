@@ -11,7 +11,7 @@ export default async function Home() {
   // Veřejnosti ukážeme jen písně, které už mají Video nebo nějakou stopu.
   // Ale adminovi ukážeme všechny i rozpracované.
   const songs = await db.song.findMany({
-    where: isAdmin ? undefined : { videoUrl: { not: null } },
+    where: isAdmin ? undefined : { state: 'ACTIVE' },
     orderBy: { createdAt: 'desc' }
   });
 
