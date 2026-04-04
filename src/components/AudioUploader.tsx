@@ -107,7 +107,35 @@ export default function AudioUploader({ songId, type = 'audio' }: AudioUploaderP
         ) : (
            <>
              <span style={{ fontSize: '18px' }}>{icon}</span> {text}
-             <input type="file" accept={type === 'json' ? '.json' : (type === 'background' ? 'image/*' : 'audio/*')} onChange={handleUpload} style={{ display: 'none' }} disabled={uploading} />
+             <input 
+               type="file" 
+               accept={
+                 type === 'background' ? 'image/png, image/jpeg, image/webp' : 
+                 type === 'json' ? '.json' : 
+                 'audio/mpeg, audio/wav, audio/x-m4a, audio/*'
+               } 
+               onChange={(e) => {
+                 const file = e.target.files?.[0];
+                 if (!file) return;
+
+                 // Klient-side check přípony pro jistotu
+                 const ext = file.name.split('.').pop()?.toLowerCase();
+                 if (type === 'background' && !['jpg', 'jpeg', 'png', 'webp'].includes(ext || '')) {
+                   alert("❌ CHYBA: Sem patří obrázek (JPG, PNG, WEBP)!");
+                   e.target.value = '';
+                   return;
+                 }
+                 if (type === 'json' && ext !== 'json') {
+                   alert("❌ CHYBA: Sem patří pouze JSON soubor!");
+                   e.target.value = '';
+                   return;
+                 }
+
+                 handleUpload(file);
+               }} 
+               style={{ display: 'none' }} 
+               disabled={uploading} 
+             />
            </>
         )}
       </label>
