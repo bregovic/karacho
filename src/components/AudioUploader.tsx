@@ -1,8 +1,14 @@
 'use client';
 import { useState } from 'react';
-import { updateSongAudio, updateSongInstrumental, updateSongJson } from '@/app/admin/actions';
+import { updateSongAudio, updateSongInstrumental, updateSongJson, updateSongBackground } from '@/app/admin/actions';
 
-export default function AudioUploader({ songId, type = 'audio' }: { songId: string, type?: 'audio' | 'instrumental' | 'json' }) {
+interface AudioUploaderProps {
+  songId: string;
+  onUploaded?: (url: string) => void;
+  type?: 'audio' | 'instrumental' | 'json' | 'background';
+}
+
+export default function AudioUploader({ songId, type = 'audio' }: AudioUploaderProps) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
 
@@ -35,6 +41,8 @@ export default function AudioUploader({ songId, type = 'audio' }: { songId: stri
             await updateSongInstrumental(songId, data.finalUrl);
           } else if (type === 'json') {
             await updateSongJson(songId, data.finalUrl);
+          } else if (type === 'background') {
+            await updateSongBackground(songId, data.finalUrl);
           } else {
             await updateSongAudio(songId, data.finalUrl);
           }
@@ -99,7 +107,7 @@ export default function AudioUploader({ songId, type = 'audio' }: { songId: stri
         ) : (
            <>
              <span style={{ fontSize: '18px' }}>{icon}</span> {text}
-             <input type="file" accept={type === 'json' ? '.json' : 'audio/*'} onChange={handleUpload} style={{ display: 'none' }} disabled={uploading} />
+             <input type="file" accept={type === 'json' ? '.json' : (type === 'background' ? 'image/*' : 'audio/*')} onChange={handleUpload} style={{ display: 'none' }} disabled={uploading} />
            </>
         )}
       </label>

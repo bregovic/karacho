@@ -163,6 +163,22 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', background: 'rgba(0,0,0,0.3)', padding: '1.2rem', borderRadius: '12px' }}>
                     
                     {/* Audio Flow */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '13px', color: song.backgroundUrl ? 'var(--color-teal)' : '#666' }}>🖼️ Pozadí (Grafika)</span>
+                        {song.backgroundUrl && <span style={{ color: '#4ade80', fontSize: '11px' }}>✓ OK</span>}
+                      </div>
+                      <AudioUploader songId={song.id} type="background" />
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '13px', color: hasJson ? 'var(--color-teal)' : '#666' }}>2. Časování (Studio)</span>
+                        {hasJson && <span style={{ color: '#4ade80', fontSize: '11px' }}>✓ Zklíčováno</span>}
+                      </div>
+                      <AudioUploader songId={song.id} type="json" />
+                    </div>
+
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                          <span style={{ fontSize: '13px', color: hasAudio ? 'var(--color-teal)' : '#666' }}>{t('step_audio')} (Originál)</span>
