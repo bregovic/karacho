@@ -190,54 +190,58 @@ export default function PlayerClient({ song }: { song: any }) {
     renderState(state, t);
   };
 
+  const hasVideo = !!song.videoUrl;
+
   return (
-    <div className="player-root" style={{ position: 'fixed', inset: 0, background: '#0a0a14', color: 'white', overflow: 'hidden', fontFamily: 'var(--font-outfit)' }} onClick={() => togglePlay()}>
+    <div className="player-root" style={{ 
+      position: 'fixed', inset: 0, 
+      background: '#000', 
+      color: '#fff', 
+      fontFamily: 'Inter, sans-serif',
+      overflow: 'hidden'
+    }} onClick={() => togglePlay()}>
+      
       <style dangerouslySetInnerHTML={{ __html: `
         .player-root { --glow: rgba(255, 215, 0, 0.55); }
-        
         .w-wrap { position: relative; display: inline-block; padding: 0 4px; }
-        .w-off { color: rgba(255,255,255,0.82); text-shadow: 0 2px 6px rgba(0,0,0,0.95); }
+        .w-off { color: rgba(255,255,255,0.85); text-shadow: 0 2px 8px rgba(0,0,0,1); }
         .w-on { 
-          position: absolute; 
-          left: 4px; top: 0; 
-          width: 0%; 
-          overflow: hidden; 
-          white-space: nowrap; 
-          color: #ffd700; 
-          text-shadow: 0 2px 6px rgba(0,0,0,0.95), 0 0 24px var(--glow);
+          position: absolute; left: 4px; top: 0; width: 0%; overflow: hidden; white-space: nowrap; 
+          color: #ffd700; text-shadow: 0 2px 8px rgba(0,0,0,1), 0 0 24px var(--glow);
         }
-        
-        .ln-ctx { font-size: clamp(13px, 3.2vw, 26px); color: rgba(255,255,255,0.35); font-weight: 700; text-align: center; min-height: 1.4em; }
-        #cur-line { font-size: clamp(24px, 6vw, 78px); font-weight: 900; text-align: center; min-height: 1.2em; line-height: 1.2; letter-spacing: -0.01em; }
-        
-        @keyframes blockIn {
-          from { opacity: 0; transform: translateY(12px); }
-          to { opacity: 1; transform: none; }
-        }
-        .block-new { animation: blockIn 0.25s ease-out forwards; }
-        
-        #scrim { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0.2) 100%); z-index: 2; pointer-events: none; }
+        .ln-ctx { font-size: clamp(14px, 3.5vw, 28px); color: rgba(255,255,255,0.4); font-weight: 700; text-align: center; min-height: 1.4em; }
+        #cur-line { font-size: clamp(28px, 6.5vw, 82px); font-weight: 900; text-align: center; min-height: 1.2em; line-height: 1.2; letter-spacing: -0.01em; }
+        @keyframes blockIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+        .block-new { animation: blockIn 0.3s ease-out forwards; }
       `}} />
 
-      <div id="bg-solid" style={{ position: 'absolute', inset: 0, background: '#0a0a14', zIndex: 0 }} />
-      {song.videoUrl ? (
-         <video 
-           ref={videoElRef}
-           src={song.videoUrl} 
-           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 1 }}
-           muted 
-           autoPlay={false}
-           playsInline
-         />
-      ) : <div id="scrim" />}
+      {/* POZADÍ - VIDEO NEBO OBRÁZEK */}
+      <div style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
+        {hasVideo ? (
+          <video 
+            ref={videoElRef}
+            src={song.videoUrl || ''} 
+            muted playsInline
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        ) : (
+          <div style={{ 
+            width: '100%', height: '100%', 
+            backgroundImage: `url(${song.backgroundUrl || 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=2070&auto=format&fit=crop'})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            filter: 'brightness(0.35) saturate(1.2)'
+          }} />
+        )}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 40%, transparent 60%, rgba(0,0,0,0.8) 100%)' }} />
+      </div>
 
-      {!song.videoUrl && (
-        <div id="stage" style={{ position: 'absolute', inset: 0, zIndex: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 8vw', gap: '2vh', pointerEvents: 'none' }}>
-           <div ref={prevLineEl} className="ln-ctx" />
-           <div ref={curLineEl} id="cur-line" />
-           <div ref={nextLineEl} className="ln-ctx" />
-        </div>
-      )}
+      {/* TEXTOVÁ VRSTVA (PRO OBA PŘÍPADY) */}
+      <div id="stage" style={{ position: 'absolute', inset: 0, zIndex: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 10vw', gap: '3vh', pointerEvents: 'none' }}>
+         <div ref={prevLineEl} className="ln-ctx" />
+         <div ref={curLineEl} id="cur-line" />
+         <div ref={nextLineEl} className="ln-ctx" />
+      </div>
 
       <div id="ui-layer" style={{ position: 'absolute', inset: 0, zIndex: 10, pointerEvents: 'none', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
          <div id="controls" style={{ padding: '2rem', display: 'flex', alignItems: 'center', gap: '1.5rem', pointerEvents: 'auto', background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }}>
