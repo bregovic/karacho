@@ -18,6 +18,7 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
 
   const allGenres = Array.from(new Set(initialSongs.map(s => s.genre).filter(Boolean)));
   const allTags = Array.from(new Set(initialSongs.flatMap(s => s.tags || []).filter(Boolean)));
+  const allBackgrounds = Array.from(new Set(initialSongs.map(s => s.backgroundUrl).filter(Boolean)));
 
   const filteredSongs = initialSongs.filter(song => {
     const hasAudio = !!song.audioUrl;
@@ -291,7 +292,14 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
           })}
          </div>
       )}
-      {editingSong && <SongEditModal song={editingSong} onClose={() => setEditingSong(null)} allGenres={allGenres as string[]} />}
+      {editingSong && (
+        <SongEditModal 
+          song={editingSong} 
+          onClose={() => setEditingSong(null)} 
+          allGenres={allGenres as string[]} 
+          allBackgrounds={allBackgrounds as string[]}
+        />
+      )}
     </div>
   );
 }
