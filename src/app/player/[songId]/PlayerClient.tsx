@@ -226,10 +226,10 @@ export default function PlayerClient({ song }: { song: any }) {
       
       <style dangerouslySetInnerHTML={{ __html: `
         .player-root { --glow: rgba(255, 215, 0, 0.55); }
-        .w-wrap { position: relative; display: inline-block; padding: 0 0.15em; }
+        .w-wrap { position: relative; display: inline-block; padding: 0; margin: 0 0.1em; }
         .w-off { color: rgba(255,255,255,1); text-shadow: 1px 1px 3px rgba(0,0,0,0.9); }
         .w-on { 
-          position: absolute; left: 0.15em; top: 0; width: 0%; overflow: hidden; white-space: nowrap; 
+          position: absolute; left: 0; top: 0; width: 0%; overflow: hidden; white-space: nowrap; 
           color: #ffd700; text-shadow: 1px 1px 3px rgba(0,0,0,0.9);
         }
         .ln-ctx { font-size: clamp(14px, 3.5vw, 28px); color: rgba(255,255,255,0.4); font-weight: 700; text-align: center; min-height: 1.4em; }
