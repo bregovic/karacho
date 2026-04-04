@@ -211,7 +211,10 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: hasJson ? 1 : 0.4 }}>
                       <span style={{ fontSize: '13px', color: song.videoUrl ? 'var(--color-teal)' : '#666' }}>{t('step_render')}</span>
                       {song.videoUrl ? (
-                         <span style={{ color: '#4ade80', fontSize: '13px' }}>✓ Publikováno</span>
+                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <span style={{ color: '#4ade80', fontSize: '13px' }}>✓ Publikováno {song.videoSize ? `(${ (song.videoSize / 1024 / 1024).toFixed(1) } MB)` : ''}</span>
+                            <a href={song.videoUrl} download={`${song.title}.webm`} target="_blank" style={{ textDecoration: 'none', background: 'rgba(255,255,255,0.08)', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', color: 'var(--color-gold)', border: '1px solid rgba(255,215,0,0.2)' }} title="Stáhnout video do PC">💾 Stáhnout</a>
+                         </div>
                       ) : (
                          <Link href={`/renderer?songId=${song.id}`}>
                             <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '11px' }} disabled={!hasJson}>Spustit Render</button>
