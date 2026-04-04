@@ -233,8 +233,8 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
                           <span style={{ fontSize: '13px', color: hasJson ? 'var(--color-teal)' : '#666' }}>2. Časování (Studio)</span>
                           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                              {hasJson && <span style={{ color: '#4ade80', fontSize: '11px', marginRight: '8px' }}>✓ OK</span>}
-                             <Link href={`/designer/${song.id}`}>
-                               <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px', background: 'var(--color-teal)' }} disabled={!hasAudio}>🚀 🛠️ Otevřít Studio (AI/Ručně)</button>
+                             <Link href={`/designer?songId=${song.id}`}>
+                               <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px', background: 'var(--color-teal)' }} disabled={!hasAudio}>🚀 🛠️ Otevřít Studio</button>
                              </Link>
                           </div>
                         </div>
