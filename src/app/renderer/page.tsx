@@ -78,6 +78,11 @@ function RendererContent() {
         } else {
           setBgName("❓ Žádné pozadí v DB");
         }
+
+        // 4. ANIMATION STYLE
+        if (song.animationStyle) {
+          setAnimStyle(song.animationStyle as any);
+        }
       })
       .catch(err => {
         console.error("Renderer Error (Fetch song):", err);
@@ -115,8 +120,9 @@ function RendererContent() {
       const data = await res.json();
       
       if (data.finalUrl) {
-        await updateSongVideo(songId, data.finalUrl);
-        alert("Video bylo úspěšně nahráno do Katalogu! ✅");
+        const sizeBytes = finalBlob.size;
+        await updateSongVideo(songId, data.finalUrl, sizeBytes);
+        alert(`Video bylo úspěšně nahráno do Katalogu! (${(sizeBytes/1024/1024).toFixed(1)} MB) ✅`);
       }
     } catch (e) {
       console.error(e);

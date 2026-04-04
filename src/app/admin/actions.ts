@@ -49,8 +49,17 @@ export async function updateSongJson(songId: string, jsonUrl: string) {
   revalidatePath('/designer');
 }
 
-export async function updateSongVideo(songId: string, videoUrl: string) {
-  await db.song.update({ where: { id: songId }, data: { videoUrl } });
+export async function updateSongVideo(songId: string, videoUrl: string, videoSize?: number) {
+  await db.song.update({ 
+    where: { id: songId }, 
+    data: { videoUrl, videoSize: videoSize || undefined } 
+  });
+  revalidatePath('/admin');
+  revalidatePath('/renderer');
+}
+
+export async function updateSongAnimation(songId: string, animationStyle: string) {
+  await db.song.update({ where: { id: songId }, data: { animationStyle } });
   revalidatePath('/admin');
   revalidatePath('/renderer');
 }

@@ -14,6 +14,7 @@ export default function SongEditModal({ song, onClose }: SongEditModalProps) {
     genre: song.genre || '',
     tags: Array.isArray(song.tags) ? song.tags.join(', ') : '',
     lyrics: song.lyrics || '',
+    animationStyle: song.animationStyle || 'karaoke-classic',
   });
   const [loading, setLoading] = useState(false);
 
@@ -69,14 +70,26 @@ export default function SongEditModal({ song, onClose }: SongEditModalProps) {
               />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <label style={{ fontSize: '13px', color: '#999' }}>Štítky (čárkou)</label>
-              <input 
-                value={formData.tags} 
-                onChange={e => setFormData({...formData, tags: e.target.value})}
-                placeholder="Duet, Rock, 80s..."
+              <label style={{ fontSize: '13px', color: '#999' }}>Styl Animace (Render)</label>
+              <select 
+                value={formData.animationStyle} 
+                onChange={e => setFormData({...formData, animationStyle: e.target.value})}
                 style={{ padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', borderRadius: '10px' }}
-              />
+              >
+                <option value="karaoke-classic">Originální Karacho (Zlato-bílá)</option>
+                <option value="karaoke-neon">Moderní Neon (Tyrkysová)</option>
+              </select>
             </div>
+          </div>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '13px', color: '#999' }}>Štítky (čárkou)</label>
+            <input 
+              value={formData.tags} 
+              onChange={e => setFormData({...formData, tags: e.target.value})}
+              placeholder="Duet, Rock, 80s..."
+              style={{ padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', borderRadius: '10px' }}
+            />
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
