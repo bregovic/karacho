@@ -272,6 +272,10 @@ function RendererContent() {
 
         const interval = setInterval(() => {
             const t = au.currentTime;
+            
+            // Vizuální offset 0.5s (kompenzace reakční doby při časování)
+            const visualTime = t + 0.5;
+
             setProgress((t / au.duration) * 100);
             
             ctx.globalAlpha = 1;
@@ -284,15 +288,15 @@ function RendererContent() {
                ctx.fillRect(0, 0, W, H);
             }
     
-            const ci = blocks.findIndex((b: any) => t >= b.bs && t < b.be);
+            const ci = blocks.findIndex((b: any) => visualTime >= b.bs && visualTime < b.be);
             if (ci >= 0) {
                 const prev = ci > 0 ? blocks[ci - 1] : null;
                 const curr = blocks[ci];
                 const next = ci < blocks.length - 1 ? blocks[ci + 1] : null;
 
-                if (prev) renderWords(ctx, H * 0.25, 48, prev.lw, prev, t, 0.4);
-                renderWords(ctx, H * 0.50, 90, curr.lw, curr, t, 1.0);
-                if (next) renderWords(ctx, H * 0.75, 48, next.lw, next, t, 0.4);
+                if (prev) renderWords(ctx, H * 0.25, 48, prev.lw, prev, visualTime, 0.4);
+                renderWords(ctx, H * 0.50, 90, curr.lw, curr, visualTime, 1.0);
+                if (next) renderWords(ctx, H * 0.75, 48, next.lw, next, visualTime, 0.4);
             }
     
             if (t >= au.duration || au.paused) {
