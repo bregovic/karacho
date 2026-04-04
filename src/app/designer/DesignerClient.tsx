@@ -347,6 +347,7 @@ export default function DesignerClient({ song }: { song: any }) {
   };
 
   const [saving, setSaving] = useState(false);
+  const [saveDone, setSaveDone] = useState(false);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
 
   const handleSave = async () => {
@@ -359,7 +360,8 @@ export default function DesignerClient({ song }: { song: any }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ timingData: data, lyrics: rawText }),
       });
-      alert("Uloženo do databáze! ✅");
+      setSaveDone(true);
+      // alert("Uloženo do databáze! ✅");
     } catch (e) {
       console.error(e);
       alert("Chyba sítě.");
@@ -491,9 +493,21 @@ export default function DesignerClient({ song }: { song: any }) {
                 </button>
                 <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px', background: 'var(--color-teal)' }} title="Renderovat video" onClick={() => window.open(`/renderer?songId=${song.id}`, '_blank')}>🎬</button>
                 <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px' }} title="Stáhnout JSON" onClick={() => { dlSRT(JSON.stringify(generateBlocksJSON(), null, 2), "karaoke-data.json"); }}>📥</button>
-                <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px', background: 'var(--color-gold)' }} onClick={handleSave} disabled={saving}>{saving ? '...' : '💾'}</button>
+                <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px', background: 'var(--color-gold)' }} onClick={handleSave} disabled={saving}>{saving ? '...' : (saveDone ? '✓' : '💾')}</button>
              </div>
          </div>
+
+         {saveDone && (
+             <div style={{ padding: '1rem', background: 'rgba(74, 222, 128, 0.1)', borderBottom: '1px solid rgba(74, 222, 128, 0.2)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <a href={`/player/${song.id}`} style={{ textDecoration: 'none' }}>
+                  <button className="btn-primary" style={{ width: '100%', background: 'linear-gradient(45deg, #FFD700, #FFA500)', border: 'none', color: '#000', fontWeight: 'bold', padding: '12px' }}>
+                    🎤 JÍT ZPÍVAT HNED!
+                  </button>
+                </a>
+                <div style={{ fontSize: '11px', color: '#4ade80', textAlign: 'center' }}>Vše uloženo. Přehrávač si text vykreslí live.</div>
+             </div>
+          )}
+
          <div style={{ flex: 1, overflowY: 'auto', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
             {eventsRef.current.map((ev, idx) => {
                const isLine = ev.type === 'line';
