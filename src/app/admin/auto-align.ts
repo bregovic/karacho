@@ -81,7 +81,9 @@ export async function autoAlignSong(songId: string) {
 
     console.log("AI-Align: Success!");
     revalidatePath('/admin');
-    return { success: true };
+    revalidatePath('/designer');
+    revalidatePath(`/designer/${songId}`);
+    return { success: true, timingData };
 
   } catch (e: any) {
     console.error("AI-Align Error:", e);
