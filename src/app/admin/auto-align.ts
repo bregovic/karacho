@@ -5,7 +5,7 @@ import { db } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY || 'missing-key',
 });
 
 export async function autoAlignSong(songId: string) {
