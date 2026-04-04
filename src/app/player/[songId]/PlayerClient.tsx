@@ -16,7 +16,7 @@ interface TimingData {
 
 export default function PlayerClient({ song }: { song: any }) {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isInstrumental, setIsInstrumental] = useState(false);
+  const [isInstrumental, setIsInstrumental] = useState(!!song.instrumentalUrl);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [renderTick, setRenderTick] = useState(0);
   
@@ -55,10 +55,18 @@ export default function PlayerClient({ song }: { song: any }) {
     }
   };
 
+  const toggleFullScreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {});
+    }
+  };
+
   useEffect(() => {
     const a = new Audio();
     a.crossOrigin = "anonymous";
-    a.src = (isInstrumental && song.instrumentalUrl) ? song.instrumentalUrl : song.audioUrl;
+    // Výchozí je instrumentálka, pokud existuje
+    const initialSrc = (!!song.instrumentalUrl) ? song.instrumentalUrl : song.audioUrl;
+    a.src = initialSrc;
     a.preload = "auto";
     a.onplay = () => { setIsPlaying(true); requestWakeLock(); };
     a.onpause = () => { setIsPlaying(false); releaseWakeLock(); };
@@ -93,6 +101,10 @@ export default function PlayerClient({ song }: { song: any }) {
   const togglePlay = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (!audioRef.current) return;
+    
+    // Zapneme full screen při prvním kliku (nebo kdykoliv spustíme play)
+    toggleFullScreen();
+
     if (audioRef.current.paused) {
       audioRef.current.play();
       if (videoElRef.current) videoElRef.current.play();
