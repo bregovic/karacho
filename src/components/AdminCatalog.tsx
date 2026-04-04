@@ -261,19 +261,36 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
                        </div>
                     </div>
 
-                    {/* Render Flow */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: hasJson ? 1 : 0.4 }}>
-                      <span style={{ fontSize: '13px', color: song.videoUrl ? 'var(--color-teal)' : '#666' }}>{t('step_render')}</span>
-                      {song.videoUrl ? (
-                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <span style={{ color: '#4ade80', fontSize: '13px' }}>✓ Publikováno {song.videoSize ? `(${ (song.videoSize / 1024 / 1024).toFixed(1) } MB)` : ''}</span>
-                            <a href={song.videoUrl} download={`${song.title}.webm`} target="_blank" style={{ textDecoration: 'none', background: 'rgba(255,255,255,0.08)', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', color: 'var(--color-gold)', border: '1px solid rgba(255,215,0,0.2)' }} title="Stáhnout video do PC">💾 Stáhnout</a>
-                         </div>
-                      ) : (
-                         <Link href={`/renderer?songId=${song.id}`}>
-                            <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '11px' }} disabled={!hasJson}>Spustit Render</button>
-                         </Link>
-                      )}
+                    {/* Render Flow / Online Play */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '13px', color: song.videoUrl ? 'var(--color-teal)' : '#666' }}>3. Finále (Zpěv)</span>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                           <Link href={`/player/${song.id}`}>
+                              <button className="btn-primary" style={{ padding: '8px 16px', fontSize: '12px', background: 'linear-gradient(45deg, #FFD700, #FFA500)', border: 'none', color: '#000', fontWeight: 'bold' }} disabled={!hasJson}>🚀 Přehrát online (Hned)</button>
+                           </Link>
+                        </div>
+                      </div>
+                      
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.7, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '8px' }}>
+                        <span style={{ fontSize: '11px', color: '#888' }}>Renderování (jen pro offline soubor):</span>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          {song.videoUrl ? (
+                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <span style={{ color: '#4ade80', fontSize: '11px' }}>✓ Hotovo {song.videoSize ? `(${ (song.videoSize / 1024 / 1024).toFixed(1) } MB)` : ''}</span>
+                                <a href={song.videoUrl} download={`${song.title}.webm`} target="_blank" style={{ textDecoration: 'none', background: 'rgba(255,255,255,0.08)', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', color: 'var(--color-gold)', border: '1px solid rgba(255,215,0,0.2)' }} title="Stáhnout video do PC">💾 Stáhnout</a>
+                                <button 
+                                  onClick={async () => { if(confirm("Opravdu smazat vyrenderované video?")) await removeSongResource(song.id, 'video'); }}
+                                  style={{ background: 'rgba(255,0,0,0.1)', border: 'none', color: '#ff4444', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}
+                                >🗑️</button>
+                             </div>
+                          ) : (
+                             <Link href={`/renderer?songId=${song.id}`}>
+                                <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '11px', opacity: 0.6 }} disabled={!hasJson}>🎬 Spustit Render</button>
+                             </Link>
+                          )}
+                        </div>
+                      </div>
                     </div>
                 </div>
 

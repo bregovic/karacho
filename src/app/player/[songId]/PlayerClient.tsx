@@ -110,6 +110,9 @@ export default function PlayerClient({ song }: { song: any }) {
     const t = audioRef.current.currentTime;
     const d = audioRef.current.duration || dur || 1;
 
+    // Vizuální offset 0.5s (kompenzace reakční doby při časování)
+    const visualTime = t + 0.5;
+
     // Progress bar
     if (pbarEl.current) pbarEl.current.style.width = `${(t / d) * 100}%`;
     if (videoElRef.current) {
@@ -121,8 +124,8 @@ export default function PlayerClient({ song }: { song: any }) {
         timeEl.current.textContent = `${fmt(t)} / ${fmt(d)}`;
     }
 
-    const state = getState(t);
-    renderState(state, t);
+    const state = getState(visualTime);
+    renderState(state, visualTime);
 
     if (!audioRef.current.paused) {
       rafRef.current = requestAnimationFrame(tick);
