@@ -205,7 +205,6 @@ export default function PlayerClient({ song }: { song: any }) {
           white-space: nowrap; 
           color: #ffd700; 
           text-shadow: 0 2px 6px rgba(0,0,0,0.95), 0 0 24px var(--glow);
-          transition: width 0.05s linear;
         }
         
         .ln-ctx { font-size: clamp(13px, 3.2vw, 26px); color: rgba(255,255,255,0.35); font-weight: 700; text-align: center; min-height: 1.4em; }
