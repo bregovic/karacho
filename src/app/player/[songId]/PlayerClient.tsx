@@ -17,6 +17,7 @@ interface TimingData {
 export default function PlayerClient({ song }: { song: any }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isInstrumental, setIsInstrumental] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
   const [renderTick, setRenderTick] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const videoElRef = useRef<HTMLVideoElement | null>(null);
@@ -236,6 +237,12 @@ export default function PlayerClient({ song }: { song: any }) {
         #cur-line { font-size: clamp(28px, 6.5vw, 82px); font-weight: 900; text-align: center; min-height: 1.2em; line-height: 1.2; letter-spacing: -0.01em; }
         @keyframes blockIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
         .block-new { animation: blockIn 0.3s ease-out forwards; }
+        
+        @media (orientation: portrait) {
+          #cur-line { font-size: clamp(22px, 8vw, 42px); padding: 0 1rem; }
+          .ln-ctx { font-size: clamp(12px, 5vw, 18px); }
+          #stage { padding: 0 8vw !important; gap: 1.5vh !important; }
+        }
       `}} />
 
       {/* POZADÍ - VIDEO NEBO OBRÁZEK */}
@@ -248,13 +255,16 @@ export default function PlayerClient({ song }: { song: any }) {
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
         ) : (
-          <div style={{ 
-            width: '100%', height: '100%', 
-            backgroundImage: `url(${song.backgroundUrl || 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=2070&auto=format&fit=crop'})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            filter: 'brightness(0.35) saturate(1.2)'
-          }} />
+          <img 
+            src={song.backgroundUrl || 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=2070&auto=format&fit=crop'}
+            onLoad={() => setImgLoaded(true)}
+            style={{ 
+              width: '100%', height: '100%', objectFit: 'cover',
+              filter: 'brightness(0.35) saturate(1.2)',
+              opacity: imgLoaded ? 1 : 0,
+              transition: 'opacity 0.8s ease-in-out'
+            }} 
+          />
         )}
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 40%, transparent 60%, rgba(0,0,0,0.8) 100%)' }} />
       </div>
