@@ -5,9 +5,10 @@ import { updateSong } from '@/app/admin/actions';
 interface SongEditModalProps {
   song: any;
   onClose: () => void;
+  allGenres?: string[];
 }
 
-export default function SongEditModal({ song, onClose }: SongEditModalProps) {
+export default function SongEditModal({ song, onClose, allGenres = [] }: SongEditModalProps) {
   const [formData, setFormData] = useState({
     title: song.title || '',
     artist: song.artist || '',
@@ -62,22 +63,33 @@ export default function SongEditModal({ song, onClose }: SongEditModalProps) {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <label style={{ fontSize: '13px', color: '#999' }}>Žánr</label>
+              <label style={{ fontSize: '13px', color: '#999' }}>Žánr (Zadejte nebo vyberte)</label>
               <input 
+                list="genre-list"
                 value={formData.genre} 
                 onChange={e => setFormData({...formData, genre: e.target.value})}
                 style={{ padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', borderRadius: '10px' }}
               />
+              <datalist id="genre-list">
+                 {allGenres.map(g => <option key={g}>{g}</option>)}
+              </datalist>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <label style={{ fontSize: '13px', color: '#999' }}>Styl Animace (Render)</label>
               <select 
                 value={formData.animationStyle} 
                 onChange={e => setFormData({...formData, animationStyle: e.target.value})}
-                style={{ padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', borderRadius: '10px' }}
+                style={{ 
+                   padding: '12px', 
+                   background: '#1a1a1a', // Pevné tmavé pozadí pro čitelnost
+                   color: 'white', 
+                   border: '1px solid rgba(255,255,255,0.1)', 
+                   borderRadius: '10px',
+                   appearance: 'auto' // Pro lepší nativní styling na OS
+                }}
               >
-                <option value="karaoke-classic">Originální Karacho (Zlato-bílá)</option>
-                <option value="karaoke-neon">Moderní Neon (Tyrkysová)</option>
+                <option value="karaoke-classic" style={{ background: '#1a1a1a', color: 'white' }}>Originální Karacho (Zlato-bílá)</option>
+                <option value="karaoke-neon" style={{ background: '#1a1a1a', color: 'white' }}>Moderní Neon (Tyrkysová)</option>
               </select>
             </div>
           </div>
