@@ -182,7 +182,6 @@ export default function PlayerClient({ song }: { song: any }) {
       lastBlock.current = ci;
     }
 
-    // Plynulý progres slov
     if (cur) {
       const wraps = cur.querySelectorAll('.w-wrap');
       wraps.forEach((wrap: any, i: number) => {
@@ -227,11 +226,11 @@ export default function PlayerClient({ song }: { song: any }) {
       
       <style dangerouslySetInnerHTML={{ __html: `
         .player-root { --glow: rgba(255, 215, 0, 0.55); }
-        .w-wrap { position: relative; display: inline-block; padding: 0 4px; }
-        .w-off { color: rgba(255,255,255,0.85); text-shadow: 0 2px 8px rgba(0,0,0,1); }
+        .w-wrap { position: relative; display: inline-block; padding: 0 0.15em; }
+        .w-off { color: rgba(255,255,255,1); text-shadow: 1px 1px 3px rgba(0,0,0,0.9); }
         .w-on { 
-          position: absolute; left: 4px; top: 0; width: 0%; overflow: hidden; white-space: nowrap; 
-          color: #ffd700; text-shadow: 0 2px 8px rgba(0,0,0,1), 0 0 24px var(--glow);
+          position: absolute; left: 0.15em; top: 0; width: 0%; overflow: hidden; white-space: nowrap; 
+          color: #ffd700; text-shadow: 1px 1px 3px rgba(0,0,0,0.9);
         }
         .ln-ctx { font-size: clamp(14px, 3.5vw, 28px); color: rgba(255,255,255,0.4); font-weight: 700; text-align: center; min-height: 1.4em; }
         #cur-line { font-size: clamp(28px, 6.5vw, 82px); font-weight: 900; text-align: center; min-height: 1.2em; line-height: 1.2; letter-spacing: -0.01em; }

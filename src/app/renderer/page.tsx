@@ -245,23 +245,30 @@ function RendererContent() {
                 ctx.globalAlpha = alpha;
                 
                 // 1. Nakreslíme "vypnuté" slovo (podklad)
-                ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-                ctx.lineWidth = fontSize * 0.1;
+                ctx.strokeStyle = 'rgba(0,0,0,1)';
+                ctx.lineWidth = fontSize * 0.08;
                 ctx.lineJoin = 'round';
                 ctx.strokeText(w, sx, y);
                 
-                ctx.fillStyle = `rgba(255,255,255,${alpha * 0.85})`;
+                ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+                ctx.shadowColor = 'rgba(0,0,0,0.9)';
+                ctx.shadowBlur = 0;
+                ctx.shadowOffsetX = 2;
+                ctx.shadowOffsetY = 2;
                 ctx.fillText(w, sx, y);
+                ctx.shadowOffsetX = 0;
+                ctx.shadowOffsetY = 0;
 
                 // 2. Nakreslíme "zapnutou" část slova přes to (oříznutí)
                 if (p > 0) {
                     ctx.beginPath();
-                    ctx.rect(sx - 10, y - fontSize, (widths[i] + 15) * p, fontSize * 2);
+                    ctx.rect(sx - 10, y - fontSize, (widths[i] + 20) * p, fontSize * 2);
                     ctx.clip();
                     
-                    ctx.fillStyle = animStyle === 'karaoke-neon' ? '#00e5ff' : '#ffd700';
-                    ctx.shadowColor = animStyle === 'karaoke-neon' ? '#00e5ff' : 'rgba(255,215,0,0.5)';
-                    ctx.shadowBlur = 24;
+                    ctx.fillStyle = '#ffd700'; // Pevná zlatá
+                    ctx.shadowColor = 'rgba(0,0,0,0.9)';
+                    ctx.shadowOffsetX = 2;
+                    ctx.shadowOffsetY = 2;
                     ctx.fillText(w, sx, y);
                 }
 
