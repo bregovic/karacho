@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useEffect, ChangeEvent } from 'react';
 import Link from 'next/link';
+import { autoAlignSong } from '@/app/admin/auto-align';
 
 type TimingEvent = 
   | { type: 'line'; time: number; lineIdx: number }
@@ -15,6 +16,7 @@ export default function DesignerClient({ song }: { song: any }) {
   const [duration, setDuration] = useState(0);
   
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isAligning, setIsAligning] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const rafRef = useRef<number | null>(null);
 
@@ -106,8 +108,36 @@ export default function DesignerClient({ song }: { song: any }) {
     setView('editor');
     restoreState();
     startTick();
+    forceUpdate();
   };
 
+  const handleAutoAlign = async () => {
+    if (!confirm("AI automaticky oklíčuje celý text. Stávající časování v timeline bude přepsáno. Pokračovat?")) return;
+    setIsAligning(true);
+    try {
+      const res = await autoAlignSong(song.id);
+      if (res.success && res.timingData) {
+        // Převod blocks zpět na TimingEvents pro editor
+        const newEvents: TimingEvent[] = [];
+        res.timingData.blocks.forEach((b: any, li: number) => {
+          newEvents.push({ type: 'line', time: b.bs, lineIdx: li });
+          b.w.forEach((w: any) => {
+             newEvents.push({ type: 'word', time: w.t, lineIdx: li, wordIdx: w.i });
+          });
+        });
+        eventsRef.current = newEvents;
+        alert("✨ Karacho AI úspěšně oklíčovalo písničku! Můžete si to hned pustit a případně doladit v timeline.");
+        forceUpdate();
+      } else {
+        alert("❌ AI Chyba: " + (res.error || "Neznámý problém"));
+      }
+    } catch (e: any) {
+      alert("❌ Chyba komunikace s AI: " + e.message);
+    } finally {
+      setIsAligning(false);
+    }
+  };
+  
   const togglePlay = () => {
     if (!audioRef.current) return;
     if (audioRef.current.paused) audioRef.current.play();
@@ -426,11 +456,20 @@ export default function DesignerClient({ song }: { song: any }) {
          <div onClick={() => setIsTimelineOpen(!isTimelineOpen)} style={{ position: 'absolute', left: '-40px', top: '50%', transform: 'translateY(-50%)', width: '40px', height: '60px', background: '#0e0e16', border: '1px solid rgba(255,255,255,0.05)', borderRight: 'none', borderRadius: '10px 0 0 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '18px', color: isTimelineOpen ? 'var(--color-gold)' : 'white' }}>{isTimelineOpen ? '▶' : '◀'}</div>
          <div style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', margin: 0, fontWeight: 600 }}>Timeline</h3>
-            <div style={{ display: 'flex', gap: '6px' }}>
+             <div style={{ display: 'flex', gap: '6px' }}>
+                <button 
+                  className="btn-primary" 
+                  style={{ padding: '6px 12px', fontSize: '11px', background: 'linear-gradient(45deg, #a855f7, #7e22ce)', border: 'none', color: '#fff', opacity: isAligning ? 0.5 : 1 }} 
+                  title="🪄 AI Auto-Klíčovat (Whisper)" 
+                  onClick={handleAutoAlign} 
+                  disabled={isAligning}
+                >
+                  {isAligning ? '⌛' : '🪄'}
+                </button>
                 <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px', background: 'var(--color-teal)' }} title="Renderovat video" onClick={() => window.open(`/renderer?songId=${song.id}`, '_blank')}>🎬</button>
                 <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px' }} title="Stáhnout JSON" onClick={() => { dlSRT(JSON.stringify(generateBlocksJSON(), null, 2), "karaoke-data.json"); }}>📥</button>
                 <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px', background: 'var(--color-gold)' }} onClick={handleSave} disabled={saving}>{saving ? '...' : '💾'}</button>
-            </div>
+             </div>
          </div>
          <div style={{ flex: 1, overflowY: 'auto', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
             {eventsRef.current.map((ev, idx) => {
