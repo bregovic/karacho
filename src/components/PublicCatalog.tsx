@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useSession } from '@/context/SessionContext';
 import { updateSessionState, advanceSessionQueue, addToSessionQueue } from '@/app/actions/session-actions';
 
@@ -19,6 +20,7 @@ interface Song {
 
 export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs: Song[]; isAdmin: boolean }) {
   const { joinCode, sessionData, refreshSession } = useSession();
+  const router = useRouter();
   
   const [search, setSearch] = useState('');
   const [genreFilter, setGenreFilter] = useState('ALL');
@@ -26,6 +28,16 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
   const [sortBy, setSortBy] = useState('POPULAR');
   const [showToast, setShowToast] = useState(false);
   const [queueSize, setQueueSize] = useState(0);
+  const [joinId, setJoinId] = useState('');
+
+  const handleJoinById = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (joinId.length === 5) {
+      window.location.href = `/join/${joinId}`;
+    } else {
+      alert("Zadejte platný 5-místný kód!");
+    }
+  };
 
   const allGenres = Array.from(new Set(initialSongs.map(s => s.genre).filter(Boolean)));
   const allTags = Array.from(new Set(initialSongs.flatMap(s => s.tags || []).filter(Boolean)));
@@ -48,19 +60,16 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
 
   const hasSongs = sortedSongs.length > 0;
 
-  // Funkce pro přidání do fronty
   const handleAddToQueue = async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
     if (joinCode) {
-      // Odeslat do společné relace
       await addToSessionQueue(joinCode, id);
       setShowToast(true);
       setTimeout(() => setShowToast(false), 2000);
       refreshSession();
     } else {
-      // Lokální fronta fallback
       const q = JSON.parse(localStorage.getItem('karacho_queue') || '[]');
       q.push(id);
       localStorage.setItem('karacho_queue', JSON.stringify(q));
@@ -70,7 +79,6 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
     }
   };
 
-  // Dálkové ovládání TV
   const remoteControl = async (action: 'PLAY' | 'PAUSE' | 'NEXT') => {
     if (!joinCode) return;
     if (action === 'NEXT') {
@@ -82,42 +90,59 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
   };
 
   const selectStyle = { 
-    padding: '12px 16px', borderRadius: '12px', 
-    border: '1px solid rgba(255,255,255,0.12)', 
+    padding: '14px 20px', borderRadius: '14px', 
+    border: '1px solid rgba(255,255,255,0.15)', 
     background: '#1a1a1a', 
-    color: '#fff', fontSize: '14px',
-    outline: 'none', cursor: 'pointer'
+    color: '#fff', fontSize: '15px', fontWeight: 600,
+    outline: 'none', cursor: 'pointer', transition: 'all 0.2s'
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', paddingBottom: joinCode ? '100px' : '0' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', paddingBottom: joinCode ? '110px' : '0' }}>
       
       {/* === HERO SEKCE === */}
       <section style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center',
-        padding: 'clamp(2rem, 8vw, 5rem) 1rem clamp(1rem, 4vw, 3rem)', position: 'relative', overflow: 'hidden',
+        padding: 'clamp(3rem, 10vw, 6rem) 1rem clamp(2rem, 5vw, 4rem)', position: 'relative', overflow: 'hidden',
       }}>
         <div style={{
           position: 'absolute', inset: 0, zIndex: 0,
-          background: 'radial-gradient(ellipse 60% 50% at 50% 40%, rgba(0,180,216,0.08) 0%, transparent 70%)',
+          background: 'radial-gradient(ellipse 60% 60% at 50% 40%, rgba(255,215,0,0.06) 0%, transparent 70%)',
           pointerEvents: 'none',
         }} />
 
-        <div className="hero-logo-wrap" style={{ position: 'relative', zIndex: 1, marginBottom: 'clamp(1.5rem, 4vw, 3rem)' }}>
+        <div className="hero-logo-wrap" style={{ position: 'relative', zIndex: 1, marginBottom: 'clamp(2rem, 6vw, 4rem)' }}>
           <img src="/logo.png" alt="Karacho" className="hero-logo-img" />
         </div>
 
+        {/* JOIN BY ID BOX */}
+        {!joinCode && (
+          <form onSubmit={handleJoinById} style={{ 
+            position: 'relative', zIndex: 5, marginBottom: '2.5rem', 
+            display: 'flex', gap: '10px', background: 'rgba(255,255,255,0.05)', 
+            padding: '10px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(10px)', boxShadow: '0 10px 40px rgba(0,0,0,0.4)'
+          }}>
+            <input 
+              type="text" placeholder="Zadej kód (5 čísel)" maxLength={5}
+              value={joinId} onChange={e => setJoinId(e.target.value)}
+              style={{ padding: '12px 20px', borderRadius: '12px', border: 'none', background: 'rgba(0,0,0,0.3)', color: 'var(--color-gold)', width: '150px', fontSize: '16px', fontWeight: 900, textAlign: 'center', letterSpacing: '0.1em', outline: 'none' }}
+            />
+            <button type="submit" style={{ padding: '12px 24px', borderRadius: '12px', background: 'var(--color-gold)', color: '#000', border: 'none', fontWeight: 900, cursor: 'pointer', fontSize: '14px' }}>PŘIPOJIT SE</button>
+          </form>
+        )}
+
         <div className="hero-controls" style={{ 
           display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center',
-          width: '100%', maxWidth: '900px', position: 'relative', zIndex: 1,
+          width: '100%', maxWidth: '1000px', position: 'relative', zIndex: 1,
         }}>
           <input 
             type="text" placeholder="🔍  Hledat interpreta nebo název..." 
             value={search} onChange={e => setSearch(e.target.value)}
             style={{ 
-              padding: '12px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.12)', 
-              background: 'rgba(255,255,255,0.05)', color: '#fff', flex: 2, minWidth: '220px',
-              fontSize: '15px', backdropFilter: 'blur(8px)', outline: 'none'
+              padding: '14px 20px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.15)', 
+              background: 'rgba(255,255,255,0.07)', color: '#fff', flex: 2, minWidth: '280px',
+              fontSize: '16px', backdropFilter: 'blur(12px)', outline: 'none', transition: 'all 0.2s'
             }} 
           />
           <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={selectStyle}>
@@ -126,50 +151,44 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
             <option value="ARTIST_ASC">🎤 INTERPRET (A-Z)</option>
             <option value="NEWEST">🆕 NEJNOVĚJŠÍ</option>
           </select>
-          {allGenres.length > 0 && (
-            <select value={genreFilter} onChange={e => setGenreFilter(e.target.value)} style={selectStyle}>
-              <option value="ALL">VŠECHNY ŽÁNRY</option>
-              {allGenres.map(g => <option key={g as string} value={g as string}>{g as string}</option>)}
-            </select>
-          )}
         </div>
       </section>
 
       {/* === KATALOG === */}
       <section style={{ 
-        flex: 1, padding: '0 clamp(1rem, 4vw, 2.5rem) clamp(2rem, 6vw, 4rem)',
-        maxWidth: '1400px', width: '100%', margin: '0 auto', boxSizing: 'border-box'
+        flex: 1, padding: '0 clamp(1.5rem, 5vw, 4rem) clamp(3rem, 7vw, 5rem)',
+        maxWidth: '1500px', width: '100%', margin: '0 auto', boxSizing: 'border-box'
       }}>
         {!hasSongs ? (
-          <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.5)', padding: '4rem 1rem' }}>
-            Nic nenalezeno.
+          <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.5)', padding: '5rem 1rem', fontSize: '18px' }}>
+            Nic nenalezeno. Zkuste hledat jinak.
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '1.5rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: '2rem' }}>
             {sortedSongs.map((song) => (
               <div key={song.id} className="glass-panel" style={{ 
-                padding: '1.5rem', borderRadius: '24px', position: 'relative',
-                background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)'
+                padding: '2rem', borderRadius: '28px', position: 'relative',
+                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)',
+                transition: 'all 0.3s ease'
               }}>
-                {/* DECENTNÍ PLUS */}
                 <button 
                   onClick={(e) => handleAddToQueue(song.id, e)}
                   style={{ 
-                    position: 'absolute', top: '12px', right: '12px', width: '28px', height: '28px', 
-                    borderRadius: '50%', background: 'rgba(255,215,0,0.15)', border: '1px solid rgba(255,215,0,0.2)', 
+                    position: 'absolute', top: '15px', right: '15px', width: '36px', height: '36px', 
+                    borderRadius: '50%', background: 'rgba(255,215,0,0.2)', border: '1px solid rgba(255,215,0,0.3)', 
                     color: 'var(--color-gold)', cursor: 'pointer', zIndex: 2, display: 'flex', 
-                    alignItems: 'center', justifyContent: 'center', fontSize: '18px'
+                    alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 900
                   }}
                   className="plus-btn"
                 >+</button>
 
-                <div style={{ marginBottom: '1.5rem' }}>
-                    <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 4px' }}>{song.title}</h3>
-                    <p style={{ opacity: 0.5, fontSize: '14px', margin: 0 }}>{song.artist || 'Neznámý interpret'}</p>
+                <div style={{ marginBottom: '2rem' }}>
+                    <h3 style={{ fontSize: '20px', fontWeight: 800, margin: '0 0 6px', letterSpacing: '-0.01em' }}>{song.title}</h3>
+                    <p style={{ opacity: 0.6, fontSize: '15px', margin: 0, fontWeight: 600 }}>{song.artist || 'Neznámý interpret'}</p>
                 </div>
                 
                 <a href={`/player/${song.id}`} style={{ textDecoration: 'none' }}>
-                    <button className="btn-primary" style={{ width: '100%', padding: '10px' }}>▶ PŘEHRÁT</button>
+                    <button className="btn-primary" style={{ width: '100%', padding: '12px', fontSize: '16px', fontWeight: 900 }}>▶ PŘEHRÁT</button>
                 </a>
               </div>
             ))}
@@ -177,28 +196,28 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
         )}
       </section>
 
-      {/* 📱 DÁLKOVÉ OVLÁDÁNÍ (Zobrazí se jen když je joinCode) */}
+      {/* 📱 DÁLKOVÉ OVLÁDÁNÍ */}
       {joinCode && sessionData && (
         <div style={{
-          position: 'fixed', bottom: '1.5rem', left: '50%', transform: 'translateX(-50%)',
-          width: '90%', maxWidth: '400px', background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(20px)',
-          padding: '12px 24px', borderRadius: '30px', border: '1px solid rgba(255,255,255,0.1)',
-          boxShadow: '0 10px 40px rgba(0,0,0,0.5)', zIndex: 5000,
+          position: 'fixed', bottom: '2rem', left: '50%', transform: 'translateX(-50%)',
+          width: '94%', maxWidth: '500px', background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(30px)',
+          padding: '16px 32px', borderRadius: '40px', border: '1px solid rgba(255,255,255,0.15)',
+          boxShadow: '0 20px 80px rgba(0,0,0,0.7)', zIndex: 5000,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between'
         }}>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: '10px', opacity: 0.5, textTransform: 'uppercase' }}>Ovladač relace {joinCode}</span>
-            <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--color-gold)' }}>
-              {sessionData.status === 'PLAYING' ? '⏺️ PRÁVĚ HRAJE' : '⏸️ POZASTAVENO'}
+            <span style={{ fontSize: '11px', opacity: 0.5, textTransform: 'uppercase', fontWeight: 900, letterSpacing: '0.1em' }}>Ovladač #{joinCode}</span>
+            <span style={{ fontSize: '15px', fontWeight: 'bold', color: 'var(--color-gold)' }}>
+              {sessionData.status === 'PLAYING' ? '⏺️ HRÁTÍ REGINA' : '⏸️ PAUZA'}
             </span>
           </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
+          <div style={{ display: 'flex', gap: '16px' }}>
              {sessionData.status === 'PLAYING' ? (
-                <button onClick={() => remoteControl('PAUSE')} style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#fff', border: 'none', cursor: 'pointer', fontSize: '18px' }}>⏸️</button>
+                <button onClick={() => remoteControl('PAUSE')} style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#fff', border: 'none', cursor: 'pointer', fontSize: '20px' }}>⏸️</button>
              ) : (
-                <button onClick={() => remoteControl('PLAY')} style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--color-gold)', border: 'none', cursor: 'pointer', fontSize: '18px' }}>▶️</button>
+                <button onClick={() => remoteControl('PLAY')} style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--color-gold)', border: 'none', cursor: 'pointer', fontSize: '20px' }}>▶️</button>
              )}
-             <button onClick={() => remoteControl('NEXT')} style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '18px' }}>⏭️</button>
+             <button onClick={() => remoteControl('NEXT')} style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '20px' }}>⏭️</button>
           </div>
         </div>
       )}
@@ -206,18 +225,19 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
       {/* TOAST */}
       {showToast && (
         <div style={{
-          position: 'fixed', bottom: joinCode ? '110px' : '2rem', left: '50%', transform: 'translateX(-50%)',
-          background: 'rgba(0,180,216,0.9)', color: 'white', padding: '10px 20px', borderRadius: '20px',
-          zIndex: 6000, fontWeight: 600, animation: 'slideUp 0.3s'
+          position: 'fixed', bottom: joinCode ? '120px' : '3rem', left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(0,180,216,1)', color: 'white', padding: '12px 28px', borderRadius: '24px',
+          zIndex: 6000, fontWeight: 900, animation: 'slideUp 0.3s', boxShadow: '0 0 20px rgba(0,180,216,0.3)'
         }}>
-          ✅ Skladba zařazena do fronty
+          ✅ SKLADBA JE VE FRONTĚ
         </div>
       )}
 
       <style jsx>{`
-        .plus-btn:hover { background: rgba(255,215,0,0.3) !important; transform: scale(1.1); }
-        .hero-logo-img { height: 140px; filter: drop-shadow(0 0 35px rgba(0,180,216,0.45)) drop-shadow(0 0 10px rgba(0,0,0,0.8)); }
-        @keyframes slideUp { from { transform: translate(-50%, 20px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+        .glass-panel:hover { transform: translateY(-8px); border-color: rgba(255,215,0,0.3) !important; background: rgba(255,255,255,0.06) !important; }
+        .plus-btn:hover { background: rgba(255,215,0,0.4) !important; transform: scale(1.15); }
+        .hero-logo-img { height: 200px; filter: drop-shadow(0 0 60px rgba(255,215,0,0.3)) drop-shadow(0 0 20px rgba(0,0,0,0.9)); }
+        @keyframes slideUp { from { transform: translate(-50%, 30px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
       `}</style>
     </div>
   );
