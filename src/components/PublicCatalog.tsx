@@ -230,12 +230,13 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <a 
-                href={`/player/${currentSong?.id}?mode=watch`}
+                href={`/player/${currentSong?.id}?mode=watch&code=${joinCode}`}
                 style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', transition: 'all 0.2s' }}
                 title="Sledovat bez zvuku (Mirror)"
               >
                 📺
               </a>
+<truncated 57 bytes>
               <button 
                 onClick={() => setShowQueueMgr(true)}
                 style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
