@@ -280,7 +280,19 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
           }} onClick={e => e.stopPropagation()}>
             
             <div style={{ padding: '2rem 2.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 900 }}>Správa fronty</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 900 }}>Správa fronty</h2>
+                <button 
+                  onClick={() => {
+                    const url = `${window.location.origin}/join/${joinCode}`;
+                    navigator.clipboard.writeText(url);
+                    alert("Odkaz ke společné show zkopírován! 🎤🔗");
+                  }}
+                  style={{ background: 'rgba(255,215,0,0.15)', border: '1px solid rgba(255,215,0,0.3)', color: 'var(--color-gold)', padding: '8px 16px', borderRadius: '12px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  🔗 SDÍLET ODKAZ
+                </button>
+              </div>
               <button 
                 onClick={() => setShowQueueMgr(false)}
                 style={{ background: 'rgba(255,255,255,0.05)', border: 'none', padding: '10px 18px', borderRadius: '14px', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Zavřít</button>
