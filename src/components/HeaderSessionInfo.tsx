@@ -43,13 +43,11 @@ export default function HeaderSessionInfo() {
           </button>
       </div>
 
-      {/* MODÁLNÍ DIALOG S QR KÓDEM */}
       {showQR && (
         <div style={{
-          position: 'fixed', inset: 0, zIndex: 10000,
-          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: '2rem'
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', 
+          zIndex: 999999, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
         }} onClick={() => setShowQR(false)}>
           
           <div style={{

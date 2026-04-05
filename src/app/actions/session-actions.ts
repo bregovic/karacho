@@ -81,6 +81,14 @@ export async function addToSessionQueue(code: string, songId: string) {
   revalidatePath('/');
 }
 
+// ❌ Smazání songu z fronty relace
+export async function removeFromSessionQueue(code: string, queueItemId: string) {
+  await db.karaokeSessionQueue.delete({
+    where: { id: queueItemId }
+  });
+  revalidatePath('/');
+}
+
 // ⏭️ Další z fronty relace
 export async function advanceSessionQueue(code: string) {
   const s = await db.karaokeSession.findUnique({ 
