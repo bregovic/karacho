@@ -299,14 +299,12 @@ export default function PlayerClient({ song }: { song: any }) {
     const cur = curLineEl.current;
     const nextText = nextLineEl.current;
     if (!state) {
-      if (prev) prev.textContent = '';
       if (cur) cur.innerHTML = '';
       if (nextText) nextText.textContent = '';
       lastBlock.current = -1;
       return;
     }
-    const { cb, ci, prev: pb, next: nb } = state;
-    if (prev) prev.textContent = pb ? pb.lw.join(' ') : '';
+    const { cb, ci, next: nb } = state;
     if (nextText) nextText.textContent = nb ? nb.lw.join(' ') : '';
     if (ci !== lastBlock.current) {
       if (cur) {
@@ -421,7 +419,6 @@ export default function PlayerClient({ song }: { song: any }) {
                  <div ref={countBarEl} style={{ width: '100%', height: '100%', background: 'linear-gradient(90deg, #FFD700, #FFA500, #FFD700)', boxShadow: '0 0 15px var(--color-gold)', transition: 'width 0.1s linear' }} />
               </div>
             </div>
-           <div ref={prevLineEl} className="ln-ctx" />
            <div ref={curLineEl} id="cur-line" />
            <div ref={nextLineEl} className="ln-ctx" />
         </div>
