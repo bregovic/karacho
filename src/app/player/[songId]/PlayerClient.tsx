@@ -249,7 +249,7 @@ export default function PlayerClient({ song }: { song: any }) {
         const next = blocks.find(b => b.w && b.w.length > 0 && b.w[0].t > visualTime);
         const curBlockIdx = blocks.findIndex(b => visualTime >= b.bs && visualTime < b.be);
         
-        if (curBlockIdx === -1 && next && (next.w[0].t - visualTime) < 8.0 && (next.w[0].t - visualTime) > -0.5) {
+        if (curBlockIdx === -1 && next && (next.w[0].t - visualTime) < 5.0 && (next.w[0].t - visualTime) > -0.5) {
             const diff = next.w[0].t - visualTime;
             const prevBlock = blocks.slice(0).reverse().find(b => b.be <= visualTime);
             const isVeryFirstWord = !prevBlock;
@@ -259,7 +259,7 @@ export default function PlayerClient({ song }: { song: any }) {
                 countEl.current.style.display = 'flex';
                 const valEl = countEl.current.querySelector('.cnt-v');
                 if (valEl) valEl.textContent = `${Math.max(1, Math.ceil(diff))}`;
-                countBarEl.current.style.width = `${(Math.max(0, diff) / 8) * 100}%`;
+                countBarEl.current.style.width = `${(Math.max(0, diff) / 5) * 100}%`;
             } else {
                 countEl.current.style.display = 'none';
             }
