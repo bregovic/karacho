@@ -246,17 +246,28 @@ export default function PlayerClient({ song }: { song: any }) {
     renderState(state, visualTime);
 
     if (countEl.current && countBarEl.current) {
-        const next = blocks.find(b => b.w && b.w.length > 0 && b.w[0].t > t);
-        const curBlockIdx = blocks.findIndex(b => t >= b.bs && t < b.be);
+        // Hledáme čas nejbližšího slova, které má přijít
+        let nextWordTime = -1;
+        for (const b of blocks) {
+          for (const w of b.w) {
+            if (w.t > t) {
+              nextWordTime = w.t;
+              break;
+            }
+          }
+          if (nextWordTime !== -1) break;
+        }
+
+        const diff = nextWordTime !== -1 ? (nextWordTime - t) : -1;
         
-        if (curBlockIdx === -1 && next && (next.w[0].t - t) < 6.0 && (next.w[0].t - t) > 0) {
-            const diff = next.w[0].t - t;
+        // Zobrazíme pokud do zpěvu zbývá 0.2 - 6 sekund
+        if (diff > 0.2 && diff < 6.0) {
             const prevBlock = blocks.slice(0).reverse().find(b => b.be <= t);
             const isVeryFirstWord = !prevBlock;
-            const gap = prevBlock ? (next.w[0].t - prevBlock.be) : next.w[0].t;
+            const gap = prevBlock ? (nextWordTime - prevBlock.be) : nextWordTime;
 
-            // Zobrazíme odpočet pokud je do začátku méně než 6s a pauza byla aspoň 5s
-            if (isVeryFirstWord || gap > 5.0) {
+            // Zobrazíme odpočet pouze u delších mezer nebo na úplném začátku
+            if (isVeryFirstWord || gap > 4.5) {
                 countEl.current.style.display = 'flex';
                 countEl.current.style.opacity = '1';
                 const valEl = countEl.current.querySelector('.cnt-v');
@@ -264,8 +275,7 @@ export default function PlayerClient({ song }: { song: any }) {
                   const rounded = Math.ceil(diff);
                   valEl.textContent = rounded > 0 ? `${rounded}` : '';
                 }
-                // Progress bar ubývá z 100% na 0% během posledních 5 sekund
-                const progress = (Math.max(0, diff) / 5) * 100;
+                const progress = (Math.max(0, diff - 0.2) / 5) * 100;
                 countBarEl.current.style.width = `${Math.min(100, progress)}%`;
             } else {
                 countEl.current.style.display = 'none';
@@ -401,12 +411,12 @@ export default function PlayerClient({ song }: { song: any }) {
 
       {!hasVideo && (
         <div id="stage" style={{ position: 'absolute', inset: 0, zIndex: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 10vw', gap: '3vh', pointerEvents: 'none' }}>
-           <div ref={countEl} style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: '8px', position: 'absolute', top: '35%', left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
-              <div className="cnt-v" style={{ color: 'var(--color-gold)', fontSize: '56px', fontWeight: 900, textShadow: '0 0 30px rgba(255,215,0,0.6)', filter: 'drop-shadow(0 0 10px rgba(0,0,0,0.8))' }} />
-              <div style={{ width: '120px', height: '3px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
-                 <div ref={countBarEl} style={{ width: '100%', height: '100%', background: 'linear-gradient(90deg, transparent, var(--color-gold), transparent)', boxShadow: '0 0 15px var(--color-gold)', transition: 'width 0.1s linear' }} />
+            <div ref={countEl} style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: '15px', position: 'absolute', top: '35%', left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
+              <div className="cnt-v" style={{ color: 'var(--color-gold)', fontSize: '120px', lineHeight: 1, fontWeight: 900, textShadow: '0 0 40px rgba(255,215,0,1)', filter: 'drop-shadow(0 4px 15px rgba(0,0,0,0.8))' }} />
+              <div style={{ width: '220px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden', boxShadow: '0 0 20px rgba(0,0,0,0.5)' }}>
+                 <div ref={countBarEl} style={{ width: '100%', height: '100%', background: 'linear-gradient(90deg, #FFD700, #FFA500)', boxShadow: '0 0 15px var(--color-gold)', transition: 'width 0.1s linear' }} />
               </div>
-           </div>
+            </div>
            <div ref={prevLineEl} className="ln-ctx" />
            <div ref={curLineEl} id="cur-line" />
            <div ref={nextLineEl} className="ln-ctx" />
