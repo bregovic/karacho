@@ -5,6 +5,7 @@ import Link from 'next/link';
 export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs: any[], isAdmin: boolean }) {
   const [genreFilter, setGenreFilter] = useState('ALL');
   const [tagFilter, setTagFilter] = useState('ALL');
+  const [sortBy, setSortBy] = useState('POPULAR');
   const [search, setSearch] = useState('');
 
   const allGenres = Array.from(new Set(initialSongs.map(s => s.genre).filter(Boolean)));
@@ -18,7 +19,23 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
     return true;
   });
 
-  const hasSongs = filteredSongs.length > 0;
+  const sortedSongs = [...filteredSongs].sort((a, b) => {
+    if (sortBy === 'POPULAR') return (b.playCount || 0) - (a.playCount || 0);
+    if (sortBy === 'NAME') return a.title.localeCompare(b.title);
+    if (sortBy === 'NEWEST') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    return 0;
+  });
+
+  const hasSongs = sortedSongs.length > 0;
+
+  const selectStyle = { 
+    padding: '12px 16px', borderRadius: '12px', 
+    border: '1px solid rgba(255,255,255,0.12)', 
+    background: '#1a1a1a', 
+    color: '#fff', fontSize: '14px',
+    outline: 'none',
+    cursor: 'pointer'
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
@@ -59,7 +76,7 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
           flexWrap: 'wrap', 
           justifyContent: 'center',
           width: '100%',
-          maxWidth: '640px',
+          maxWidth: '850px',
           position: 'relative',
           zIndex: 1,
         }}>
@@ -74,7 +91,7 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
               border: '1px solid rgba(255,255,255,0.12)', 
               background: 'rgba(255,255,255,0.05)', 
               color: '#fff', 
-              flex: 1, 
+              flex: 2, 
               minWidth: '220px',
               fontSize: '15px',
               backdropFilter: 'blur(8px)',
@@ -82,27 +99,23 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
             }} 
           />
 
+          <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={selectStyle}>
+            <option value="POPULAR">🏆 TOP HRANÉ</option>
+            <option value="NAME">🔤 PODLE ABECEDY</option>
+            <option value="NEWEST">🆕 NEJNOVĚJŠÍ</option>
+          </select>
+
           {allGenres.length > 0 && (
-            <select value={genreFilter} onChange={e => setGenreFilter(e.target.value)} style={{ 
-              padding: '12px 16px', borderRadius: '12px', 
-              border: '1px solid rgba(255,255,255,0.12)', 
-              background: 'rgba(255,255,255,0.05)', 
-              color: '#fff', fontSize: '14px',
-            }}>
-              <option value="ALL">Všechny žánry</option>
+            <select value={genreFilter} onChange={e => setGenreFilter(e.target.value)} style={selectStyle}>
+              <option value="ALL">VŠECHNY ŽÁNRY</option>
               {allGenres.map(g => <option key={g as string} value={g as string}>{g as string}</option>)}
             </select>
           )}
 
           {allTags.length > 0 && (
-            <select value={tagFilter} onChange={e => setTagFilter(e.target.value)} style={{ 
-              padding: '12px 16px', borderRadius: '12px', 
-              border: '1px solid rgba(255,255,255,0.12)', 
-              background: 'rgba(255,255,255,0.05)', 
-              color: '#fff', fontSize: '14px',
-            }}>
-              <option value="ALL">Všechny štítky</option>
-              {allTags.map(t => <option key={t as string} value={t as string}>{t as string}</option>)}
+            <select value={tagFilter} onChange={e => setTagFilter(e.target.value)} style={selectStyle}>
+              <option value="ALL">VŠECHNY ŠTÍTKY</option>
+              {allTags.map(t => <option key={t as string} value={t as string}>#{t as string}</option>)}
             </select>
           )}
         </div>
@@ -131,7 +144,7 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
             gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', 
             gap: 'clamp(1rem, 2vw, 1.5rem)',
           }}>
-            {filteredSongs.map((song) => (
+            {sortedSongs.map((song) => (
               <div key={song.id} className="glass-panel song-card" style={{ 
                 padding: '1.5rem', 
                 display: 'flex', 
