@@ -377,7 +377,7 @@ export default function PlayerClient({ song }: { song: any }) {
                   {isInstrumental ? <span>🎻 KARAOKE</span> : <span>👤 ORIGINÁL</span>}
                 </button>
               )}
-              <Link href="/admin" style={{ padding: '10px 18px', background: 'rgba(255,255,255,0.1)', color: 'white', borderRadius: '8px', textDecoration: 'none', fontSize: '13px', border: '1px solid rgba(255,255,255,0.1)', whiteSpace: 'nowrap' }} onClick={e=>e.stopPropagation()}>Zavřít</Link>
+              <Link href="/" style={{ padding: '10px 18px', background: 'rgba(255,255,255,0.1)', color: 'white', borderRadius: '8px', textDecoration: 'none', fontSize: '13px', border: '1px solid rgba(255,255,255,0.1)', whiteSpace: 'nowrap' }} onClick={e=>e.stopPropagation()}>Zavřít</Link>
             </div>
 
          </div>
