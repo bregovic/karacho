@@ -89,33 +89,36 @@ export default function PlayerClient({ song }: { song: any }) {
   }, [joinCode, song.id]);
 
   useEffect(() => {
+    const isWatchMode = window.location.search.includes('mode=watch');
+
     const a = new Audio();
     a.crossOrigin = "anonymous";
+    a.muted = isWatchMode; // Tichý režim pro hosty
     const initialSrc = (!!song.instrumentalUrl) ? song.instrumentalUrl : song.audioUrl;
     a.src = initialSrc;
     a.preload = "auto";
     a.onplay = () => { 
       setIsPlaying(true); 
       requestWakeLock(); 
-      // Synchronizace statusu do DB při startu na Masteru
-      if (joinCode) updateSessionState(joinCode, { status: 'PLAYING', currentSongId: song.id });
+      if (joinCode && !isWatchMode) updateSessionState(joinCode, { status: 'PLAYING', currentSongId: song.id });
     };
     a.onpause = () => { 
       setIsPlaying(false); 
       releaseWakeLock(); 
-      if (joinCode) updateSessionState(joinCode, { status: 'PAUSED' });
+      if (joinCode && !isWatchMode) updateSessionState(joinCode, { status: 'PAUSED' });
     };
     a.onplaying = () => {
       incrementPlayCount(song.id);
       startTick();
-      toggleFullScreen();
+      if (!isWatchMode) toggleFullScreen();
     };
     a.onended = async () => { 
       setIsPlaying(false); 
       lastBlock.current = -1; 
       releaseWakeLock(); 
       
-      // Přehrávání fronty (Shared Session Queue má přednost)
+      if (isWatchMode) return; // Slave neposouvá frontu
+
       if (joinCode) {
         const next = await advanceSessionQueue(joinCode);
         if (next && next.currentSongId) {
@@ -123,34 +126,39 @@ export default function PlayerClient({ song }: { song: any }) {
           return;
         }
       }
-
-      // Lokální fronta (Fallback)
-      const q = JSON.parse(localStorage.getItem('karacho_queue') || '[]');
-      if (q.length > 0) {
-        const nextId = q.shift();
-        localStorage.setItem('karacho_queue', JSON.stringify(q));
-        window.location.href = `/player/${nextId}`;
-      } else {
-        window.location.href = '/'; 
-      }
+      window.location.href = '/'; 
     };
     audioRef.current = a;
 
-    // Automatický start (pokud prohlížeč dovolí po prechozí interakci v katalogu)
+    // Synchronizace času (Master hlásí, Slave naslouchá)
+    const syncInterval = setInterval(async () => {
+       if (!joinCode || !audioRef.current || audioRef.current.paused) return;
+       
+       if (!isWatchMode) {
+          // Jsem MASTER (TV) -> hlášení času
+          updateSessionState(joinCode, { currentTime: audioRef.current.currentTime });
+       } else {
+          // Jsem SLAVE (Mobil) -> dorovnání času
+          const s = await getSessionStatus(joinCode);
+          if (s && Math.abs(audioRef.current.currentTime - s.currentTime) > 1.5) {
+             audioRef.current.currentTime = s.currentTime;
+             if (videoElRef.current) videoElRef.current.currentTime = s.currentTime;
+          }
+       }
+    }, 4000);
+
     const playAttempt = a.play();
     if (playAttempt !== undefined) {
-      playAttempt.catch(e => {
-        // Pokud prohlížeč blokuje autoplay, uživatel klikne sám na stage
-        console.log("Autoplay blocked, waiting for user click.");
-      });
+      playAttempt.catch(e => console.log("Autoplay blocked"));
     }
 
     return () => {
+      clearInterval(syncInterval);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       if (audioRef.current) audioRef.current.pause();
       releaseWakeLock();
     };
-  }, [song.audioUrl, song.instrumentalUrl]);
+  }, [song.audioUrl, song.instrumentalUrl, joinCode]);
 
   const toggleTrack = (e: React.MouseEvent) => {
     e.stopPropagation();
