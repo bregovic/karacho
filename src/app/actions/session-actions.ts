@@ -17,7 +17,10 @@ export async function joinOrCreateSession(code?: string) {
       where: { joinCode: code.toUpperCase() },
       include: { 
         currentSong: true,
-        queue: { include: { song: true }, orderBy: { order: 'asc' } }
+        queue: { 
+          include: { song: true }, 
+          orderBy: { order: 'asc' } 
+        } as any
       }
     });
     if (s && s.isActive) return s;
