@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { incrementPlayCount } from '@/app/admin/actions';
 
 interface PlayerBlock {
   lw: string[];
@@ -70,6 +71,7 @@ export default function PlayerClient({ song }: { song: any }) {
     a.onplay = () => { setIsPlaying(true); requestWakeLock(); };
     a.onpause = () => { setIsPlaying(false); releaseWakeLock(); };
     a.onplaying = () => {
+      incrementPlayCount(song.id);
       startTick();
       toggleFullScreen();
     };
