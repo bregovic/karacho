@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/context/SessionContext';
-import { updateSessionState, advanceSessionQueue, addToSessionQueue } from '@/app/actions/session-actions';
+import { updateSessionState, advanceSessionQueue, addToSessionQueue, removeFromSessionQueue } from '@/app/actions/session-actions';
 
 interface Song {
   id: string;
@@ -21,6 +21,10 @@ interface Song {
 export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs: Song[]; isAdmin: boolean }) {
   const { joinCode, sessionData, refreshSession } = useSession();
   const router = useRouter();
+
+  // Definice dat pro frontu a rohové ovládání
+  const currentSong = sessionData?.currentSong;
+  const queueItems = sessionData?.queue || [];
   
   const [search, setSearch] = useState('');
   const [genreFilter, setGenreFilter] = useState('ALL');
@@ -29,6 +33,14 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
   const [showToast, setShowToast] = useState(false);
   const [queueSize, setQueueSize] = useState(0);
   const [joinId, setJoinId] = useState('');
+  const [showQueueMgr, setShowQueueMgr] = useState(false);
+
+  const handleRemoveFromQueue = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!joinCode) return;
+    await removeFromSessionQueue(joinCode, id);
+    refreshSession();
+  };
 
   const handleJoinById = (e: React.FormEvent) => {
     e.preventDefault();
