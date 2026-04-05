@@ -4,18 +4,21 @@ import { useSession } from '@/context/SessionContext';
 import { useState, useEffect } from 'react';
 
 export default function HeaderSessionInfo() {
-  const { joinCode, createOrJoin, leaveSession } = useSession();
+  const { joinCode, isLoading, createOrJoin, leaveSession } = useSession();
   const [showQR, setShowQR] = useState(false);
   const [url, setUrl] = useState('');
 
   useEffect(() => {
+    if (isLoading) return; // Počkáme, až se Context probere
+
     if (!joinCode) {
+       // Jen pokud kód opravdu nemáme ani v paměti, založíme novou show
        createOrJoin();
     } else {
        // Nastavíme URL pouze na klientovi, aby se předešlo hydratačním nesrovnalostem
        setUrl(`${window.location.origin}/join/${joinCode}`);
     }
-  }, [joinCode]);
+  }, [joinCode, isLoading]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(url);
