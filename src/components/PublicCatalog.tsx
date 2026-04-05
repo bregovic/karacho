@@ -29,6 +29,7 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
   const hasSongs = sortedSongs.length > 0;
 
   const [queueSize, setQueueSize] = useState(0);
+  const [showToast, setShowToast] = useState(false);
 
   // Funkce pro přidání do fronty
   const addToQueue = (id: string, e: React.MouseEvent) => {
@@ -38,7 +39,10 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
     q.push(id);
     localStorage.setItem('karacho_queue', JSON.stringify(q));
     setQueueSize(q.length);
-    alert('✅ Přidáno do fronty!');
+    
+    // Decentní toast místo alertu
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 2000);
   };
 
   const selectStyle = { 
@@ -183,12 +187,14 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
                   <button 
                     onClick={(e) => addToQueue(song.id, e)}
                     style={{ 
-                      position: 'absolute', top: '-10px', right: '-10px', width: '36px', height: '36px', 
-                      borderRadius: '50%', background: 'var(--color-gold)', border: 'none', 
-                      color: 'black', fontSize: '24px', fontWeight: 'bold', cursor: 'pointer', 
-                      boxShadow: '0 4px 15px rgba(0,0,0,0.3)', zIndex: 2, display: 'flex', 
-                      alignItems: 'center', justifyContent: 'center' 
+                      position: 'absolute', top: '8px', right: '8px', width: '26px', height: '26px', 
+                      borderRadius: '50%', background: 'rgba(255,215,0,0.4)', border: '1px solid rgba(255,215,0,0.3)', 
+                      color: 'white', fontSize: '18px', fontWeight: 'bold', cursor: 'pointer', 
+                      zIndex: 2, display: 'flex', 
+                      alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)',
+                      transition: 'all 0.2s ease', opacity: 0.6
                     }}
+                    className="queue-plus-btn"
                     title="Přidat do fronty"
                   >+</button>
                 )}
@@ -241,6 +247,25 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
           </div>
         )}
       </section>
+
+      {/* DECENTNÍ TOAST NOTIFIKACE */}
+      <div style={{
+         position: 'fixed', bottom: '2rem', left: '50%', transform: `translateX(-50%) translateY(${showToast ? '0' : '20px'})`,
+         background: 'rgba(0,180,216,0.95)', color: 'white', padding: '12px 24px', borderRadius: '30px',
+         boxShadow: '0 10px 40px rgba(0,0,0,0.5)', zIndex: 2000, 
+         opacity: showToast ? 1 : 0, transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+         pointerEvents: 'none', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 600
+      }}>
+         <span style={{ fontSize: '1.2rem' }}>✅</span> {showToast && "Skladba zařazena do tvé fronty"}
+      </div>
+
+      <style jsx>{`
+         .queue-plus-btn:hover {
+            opacity: 1 !important;
+            transform: scale(1.1);
+            background: rgba(255,215,0,0.6) !important;
+         }
+      `}</style>
     </div>
   );
 }
