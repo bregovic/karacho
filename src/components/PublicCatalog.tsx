@@ -28,6 +28,19 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
 
   const hasSongs = sortedSongs.length > 0;
 
+  const [queueSize, setQueueSize] = useState(0);
+
+  // Funkce pro přidání do fronty
+  const addToQueue = (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const q = JSON.parse(localStorage.getItem('karacho_queue') || '[]');
+    q.push(id);
+    localStorage.setItem('karacho_queue', JSON.stringify(q));
+    setQueueSize(q.length);
+    alert('✅ Přidáno do fronty!');
+  };
+
   const selectStyle = { 
     padding: '12px 16px', borderRadius: '12px', 
     border: '1px solid rgba(255,255,255,0.12)', 
@@ -51,6 +64,19 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
         position: 'relative',
         overflow: 'hidden',
       }}>
+        
+        {/* Indikátor fronty */}
+        <div style={{ 
+           position: 'fixed', top: '1.5rem', left: '1.5rem', zIndex: 100, 
+           background: 'var(--color-gold)', color: 'black', padding: '6px 12px', 
+           borderRadius: '20px', fontSize: '12px', fontWeight: 'bold', 
+           boxShadow: '0 0 20px rgba(0,0,0,0.5)', display: queueSize > 0 ? 'flex' : 'none',
+           alignItems: 'center', gap: '8px'
+        }}>
+           <span>📜 VE FRONTĚ: {queueSize}</span>
+           <button onClick={(e) => { e.stopPropagation(); localStorage.setItem('karacho_queue', '[]'); setQueueSize(0); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px' }}>✕</button>
+        </div>
+
         {/* Glow background blob */}
         <div style={{
           position: 'absolute', inset: 0, zIndex: 0,
@@ -150,7 +176,22 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
                 display: 'flex', 
                 flexDirection: 'column', 
                 gap: '0.75rem',
+                position: 'relative'
               }}>
+                {/* ŽLUTÉ PLUS PRO FRONTU */}
+                {(song.videoUrl || song.timingData || song.jsonUrl) && (
+                  <button 
+                    onClick={(e) => addToQueue(song.id, e)}
+                    style={{ 
+                      position: 'absolute', top: '-10px', right: '-10px', width: '36px', height: '36px', 
+                      borderRadius: '50%', background: 'var(--color-gold)', border: 'none', 
+                      color: 'black', fontSize: '24px', fontWeight: 'bold', cursor: 'pointer', 
+                      boxShadow: '0 4px 15px rgba(0,0,0,0.3)', zIndex: 2, display: 'flex', 
+                      alignItems: 'center', justifyContent: 'center' 
+                    }}
+                    title="Přidat do fronty"
+                  >+</button>
+                )}
                 <div>
                   {song.artist && (
                     <span style={{ opacity: 0.6, fontSize: '0.85rem', display: 'block', marginBottom: '2px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>

@@ -64,15 +64,40 @@ export default function PlayerClient({ song }: { song: any }) {
   useEffect(() => {
     const a = new Audio();
     a.crossOrigin = "anonymous";
-    // Výchozí je instrumentálka, pokud existuje
     const initialSrc = (!!song.instrumentalUrl) ? song.instrumentalUrl : song.audioUrl;
     a.src = initialSrc;
     a.preload = "auto";
     a.onplay = () => { setIsPlaying(true); requestWakeLock(); };
     a.onpause = () => { setIsPlaying(false); releaseWakeLock(); };
-    a.onplaying = () => startTick(); 
-    a.onended = () => { setIsPlaying(false); lastBlock.current = -1; releaseWakeLock(); };
+    a.onplaying = () => {
+      startTick();
+      toggleFullScreen();
+    };
+    a.onended = () => { 
+      setIsPlaying(false); 
+      lastBlock.current = -1; 
+      releaseWakeLock(); 
+      
+      // Přehrávání fronty (Queue)
+      const q = JSON.parse(localStorage.getItem('karacho_queue') || '[]');
+      if (q.length > 0) {
+        const nextId = q.shift();
+        localStorage.setItem('karacho_queue', JSON.stringify(q));
+        window.location.href = `/player/${nextId}`;
+      } else {
+        window.location.href = '/admin'; // nebo domů
+      }
+    };
     audioRef.current = a;
+
+    // Automatický start (pokud prohlížeč dovolí po prechozí interakci v katalogu)
+    const playAttempt = a.play();
+    if (playAttempt !== undefined) {
+      playAttempt.catch(e => {
+        // Pokud prohlížeč blokuje autoplay, uživatel klikne sám na stage
+        console.log("Autoplay blocked, waiting for user click.");
+      });
+    }
 
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
