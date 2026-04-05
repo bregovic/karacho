@@ -123,16 +123,6 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
                       <button className="btn-primary" style={{ width: '100%', padding: '14px', background: 'linear-gradient(45deg, #FFD700, #FFA500)', color: '#000', fontWeight: 900, borderRadius: '16px' }} disabled={!hasJson}>▶ PŘEHRÁT</button>
                     </Link>
                 </div>
-              </div>
-� Spustit Render</button>
-                             </Link>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                </div>
-
-                {/* PLAY BUTTON JEN ADMINI KONTROLA */}
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   {canPlay && (
                     <Link href={`/player/${song.id}`} title="Zpívat" style={{ flex: 1 }}>
