@@ -50,6 +50,23 @@ export default function DesignerClient({ song }: { song: any }) {
     }
   }, [song?.audioUrl]);
 
+  // --- NAČTENÍ EXISTUJÍCÍHO ČASOVÁNÍ (JSON) ---
+  useEffect(() => {
+    if (song?.timingData && song.timingData.blocks) {
+      const newEvents: TimingEvent[] = [];
+      song.timingData.blocks.forEach((b: any) => {
+        newEvents.push({ type: 'line', time: b.bs, lineIdx: b.li });
+        if (b.w) {
+          b.w.forEach((w: any) => {
+            newEvents.push({ type: 'word', time: w.t, lineIdx: b.li, wordIdx: w.i });
+          });
+        }
+      });
+      eventsRef.current = newEvents.sort((a, b) => a.time - b.time);
+      forceUpdate();
+    }
+  }, [song?.timingData]);
+
   const linesRef = useRef<string[][]>([]);
   const eventsRef = useRef<TimingEvent[]>([]);
   
@@ -479,14 +496,19 @@ export default function DesignerClient({ song }: { song: any }) {
               <button onClick={(e) => { e.stopPropagation(); handleKeyDown({ code: 'KeyW', preventDefault: () => {} } as any); }} style={{ width: '65px', height: '65px', borderRadius: '50%', background: 'rgba(0,255,180,0.15)', border: '2px solid rgba(0,255,180,0.3)', color: 'white', fontSize: '24px', backdropFilter: 'blur(10px)' }}>✨</button>
           </div>
 
-          <div style={{ height: '70px', background: 'rgba(0,0,0,0.9)', borderTop: '1px solid rgba(255,255,255,0.05)', zIndex: 10, display: 'flex', flexDirection: 'column', padding: '0 2rem' }} onClick={e => e.stopPropagation()}>
-             <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                 <button style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', cursor: 'pointer' }} onClick={togglePlay}>{isPlaying ? '⏸' : '▶'}</button>
-                 <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace', minWidth: '90px' }}>
+          <div style={{ height: '80px', background: 'rgba(0,0,0,0.95)', borderTop: '2px solid rgba(255,255,255,0.1)', zIndex: 10, display: 'flex', flexDirection: 'column', padding: '0 3rem', boxShadow: '0 -10px 40px rgba(0,0,0,0.8)' }} onClick={e => e.stopPropagation()}>
+             <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                 <button 
+                    style={{ width: '56px', height: '56px', borderRadius: '50%', background: isPlaying ? 'white' : 'var(--color-gold)', border: 'none', color: '#000', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', transition: 'all 0.2s', transform: isPlaying ? 'scale(0.95)' : 'scale(1)', boxShadow: '0 0 20px rgba(255,215,0,0.4)' }} 
+                    onClick={togglePlay}
+                 >
+                    {isPlaying ? '⏸' : '▶'}
+                 </button>
+                 <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.7)', fontFamily: 'monospace', minWidth: '100px', fontWeight: 'bold' }}>
                    {fmtTime(currentTime)} / {fmtTime(duration)}
                  </span>
-                 <div onClick={(e) => { if (audioRef.current?.duration) { const r = e.currentTarget.getBoundingClientRect(); audioRef.current.currentTime = (e.clientX - r.left) / r.width * audioRef.current.duration; } }} style={{ flex: 1, height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', cursor: 'pointer', position: 'relative' }}>
-                    <div style={{ height: '100%', background: 'var(--color-gold)', width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`, borderRadius: '4px' }} />
+                 <div onClick={(e) => { if (audioRef.current?.duration) { const r = e.currentTarget.getBoundingClientRect(); audioRef.current.currentTime = (e.clientX - r.left) / r.width * audioRef.current.duration; } }} style={{ flex: 1, height: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', cursor: 'pointer', position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <div style={{ height: '100%', background: 'linear-gradient(90deg, var(--color-gold), #fff)', width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`, borderRadius: '6px', boxShadow: '0 0 15px rgba(255,215,0,0.6)' }} />
                  </div>
              </div>
           </div>
