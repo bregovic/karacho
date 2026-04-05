@@ -14,23 +14,26 @@ export async function createSong(formData: FormData) {
   const artist = formData.get('artist') as string;
   const lyrics = formData.get('lyrics') as string;
   const genre = formData.get('genre') as string;
+  const audioUrl = formData.get('audioUrl') as string;
   const tagsString = formData.get('tags') as string;
   
   if (!title) return;
 
   const tags = tagsString ? tagsString.split(',').map(t => t.trim()).filter(Boolean) : [];
 
-  await db.song.create({
+  const song = await db.song.create({
     data: {
       title,
       artist: artist || null,
       genre: genre || null,
       tags,
       lyrics: lyrics || null,
+      audioUrl: audioUrl || null,
     },
   });
 
   revalidatePath('/admin');
+  return song;
 }
 
 export async function updateSongAudio(songId: string, audioUrl: string) {
