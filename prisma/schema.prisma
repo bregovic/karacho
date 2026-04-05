@@ -76,6 +76,7 @@ model Song {
   animationStyle String   @default("karaoke-classic")
   timingData    Json?
   tracks        Track[]
+  sessions      KaraokeSession[] @relation("CurrentSong")
 }
 
 model Track {
@@ -87,6 +88,34 @@ model Track {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   song       Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
+}
+
+model KaraokeSession {
+  id            String    @id @default(cuid())
+  joinCode      String    @unique // Krátký kód pro mobil (např. ABC1)
+  status        SessionStatus @default(STOPPED)
+  currentSongId String?
+  currentTime   Float     @default(0)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  currentSong   Song?     @relation("CurrentSong", fields: [currentSongId], references: [id])
+  queue         KaraokeSessionQueue[]
+}
+
+model KaraokeSessionQueue {
+  id        String   @id @default(cuid())
+  sessionId String
+  songId    String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  session   KaraokeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+enum SessionStatus {
+  PLAYING
+  PAUSED
+  STOPPED
 }
 
 enum Role {

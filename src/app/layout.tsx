@@ -3,6 +3,8 @@ import { Outfit } from "next/font/google";
 import "./globals.css";
 import { auth, signOut } from "@/auth";
 import AuthProvider from "@/components/AuthProvider";
+import { SessionProvider } from "@/context/SessionContext";
+import HeaderSessionInfo from "@/components/HeaderSessionInfo";
 import GlobalEscape from "@/components/GlobalEscape";
 
 const font = Outfit({
@@ -13,10 +15,6 @@ const font = Outfit({
 export const metadata: Metadata = {
   title: "Karacho Karaoke Platform",
   description: "Modern, playful karaoke platform for web, TV, and mobile.",
-  icons: [
-    { rel: 'icon', url: '/favicon.ico' },
-    { rel: 'apple-touch-icon', url: '/logo.png' },
-  ]
 };
 
 export default async function RootLayout({
@@ -28,38 +26,51 @@ export default async function RootLayout({
 
   return (
     <html lang="cs">
-      <body className={font.className} style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <body className={font.className} style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#000', color: '#fff' }}>
         <AuthProvider>
-          <GlobalEscape />
-          <nav style={{ padding: '0.75rem 2rem', background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 1000 }}>
-            <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none' }}>
-              <img src="/icon.png" alt="Karacho Logo" style={{ width: '32px', height: '32px', borderRadius: '6px' }} />
-              <span style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-gold)', letterSpacing: '-0.02em', textDecoration: 'none' }}>KARACHO</span>
-            </a>
-            <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-              
-              {session?.user ? (
-                <>
-                  <a href="/profile" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: 500, fontSize: '15px' }}>Můj Profil</a>
-                  <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.1)', margin: '0 0.5rem' }}></div>
-                  <form action={async () => { "use server"; await signOut(); }} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '14px', color: 'var(--text-secondary)', opacity: 0.8 }}>{session.user.name}</span>
-                    <button type="submit" className="btn-secondary" style={{ padding: '8px 16px', fontSize: '14px' }}>
-                      Odhlásit
-                    </button>
-                  </form>
-                </>
-              ) : (
-                <a href="/login" style={{ textDecoration: 'none' }}>
-                  <button className="btn-primary" style={{ padding: '10px 20px', fontSize: '14px' }}>Přihlášení</button>
+          <SessionProvider>
+            <GlobalEscape />
+            <nav style={{ 
+              padding: '0.75rem clamp(1rem, 4vw, 2.5rem)', 
+              background: 'rgba(0,0,0,0.3)', 
+              backdropFilter: 'blur(20px)', 
+              borderBottom: '1px solid rgba(255,255,255,0.05)', 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              position: 'sticky', 
+              top: 0, 
+              zIndex: 1000 
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none' }}>
+                  <img src="/icon.png" alt="Karacho Logo" style={{ width: '30px', height: '30px' }} />
+                  <span style={{ fontSize: '18px', fontWeight: 900, color: 'var(--color-gold)', letterSpacing: '-0.02em' }}>KARACHO</span>
                 </a>
-              )}
-              
-            </div>
-          </nav>
-          <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            {children}
-          </main>
+                <HeaderSessionInfo />
+              </div>
+              <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+                
+                {session?.user ? (
+                  <>
+                    {session.user.role === 'ADMIN' && (
+                       <a href="/admin" style={{ color: '#fff', textDecoration: 'none', fontSize: '14px', fontWeight: 500, opacity: 0.7 }}>Admin</a>
+                    )}
+                    <form action={async () => { "use server"; await signOut(); }}>
+                      <button type="submit" style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '14px', opacity: 0.7 }}>
+                        Odhlásit
+                      </button>
+                    </form>
+                  </>
+                ) : (
+                  <a href="/api/auth/signin" style={{ color: '#fff', textDecoration: 'none', fontSize: '14px', opacity: 0.7 }}>Přihlásit</a>
+                )}
+              </div>
+            </nav>
+            <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              {children}
+            </main>
+          </SessionProvider>
         </AuthProvider>
       </body>
     </html>
