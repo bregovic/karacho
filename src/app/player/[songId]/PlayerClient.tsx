@@ -246,22 +246,26 @@ export default function PlayerClient({ song }: { song: any }) {
     renderState(state, visualTime);
 
     if (countEl.current && countBarEl.current) {
+        const curBlockIdx = blocks.findIndex(b => t >= b.bs && t < b.be);
+        
         // Hledáme čas nejbližšího slova, které má přijít
         let nextWordTime = -1;
-        for (const b of blocks) {
-          for (const w of b.w) {
-            if (w.t > t) {
-              nextWordTime = w.t;
-              break;
+        if (curBlockIdx === -1) { // Odpočet hledáme jen když nejsme v aktivním bloku zpěvu
+            for (const b of blocks) {
+                for (const w of b.w) {
+                    if (w.t > t) {
+                        nextWordTime = w.t;
+                        break;
+                    }
+                }
+                if (nextWordTime !== -1) break;
             }
-          }
-          if (nextWordTime !== -1) break;
         }
 
         const diff = nextWordTime !== -1 ? (nextWordTime - t) : -1;
         
-        // Zobrazíme pokud do zpěvu zbývá 0.2 - 6 sekund
-        if (diff > 0.2 && diff < 6.0) {
+        // Zobrazíme pokud do zpěvu zbývá 0.1 - 6 sekund
+        if (diff > 0.1 && diff < 6.0 && curBlockIdx === -1) {
             const prevBlock = blocks.slice(0).reverse().find(b => b.be <= t);
             const isVeryFirstWord = !prevBlock;
             const gap = prevBlock ? (nextWordTime - prevBlock.be) : nextWordTime;
@@ -411,10 +415,10 @@ export default function PlayerClient({ song }: { song: any }) {
 
       {!hasVideo && (
         <div id="stage" style={{ position: 'absolute', inset: 0, zIndex: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 10vw', gap: '3vh', pointerEvents: 'none' }}>
-            <div ref={countEl} style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: '15px', position: 'absolute', top: '35%', left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
-              <div className="cnt-v" style={{ color: 'var(--color-gold)', fontSize: '120px', lineHeight: 1, fontWeight: 900, textShadow: '0 0 40px rgba(255,215,0,1)', filter: 'drop-shadow(0 4px 15px rgba(0,0,0,0.8))' }} />
-              <div style={{ width: '220px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden', boxShadow: '0 0 20px rgba(0,0,0,0.5)' }}>
-                 <div ref={countBarEl} style={{ width: '100%', height: '100%', background: 'linear-gradient(90deg, #FFD700, #FFA500)', boxShadow: '0 0 15px var(--color-gold)', transition: 'width 0.1s linear' }} />
+            <div ref={countEl} style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: '20px', position: 'absolute', top: '25%', left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
+              <div className="cnt-v" style={{ color: 'var(--color-gold)', fontSize: '130px', lineHeight: 1, fontWeight: 900, textShadow: '0 0 50px rgba(255,215,0,1)', filter: 'drop-shadow(0 4px 15px rgba(0,0,0,0.8))', marginBottom: '-10px' }} />
+              <div style={{ width: '400px', height: '10px', background: 'rgba(255,255,255,0.1)', borderRadius: '5px', overflow: 'hidden', boxShadow: '0 0 25px rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                 <div ref={countBarEl} style={{ width: '100%', height: '100%', background: 'linear-gradient(90deg, #FFD700, #FFA500, #FFD700)', boxShadow: '0 0 15px var(--color-gold)', transition: 'width 0.1s linear' }} />
               </div>
             </div>
            <div ref={prevLineEl} className="ln-ctx" />
