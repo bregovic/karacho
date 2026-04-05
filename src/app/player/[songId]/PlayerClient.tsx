@@ -246,20 +246,27 @@ export default function PlayerClient({ song }: { song: any }) {
     renderState(state, visualTime);
 
     if (countEl.current && countBarEl.current) {
-        const next = blocks.find(b => b.w && b.w.length > 0 && b.w[0].t > visualTime);
-        const curBlockIdx = blocks.findIndex(b => visualTime >= b.bs && visualTime < b.be);
+        const next = blocks.find(b => b.w && b.w.length > 0 && b.w[0].t > t);
+        const curBlockIdx = blocks.findIndex(b => t >= b.bs && t < b.be);
         
-        if (curBlockIdx === -1 && next && (next.w[0].t - visualTime) < 5.0 && (next.w[0].t - visualTime) > -0.5) {
-            const diff = next.w[0].t - visualTime;
-            const prevBlock = blocks.slice(0).reverse().find(b => b.be <= visualTime);
+        if (curBlockIdx === -1 && next && (next.w[0].t - t) < 6.0 && (next.w[0].t - t) > 0) {
+            const diff = next.w[0].t - t;
+            const prevBlock = blocks.slice(0).reverse().find(b => b.be <= t);
             const isVeryFirstWord = !prevBlock;
             const gap = prevBlock ? (next.w[0].t - prevBlock.be) : next.w[0].t;
 
-            if (isVeryFirstWord || gap > 15.0) {
+            // Zobrazíme odpočet pokud je do začátku méně než 6s a pauza byla aspoň 5s
+            if (isVeryFirstWord || gap > 5.0) {
                 countEl.current.style.display = 'flex';
+                countEl.current.style.opacity = '1';
                 const valEl = countEl.current.querySelector('.cnt-v');
-                if (valEl) valEl.textContent = `${Math.max(1, Math.ceil(diff))}`;
-                countBarEl.current.style.width = `${(Math.max(0, diff) / 5) * 100}%`;
+                if (valEl) {
+                  const rounded = Math.ceil(diff);
+                  valEl.textContent = rounded > 0 ? `${rounded}` : '';
+                }
+                // Progress bar ubývá z 100% na 0% během posledních 5 sekund
+                const progress = (Math.max(0, diff) / 5) * 100;
+                countBarEl.current.style.width = `${Math.min(100, progress)}%`;
             } else {
                 countEl.current.style.display = 'none';
             }
