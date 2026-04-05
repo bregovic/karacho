@@ -37,7 +37,8 @@ export async function POST(req: NextRequest) {
     // 🎙️ OPTIMALIZACE AUDIO (MP3 Komprese na 128k)
     else if (contentType === 'audio/mpeg' || contentType === 'audio/mp3') {
        const ffmpeg = (await import('fluent-ffmpeg')).default;
-       const ffmpegPath = (await import('ffmpeg-static')).default;
+       const ffmpegInstaller = await import('@ffmpeg-installer/ffmpeg');
+       const ffmpegPath = ffmpegInstaller.path;
        const fs = await import('fs');
        const path = await import('path');
        const os = await import('os');

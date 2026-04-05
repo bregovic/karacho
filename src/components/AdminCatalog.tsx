@@ -45,94 +45,37 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
   return (
     <div style={{ padding: 'clamp(1rem, 4vw, 2.5rem)', maxWidth: '1400px', margin: '0 auto' }}>
       
-      {/* HLAVIČKA */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem', flexWrap: 'wrap', gap: '1.5rem' }}>
-        <div>
-           <h1 style={{ color: 'var(--color-gold)', margin: 0, marginBottom: '0.4rem', fontSize: 'clamp(1.8rem, 4vw, 2.4rem)' }}>{t('admin_title')}</h1>
-           <p style={{ color: 'var(--text-secondary)', margin: 0 }}>{t('admin_subtitle')}</p>
-        </div>
-        <button 
-          className={showForm ? "btn-secondary" : "btn-primary"} 
-          onClick={() => setShowForm(!showForm)}
-          style={{ padding: '12px 24px', fontWeight: 600 }}
-        >
-          {showForm ? t('close_panel') : `➕ ${t('add_song')}`}
-        </button>
-      </div>
-
-      {/* FORMULÁŘ PRO NOVOU PÍSEŇ */}
-      {showForm && (
-        <div className="glass-panel" style={{ padding: '2.5rem', marginBottom: '2.5rem', border: '1px solid var(--color-teal)' }}>
-          <h2 style={{ marginBottom: '1.5rem', color: 'var(--color-teal)' }}>{t('add_song')}</h2>
-          <form action={async (data) => { await createSong(data); setShowForm(false); }} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.2rem' }}>
-               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <label style={{ fontSize: '13px', color: 'var(--text-secondary)', marginLeft: '4px' }}>Název skladby</label>
-                  <input name="title" placeholder="např. Sladké mámení" required style={{ padding: '12px', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.15)', color: 'white', borderRadius: '10px' }} />
-               </div>
-               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <label style={{ fontSize: '13px', color: 'var(--text-secondary)', marginLeft: '4px' }}>Interpret</label>
-                  <input name="artist" placeholder="např. Helena Vondráčková" style={{ padding: '12px', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.15)', color: 'white', borderRadius: '10px' }} />
-               </div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.2rem' }}>
-               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <label style={{ fontSize: '13px', color: 'var(--text-secondary)', marginLeft: '4px' }}>Žánr</label>
-                  <input name="genre" placeholder="Pop, Rock..." style={{ padding: '12px', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.15)', color: 'white', borderRadius: '10px' }} />
-               </div>
-               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <label style={{ fontSize: '13px', color: 'var(--text-secondary)', marginLeft: '4px' }}>Štítky (čárkou)</label>
-                  <input name="tags" placeholder="Duet, Svatební..." style={{ padding: '12px', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.15)', color: 'white', borderRadius: '10px' }} />
-               </div>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-               <label style={{ fontSize: '13px', color: 'var(--text-secondary)', marginLeft: '4px' }}>Text písně k zobrazení/klíčování</label>
-               <textarea name="lyrics" placeholder="Sem vložte text písně..." style={{ padding: '12px', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.15)', color: 'white', borderRadius: '10px', minHeight: '150px' }} />
-            </div>
-            <button type="submit" className="btn-primary" style={{ alignSelf: 'flex-end', padding: '12px 32px' }}>Uložit do Katalogu</button>
-          </form>
-        </div>
-      )}
-
-      {/* FILTRAČNÍ PANEL */}
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '2.5rem', background: 'rgba(255,255,255,0.03)', padding: '1.2rem', borderRadius: '16px', flexWrap: 'wrap', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
+      {/* FILTRAČNÍ PANEL S TLAČÍTKEM + NOVÁ PÍSEŇ */}
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '2.5rem', background: 'rgba(255,255,255,0.04)', padding: '1.2rem', borderRadius: '24px', flexWrap: 'wrap', alignItems: 'center', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 10px 40px rgba(0,0,0,0.3)' }}>
         <input 
            type="text" 
            placeholder={t('search_placeholder')}
            value={search} onChange={e => setSearch(e.target.value)}
-           style={{ padding: '10px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(0,0,0,0.4)', color: '#fff', flex: 1, minWidth: '220px' }}
+           style={{ padding: '14px 20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.4)', color: '#fff', flex: 1, minWidth: '220px', fontSize: '15px' }}
         />
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ padding: '10px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.12)', background: '#1a1a1a', color: '#fff' }}>
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ padding: '14px 20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', background: '#111', color: '#fff', fontWeight: 600 }}>
             <option value="ALL">🔍 VŠECHNY STAVY</option>
             <option value="PUBLISHED">🟢 PUBLIKOVÁNO</option>
-            <option value="DRAFTS">⏳ ROZPRACOVÁNO (Draft)</option>
-            <option value="READY_TO_PUBLISH">🌟 PŘIPRAVENO KE ZVEŘEJNĚNÍ</option>
-            <option value="MISSING_LYRICS">📝 CHYBÍ TEXT</option>
-            <option value="MISSING_AUDIO">🎵 CHYBÍ HUDBA</option>
-            <option value="MISSING_TIMING">⚙️ CHYBÍ ČASOVÁNÍ</option>
+            <option value="DRAFTS">⏳ ROZPRACOVÁNO</option>
+            <option value="READY_TO_PUBLISH">🌟 PŘIPRAVENO</option>
         </select>
-        {allGenres.length > 0 && (
-          <select value={genreFilter} onChange={e => setGenreFilter(e.target.value)} style={{ padding: '10px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.12)', background: '#1a1a1a', color: '#fff' }}>
-              <option value="ALL">{t('all_genres')}</option>
-              {allGenres.map(g => <option key={g as string} value={g as string}>{g as string}</option>)}
-          </select>
-        )}
-        {allTags.length > 0 && (
-          <select value={tagFilter} onChange={e => setTagFilter(e.target.value)} style={{ padding: '10px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.12)', background: '#1a1a1a', color: '#fff' }}>
-              <option value="ALL">{t('all_tags')}</option>
-              {allTags.map(tag => <option key={tag as string} value={tag as string}>#{tag as string}</option>)}
-          </select>
-        )}
+        <button 
+          className={showForm ? "btn-secondary" : "btn-primary"} 
+          onClick={() => setShowForm(!showForm)}
+          style={{ padding: '14px 28px', fontWeight: 900, borderRadius: '16px', letterSpacing: '0.05em' }}
+        >
+          {showForm ? 'ZAVŘÍT' : `➕ PŘIDAT HUDBU`}
+        </button>
       </div>
 
       {/* SEZNAM PÍSNÍ */}
       {filteredSongs.length === 0 ? (
-         <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '5rem 1rem', background: 'rgba(0,0,0,0.1)', borderRadius: '20px' }}>
+         <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '5rem 1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '30px' }}>
             <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎵</div>
             <p>Žádné písně neodpovídají zvoleným filtrům.</p>
          </div>
       ) : (
-         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 400px), 1fr))', gap: '1.5rem' }}>
+         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 380px), 1fr))', gap: '2rem' }}>
           {filteredSongs.map((song) => {
             const hasAudio = !!song.audioUrl;
             const hasJson = !!song.jsonUrl || !!song.timingData;
@@ -140,160 +83,48 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
             const canPlay = !!song.videoUrl || hasJson;
 
             return (
-              <div key={song.id} className="glass-panel song-card-admin" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.2rem', position: 'relative' }}>
+              <div key={song.id} className="glass-panel song-card-admin" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', borderRadius: '32px', transition: 'all 0.3s' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ flex: 1 }}>
-                      {song.artist && <span style={{ color: 'var(--color-gold)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{song.artist}</span>}
-                      <h3 style={{ fontSize: '1.4rem', margin: '4px 0', color: 'white' }}>{song.title}</h3>
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
-                         {song.genre && <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '10px' }}>{song.genre}</span>}
-                         {Array.isArray(song.tags) && song.tags.map((t: string) => (
-                           <span key={t} style={{ fontSize: '10px', background: 'rgba(0,229,255,0.08)', color: 'var(--color-teal)', padding: '2px 8px', borderRadius: '10px' }}>#{t}</span>
-                         ))}
-                         {(hasAudio && hasJson && hasLyrics && song.state !== 'ACTIVE') && (
-                            <span style={{ fontSize: '10px', background: 'rgba(255,215,0,0.1)', color: 'var(--color-gold)', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>🌟 PŘIPRAVENO!</span>
-                          )}
+                  <div style={{ flex: 1, overflow: 'hidden' }}>
+                      {song.artist && <span style={{ color: 'var(--color-gold)', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em' }}>{song.artist}</span>}
+                      <h3 style={{ fontSize: '20px', fontWeight: 900, margin: '4px 0', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.title}</h3>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '10px' }}>
+                         {song.genre && <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '10px', fontWeight: 700 }}>{song.genre}</span>}
+                         {song.state === 'ACTIVE' && <span style={{ fontSize: '10px', background: 'rgba(0,177,64,0.15)', color: '#4ade80', padding: '4px 10px', borderRadius: '10px', fontWeight: 900 }}>LIVE ✅</span>}
                       </div>
                   </div>
-                  {/* Tlačítka akcí */}
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                    {song.state === 'ACTIVE' ? (
-                       <span style={{ fontSize: '12px', color: '#00B140', fontWeight: 'bold', background: 'rgba(0,177,64,0.1)', padding: '4px 8px', borderRadius: '4px' }}>✅ Publikováno</span>
-                    ) : (
-                      (hasAudio && hasJson) && (
-                         <button 
-                            onClick={async () => {
-                              if (confirm(`Chcete píseň "${song.title}" rovnou zveřejnit pro lidi?`)) {
-                                await updateSong(song.id, { state: 'ACTIVE' });
-                                window.location.reload();
-                              }
-                            }}
-                            className="btn-primary" 
-                            style={{ padding: '4px 10px', fontSize: '11px', background: 'var(--color-teal)' }}
-                         >🚀 PUBLIKOVAT</button>
-                      )
-                    )}
-                    
-                    <button 
-                       onClick={() => setEditingSong(song)}
-                       className="btn-secondary" 
-                       style={{ padding: '6px 12px', fontSize: '11px', borderRadius: '4px' }}
-                    >⚙️ Upravit</button>
-                    
-                    <button 
-                       onClick={() => { if(confirm('Smazat?')) deleteSong(song.id); }}
-                       className="btn-secondary" 
-                       style={{ padding: '6px 10px', fontSize: '11px', color: '#ff4d4d', borderRadius: '4px' }}
-                    >🗑️</button>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                      <button onClick={() => setEditingSong(song)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', width: '38px', height: '38px', borderRadius: '12px', cursor: 'pointer' }} title="Upravit detail">⚙️</button>
+                      <button onClick={() => { if(confirm('Smazat?')) deleteSong(song.id); }} style={{ background: 'rgba(255,75,43,0.1)', border: 'none', color: '#ff4b2b', width: '38px', height: '38px', borderRadius: '12px', cursor: 'pointer' }}>🗑️</button>
                   </div>
                 </div>
 
-                {/* STATUS BAR */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', background: 'rgba(0,0,0,0.3)', padding: '1.2rem', borderRadius: '12px' }}>
-                    
-                    {/* BG & JSON Flow */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '13px', color: song.backgroundUrl ? 'var(--color-teal)' : '#666' }}>🖼️ Pozadí (Grafika)</span>
-                        {song.backgroundUrl && <span style={{ color: '#4ade80', fontSize: '11px' }}>✓ OK</span>}
-                      </div>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                         {song.backgroundUrl && (
-                           <button 
-                             onClick={async () => { if(confirm("Opravdu smazat pozadí?")) await removeSongResource(song.id, 'background'); }}
-                             style={{ background: 'rgba(255,0,0,0.1)', border: 'none', color: '#ff4444', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}
-                             title="Smazat soubor"
-                           >🗑️</button>
-                         )}
-                         <AudioUploader songId={song.id} type="background" />
-                      </div>
+                {/* STATUS SUMMARY */}
+                <div style={{ display: 'flex', gap: '1rem', background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '18px', justifyContent: 'space-around' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: hasAudio ? 1 : 0.3 }}>
+                       <span style={{ fontSize: '18px' }}>🔉</span>
+                       <span style={{ fontSize: '10px', fontWeight: 800, marginTop: '4px' }}>AUDIO</span>
                     </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '13px', color: hasJson ? 'var(--color-teal)' : '#666' }}>2. Časování (Studio)</span>
-                        {hasJson && <span style={{ color: '#4ade80', fontSize: '11px' }}>✓ Zklíčováno</span>}
-                      </div>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                         {song.jsonUrl && (
-                           <button 
-                             onClick={async () => { if(confirm("Opravdu smazat soubor časování?")) await removeSongResource(song.id, 'json'); }}
-                             style={{ background: 'rgba(255,0,0,0.1)', border: 'none', color: '#ff4444', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}
-                             title="Smazat soubor"
-                           >🗑️</button>
-                         )}
-                         <AudioUploader songId={song.id} type="json" />
-                      </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: hasLyrics ? 1 : 0.3 }}>
+                       <span style={{ fontSize: '18px' }}>📝</span>
+                       <span style={{ fontSize: '10px', fontWeight: 800, marginTop: '4px' }}>TEXT</span>
                     </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                         <span style={{ fontSize: '13px', color: hasAudio ? 'var(--color-teal)' : '#666' }}>{t('step_audio')} (Originál)</span>
-                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            {song.audioUrl && (
-                               <button 
-                                 onClick={async () => { if(confirm("Opravdu smazat originální audio?")) await removeSongResource(song.id, 'audio'); }}
-                                 style={{ background: 'rgba(255,0,0,0.1)', border: 'none', color: '#ff4444', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}
-                                 title="Smazat soubor"
-                               >🗑️</button>
-                            )}
-                            {hasAudio ? <span style={{ color: '#4ade80', fontSize: '13px' }}>✓ OK</span> : <AudioUploader songId={song.id} />}
-                         </div>
-                       </div>
-                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                         <span style={{ fontSize: '13px', color: song.instrumentalUrl ? 'var(--color-teal)' : '#666' }}>🎤 Instrumentál (Karaoke)</span>
-                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            {song.instrumentalUrl && (
-                               <button 
-                                 onClick={async () => { if(confirm("Opravdu smazat instrumentální audio?")) await removeSongResource(song.id, 'instrumental'); }}
-                                 style={{ background: 'rgba(255,0,0,0.1)', border: 'none', color: '#ff4444', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}
-                                 title="Smazat soubor"
-                               >🗑️</button>
-                            )}
-                            {song.instrumentalUrl ? <span style={{ color: '#4ade80', fontSize: '13px' }}>✓ OK</span> : <AudioUploader songId={song.id} type="instrumental" />}
-                         </div>
-                       </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: hasJson ? 1 : 0.3 }}>
+                       <span style={{ fontSize: '18px' }}>⚙️</span>
+                       <span style={{ fontSize: '10px', fontWeight: 800, marginTop: '4px' }}>STUDIO</span>
                     </div>
+                </div>
 
-                     {/* Studio Flow */}
-                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', opacity: hasAudio ? 1 : 0.4, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '8px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '13px', color: hasJson ? 'var(--color-teal)' : '#666' }}>2. Časování (Studio)</span>
-                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                             {hasJson && <span style={{ color: '#4ade80', fontSize: '11px', marginRight: '8px' }}>✓ OK</span>}
-                             <Link href={`/designer?songId=${song.id}`}>
-                               <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px', background: 'var(--color-teal)' }} disabled={!hasAudio}>🚀 🛠️ Otevřít Studio</button>
-                             </Link>
-                          </div>
-                        </div>
-                     </div>
-
-                    {/* Render Flow / Online Play */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '13px', color: song.videoUrl ? 'var(--color-teal)' : '#666' }}>3. Finále (Zpěv)</span>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                           <Link href={`/player/${song.id}`}>
-                              <button className="btn-primary" style={{ padding: '8px 16px', fontSize: '12px', background: 'linear-gradient(45deg, #FFD700, #FFA500)', border: 'none', color: '#000', fontWeight: 'bold' }} disabled={!hasJson}>🚀 Přehrát online (Hned)</button>
-                           </Link>
-                        </div>
-                      </div>
-                      
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.7, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '8px' }}>
-                        <span style={{ fontSize: '11px', color: '#888' }}>Renderování (jen pro offline soubor):</span>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          {song.videoUrl ? (
-                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <span style={{ color: '#4ade80', fontSize: '11px' }}>✓ Hotovo {song.videoSize ? `(${ (song.videoSize / 1024 / 1024).toFixed(1) } MB)` : ''}</span>
-                                <a href={song.videoUrl} download={`${song.title}.webm`} target="_blank" style={{ textDecoration: 'none', background: 'rgba(255,255,255,0.08)', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', color: 'var(--color-gold)', border: '1px solid rgba(255,215,0,0.2)' }} title="Stáhnout video do PC">💾 Stáhnout</a>
-                                <button 
-                                  onClick={async () => { if(confirm("Opravdu smazat vyrenderované video?")) await removeSongResource(song.id, 'video'); }}
-                                  style={{ background: 'rgba(255,0,0,0.1)', border: 'none', color: '#ff4444', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}
-                                >🗑️</button>
-                             </div>
-                          ) : (
-                             <Link href={`/renderer?songId=${song.id}`}>
-                                <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '11px', opacity: 0.6 }} disabled={!hasJson}>🎬 Spustit Render</button>
+                <div style={{ display: 'flex', gap: '0.75rem', marginTop: 'auto' }}>
+                    <Link href={`/designer?songId=${song.id}`} style={{ flex: 1.2 }}>
+                      <button className="btn-primary" style={{ width: '100%', padding: '14px', background: 'var(--color-teal)', fontWeight: 900, borderRadius: '16px' }} disabled={!hasAudio}>🛠️ STUDIO</button>
+                    </Link>
+                    <Link href={`/player/${song.id}`} style={{ flex: 1 }}>
+                      <button className="btn-primary" style={{ width: '100%', padding: '14px', background: 'linear-gradient(45deg, #FFD700, #FFA500)', color: '#000', fontWeight: 900, borderRadius: '16px' }} disabled={!hasJson}>▶ PŘEHRÁT</button>
+                    </Link>
+                </div>
+              </div>
+� Spustit Render</button>
                              </Link>
                           )}
                         </div>
