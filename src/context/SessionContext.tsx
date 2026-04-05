@@ -30,14 +30,30 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Automatická synchronizace (polling) pro udržení fronty v reálném čase
+  useEffect(() => {
+    if (!joinCode) return;
+    
+    // Načteme hned, pak v intervalu
+    loadSession(joinCode);
+    
+    const tid = setInterval(() => {
+      loadSession(joinCode);
+    }, 2500); // Každé 2.5s zkontrolovat stav
+    
+    return () => clearInterval(tid);
+  }, [joinCode]);
+
   const loadSession = async (code: string) => {
     try {
       const data = await getSessionStatus(code);
       if (data && data.isActive) {
         setSessionData(data);
-      } else {
+      } else if (data === null) {
+        // Relace nenalezena nebo smazána
         localStorage.removeItem('karacho_session_code');
         setJoinCode(null);
+        setSessionData(null);
       }
     } catch (err) {
       console.error("Failed to load session:", err);

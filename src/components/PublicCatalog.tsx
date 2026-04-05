@@ -208,8 +208,8 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
         )}
       </section>
 
-      {/* 🚀 INDIKÁTOR V PRAVÉM HORNÍM ROHU - Minimalistický Corner Widget */}
-      {joinCode && sessionData && (
+      {/* 🚀 INDIKÁTOR V PRAVÉM HORNÍM ROHU - Pouze pokud se něco děje */}
+      {joinCode && sessionData && (currentSong || queueItems.length > 0) && (
         <div 
           onClick={() => setShowQueueMgr(true)}
           style={{
