@@ -239,12 +239,16 @@ export default function PlayerClient({ song }: { song: any }) {
         if (curBlockIdx === -1 && next && (next.w[0].t - visualTime) < 8.0 && (next.w[0].t - visualTime) > 0.1) {
             const diff = next.w[0].t - visualTime;
             
-            // Ještě jedna pojistka: nezobrazovat odpočet pro kratičké pauzy (např. 1s mezi řádky)
-            // Zobrazíme jen pokud je celková mezera mezi bloky > 4s
+            // Ještě jedna pojistka: nezobrazovat odpočet pro kratičké pauzy
             const prevBlock = blocks.slice(0).reverse().find(b => b.be <= visualTime);
+            
+            // Podmínka zobrazení: 
+            // - První slovo písně (prevBlock neexistuje)
+            // - NEBO mezera k dalšímu je aspoň 15s (jako instrumentální sólo)
+            const isVeryFirstWord = !prevBlock;
             const gap = prevBlock ? (next.w[0].t - prevBlock.be) : next.w[0].t;
 
-            if (gap > 4.0) {
+            if (isVeryFirstWord || gap > 15.0) {
                 countEl.current.style.display = 'flex';
                 const valEl = countEl.current.querySelector('.cnt-v');
                 if (valEl) valEl.textContent = `${Math.ceil(diff)}`;
