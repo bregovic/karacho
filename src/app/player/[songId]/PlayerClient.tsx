@@ -210,7 +210,8 @@ export default function PlayerClient({ song }: { song: any }) {
     if (!audioRef.current) return;
     const t = audioRef.current.currentTime;
     const d = audioRef.current.duration || dur || 1;
-    const visualTime = t + 0.5;
+    // visualTime - synchronizace s obrazovkou (t0 je ideální pro karaoke)
+    const visualTime = t;
 
     if (pbarEl.current) pbarEl.current.style.width = `${(t / d) * 100}%`;
     if (videoElRef.current) {
@@ -227,12 +228,13 @@ export default function PlayerClient({ song }: { song: any }) {
 
     if (countEl.current && countBarEl.current) {
         const next = blocks.find(b => b.w && b.w.length > 0 && b.w[0].t > visualTime);
-        if (next && (next.w[0].t - visualTime) < 5.0 && (next.w[0].t - visualTime) > 0.1) {
+        // Odpočet zapneme dříve (8s předem) a plynuleji
+        if (next && (next.w[0].t - visualTime) < 8.0 && (next.w[0].t - visualTime) > 0.1) {
             const diff = next.w[0].t - visualTime;
             countEl.current.style.display = 'flex';
             const valEl = countEl.current.querySelector('.cnt-v');
-            if (valEl) valEl.textContent = `${Math.max(1, Math.ceil(diff))}`;
-            countBarEl.current.style.width = `${(diff / 5) * 100}%`;
+            if (valEl) valEl.textContent = `${Math.ceil(diff)}`;
+            countBarEl.current.style.width = `${(diff / 8) * 100}%`;
         } else {
             countEl.current.style.display = 'none';
         }
@@ -292,13 +294,38 @@ export default function PlayerClient({ song }: { song: any }) {
     renderState(state, t);
   };
 
+  const [userInteracted, setUserInteracted] = useState(false);
+
   const hasVideo = !!song.videoUrl;
+
+  const handleStartMaster = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setUserInteracted(true);
+    togglePlay(); // Spustí play i fullscreen
+  };
 
   return (
     <div className="player-root" style={{ 
       position: 'fixed', inset: 0, background: '#000', color: '#fff', 
       fontFamily: 'Inter, sans-serif', overflow: 'hidden' 
-    }} onClick={() => togglePlay()}>
+    }} onClick={() => !userInteracted ? handleStartMaster({ stopPropagation: () => {} } as any) : togglePlay()}>
+      
+      {/* 🛑 MASTER START OVERLAY (Pro Fullscreen & Autoplay) */}
+      {!isPlaying && !userInteracted && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000, 
+          background: 'rgba(0,0,0,0.95)', backdropFilter: 'blur(10px)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2rem'
+        }}>
+           <div style={{ width: '120px', height: '120px', borderRadius: '50%', background: 'var(--color-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '50px', cursor: 'pointer', boxShadow: '0 0 50px rgba(255,215,0,0.4)', animation: 'pulseDJ 2s infinite' }} onClick={handleStartMaster}>
+             ▶️
+           </div>
+           <div style={{ textTransform: 'uppercase', letterSpacing: '0.2em', fontWeight: 900, opacity: 0.8 }}>Ready to Rock?</div>
+           <style jsx>{`
+             @keyframes pulseDJ { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+           `}</style>
+        </div>
+      )}
       
       <style dangerouslySetInnerHTML={{ __html: `
         .player-root { --glow: rgba(255, 215, 0, 0.55); }
