@@ -226,13 +226,12 @@ export default function PlayerClient({ song }: { song: any }) {
     renderState(state, visualTime);
 
     if (countEl.current && countBarEl.current) {
-        const next = blocks.find(b => b.bs > visualTime);
-        const curr = blocks.find(b => visualTime >= b.bs && visualTime < b.be);
-        if (!curr && next && (next.bs - visualTime) < 5.5 && (next.bs - visualTime) > 0.3) {
-            const diff = next.bs - visualTime;
+        const next = blocks.find(b => b.w && b.w.length > 0 && b.w[0].t > visualTime);
+        if (next && (next.w[0].t - visualTime) < 5.0 && (next.w[0].t - visualTime) > 0.1) {
+            const diff = next.w[0].t - visualTime;
             countEl.current.style.display = 'flex';
             const valEl = countEl.current.querySelector('.cnt-v');
-            if (valEl) valEl.textContent = `PŘIPRAV SE: ${Math.max(1, Math.ceil(diff))}s`;
+            if (valEl) valEl.textContent = `${Math.max(1, Math.ceil(diff))}`;
             countBarEl.current.style.width = `${(diff / 5) * 100}%`;
         } else {
             countEl.current.style.display = 'none';
@@ -340,10 +339,10 @@ export default function PlayerClient({ song }: { song: any }) {
 
       {!hasVideo && (
         <div id="stage" style={{ position: 'absolute', inset: 0, zIndex: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 10vw', gap: '3vh', pointerEvents: 'none' }}>
-           <div ref={countEl} style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: '12px', position: 'absolute', top: '25%', left: '50%', transform: 'translateX(-50%)' }}>
-              <div className="cnt-v" style={{ color: 'var(--color-gold)', fontSize: '24px', fontWeight: 'bold', textShadow: '0 0 20px rgba(255,215,0,0.4)', letterSpacing: '2px' }} />
-              <div style={{ width: '200px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
-                 <div ref={countBarEl} style={{ width: '100%', height: '100%', background: 'var(--color-gold)', borderRadius: '3px', boxShadow: '0 0 10px var(--color-gold)', transition: 'width 0.1s linear' }} />
+           <div ref={countEl} style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: '8px', position: 'absolute', top: '35%', left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
+              <div className="cnt-v" style={{ color: 'var(--color-gold)', fontSize: '56px', fontWeight: 900, textShadow: '0 0 30px rgba(255,215,0,0.6)', filter: 'drop-shadow(0 0 10px rgba(0,0,0,0.8))' }} />
+              <div style={{ width: '120px', height: '3px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
+                 <div ref={countBarEl} style={{ width: '100%', height: '100%', background: 'linear-gradient(90deg, transparent, var(--color-gold), transparent)', boxShadow: '0 0 15px var(--color-gold)', transition: 'width 0.1s linear' }} />
               </div>
            </div>
            <div ref={prevLineEl} className="ln-ctx" />
