@@ -13,11 +13,15 @@ export default function JoinPage() {
     const doJoin = async () => {
       if (code && typeof code === 'string') {
         try {
-          await createOrJoin(code);
-          router.push('/'); // Přesměrování na hlavní katalog po joinu
+          const joinedCode = await createOrJoin(code);
+          console.log("Successfully joined:", joinedCode);
+          // Malý delay pro jistotu, že context stihl zareagovat
+          setTimeout(() => {
+            router.push('/');
+          }, 500);
         } catch (err) {
           console.error("Join failed:", err);
-          alert("Nepodařilo se připojit k relaci. Zkontrolujte kód.");
+          alert("Nepodařilo se připojit k show. Možná už skončila?");
           router.push('/');
         }
       }
