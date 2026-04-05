@@ -210,8 +210,8 @@ export default function PlayerClient({ song }: { song: any }) {
     if (!audioRef.current) return;
     const t = audioRef.current.currentTime;
     const d = audioRef.current.duration || dur || 1;
-    // visualTime - synchronizace s obrazovkou (t0 je ideální pro karaoke)
-    const visualTime = t;
+    // visualTime - synchronizace s obrazovkou (předstih 0.5s pro plynulé karaoke)
+    const visualTime = t + 0.5;
 
     if (pbarEl.current) pbarEl.current.style.width = `${(t / d) * 100}%`;
     if (videoElRef.current) {
@@ -230,29 +230,17 @@ export default function PlayerClient({ song }: { song: any }) {
         const next = blocks.find(b => b.w && b.w.length > 0 && b.w[0].t > visualTime);
         const curBlockIdx = blocks.findIndex(b => visualTime >= b.bs && visualTime < b.be);
         
-        // CHYTRÝ ODPOČET:
-        // Zobrazujeme pouze pokud:
-        // 1. NEJSME v aktivním bloku s textem (curBlockIdx === -1)
-        // 2. K dalšímu slovu zbývá méně než 8s
-        // 3. MEZERA (intro nebo pauza) je významná (např. jsme na startu nebo předchozí blok skončil už dávno)
-        
-        if (curBlockIdx === -1 && next && (next.w[0].t - visualTime) < 8.0 && (next.w[0].t - visualTime) > 0.1) {
+        if (curBlockIdx === -1 && next && (next.w[0].t - visualTime) < 8.0 && (next.w[0].t - visualTime) > -0.5) {
             const diff = next.w[0].t - visualTime;
-            
-            // Ještě jedna pojistka: nezobrazovat odpočet pro kratičké pauzy
             const prevBlock = blocks.slice(0).reverse().find(b => b.be <= visualTime);
-            
-            // Podmínka zobrazení: 
-            // - První slovo písně (prevBlock neexistuje)
-            // - NEBO mezera k dalšímu je aspoň 15s (jako instrumentální sólo)
             const isVeryFirstWord = !prevBlock;
             const gap = prevBlock ? (next.w[0].t - prevBlock.be) : next.w[0].t;
 
             if (isVeryFirstWord || gap > 15.0) {
                 countEl.current.style.display = 'flex';
                 const valEl = countEl.current.querySelector('.cnt-v');
-                if (valEl) valEl.textContent = `${Math.ceil(diff)}`;
-                countBarEl.current.style.width = `${(diff / 8) * 100}%`;
+                if (valEl) valEl.textContent = `${Math.max(1, Math.ceil(diff))}`;
+                countBarEl.current.style.width = `${(Math.max(0, diff) / 8) * 100}%`;
             } else {
                 countEl.current.style.display = 'none';
             }
