@@ -21,7 +21,8 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
 
   const sortedSongs = [...filteredSongs].sort((a, b) => {
     if (sortBy === 'POPULAR') return (b.playCount || 0) - (a.playCount || 0);
-    if (sortBy === 'NAME') return a.title.localeCompare(b.title);
+    if (sortBy === 'TITLE_ASC') return a.title.localeCompare(b.title, 'cs');
+    if (sortBy === 'ARTIST_ASC') return (a.artist || '').localeCompare(b.artist || '', 'cs');
     if (sortBy === 'NEWEST') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     return 0;
   });
@@ -106,7 +107,7 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
           flexWrap: 'wrap', 
           justifyContent: 'center',
           width: '100%',
-          maxWidth: '850px',
+          maxWidth: '900px',
           position: 'relative',
           zIndex: 1,
         }}>
@@ -131,7 +132,8 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
 
           <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={selectStyle}>
             <option value="POPULAR">🏆 TOP HRANÉ</option>
-            <option value="NAME">🔤 PODLE ABECEDY</option>
+            <option value="TITLE_ASC">🎵 PÍSEŇ (A-Z)</option>
+            <option value="ARTIST_ASC">🎤 INTERPRET (A-Z)</option>
             <option value="NEWEST">🆕 NEJNOVĚJŠÍ</option>
           </select>
 

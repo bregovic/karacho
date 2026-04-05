@@ -75,6 +75,18 @@ export async function removeSongResource(songId: string, type: 'audio' | 'instru
   revalidatePath('/designer');
 }
 
+export async function incrementPlayCount(songId: string) {
+  try {
+    await db.song.update({
+      where: { id: songId },
+      data: { playCount: { increment: 1 } }
+    });
+    revalidatePath('/');
+  } catch (err) {
+    console.error('Failed to increment play count:', err);
+  }
+}
+
 export async function updateSongAnimation(songId: string, animationStyle: string) {
   await db.song.update({ where: { id: songId }, data: { animationStyle } });
   revalidatePath('/admin');
