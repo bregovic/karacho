@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Soubor nebyl nalezen ve formuláři" }, { status: 400 });
     }
 
-    let buffer = Buffer.from(await file.arrayBuffer());
+    let buffer: any = Buffer.from(await file.arrayBuffer());
     let filename = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
     let contentType = file.type || 'audio/mpeg';
 
