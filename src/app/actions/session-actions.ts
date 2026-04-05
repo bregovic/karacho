@@ -43,7 +43,10 @@ export async function getSessionStatus(code: string) {
   return await db.karaokeSession.findUnique({
     where: { joinCode: code.toUpperCase() },
     include: { 
-      queue: { orderBy: { order: 'asc' } }, 
+      queue: { 
+        include: { song: true },
+        orderBy: { order: 'asc' } 
+      }, 
       currentSong: true 
     }
   });
