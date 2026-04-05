@@ -6,77 +6,93 @@ import { useState, useEffect } from 'react';
 export default function HeaderSessionInfo() {
   const { joinCode, createOrJoin, leaveSession } = useSession();
   const [showQR, setShowQR] = useState(false);
+  const [url, setUrl] = useState('');
 
-  // Automatické vytvoření relace při prvním načtení (pokud žádná není)
   useEffect(() => {
     if (!joinCode) {
        createOrJoin();
+    } else {
+       // Nastavíme URL pouze na klientovi, aby se předešlo hydratačním nesrovnalostem
+       setUrl(`${window.location.origin}/join/${joinCode}`);
     }
   }, [joinCode]);
 
   const handleCopy = () => {
-    const url = `${window.location.origin}/join/${joinCode}`;
     navigator.clipboard.writeText(url);
     alert("Odkaz ke sdílení zkopírován! ✅");
   };
 
-  if (!joinCode) {
-    return (
-      <div style={{ color: 'var(--color-gold)', fontSize: '10px', fontWeight: 'bold' }}>
-        🔄 INICIALIZACE...
-      </div>
-    );
-  }
+  if (!joinCode) return null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', position: 'relative' }}>
-        <button 
-          onClick={() => setShowQR(!showQR)}
-          style={{ 
-            background: 'none', border: 'none', padding: 0, cursor: 'pointer', 
-            textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '2px'
-          }}
-        >
-          <span style={{ 
-            fontSize: '18px', fontWeight: 900, color: 'var(--color-gold)', 
-            letterSpacing: '0.15em', filter: 'drop-shadow(0 0 12px rgba(255,215,0,0.5))' 
-          }}>
-            # {joinCode}
-          </span>
-          <span style={{ fontSize: '10px', opacity: 0.6, color: 'white', fontWeight: 700, letterSpacing: '0.05em' }}>OVLÁDANÍ MOBILEM</span>
-        </button>
+    <>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+          <button 
+            onClick={() => setShowQR(true)}
+            style={{ 
+              background: 'none', border: 'none', padding: 0, cursor: 'pointer', 
+              textAlign: 'left', display: 'flex', flexDirection: 'column'
+            }}
+          >
+            <span style={{ 
+              fontSize: '22px', fontWeight: 900, color: 'var(--color-gold)', 
+              letterSpacing: '0.15em', filter: 'drop-shadow(0 0 15px rgba(255,215,0,0.45))' 
+            }}>
+              # {joinCode}
+            </span>
+          </button>
+      </div>
 
-        {showQR && (
+      {/* MODÁLNÍ DIALOG S QR KÓDEM */}
+      {showQR && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 10000,
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '2rem'
+        }} onClick={() => setShowQR(false)}>
+          
           <div style={{
-            position: 'absolute', top: '100%', left: 0, marginTop: '1.5rem',
-            background: 'white', padding: '2.5rem', borderRadius: '32px',
-            boxShadow: '0 30px 80px rgba(0,0,0,0.9)', zIndex: 10000,
-            width: '320px', textAlign: 'center', color: '#111'
-          }}>
-            <h3 style={{ margin: '0 0 0.5rem', fontSize: '20px', fontWeight: 900 }}>Dálkové ovládání</h3>
-            <p style={{ margin: '0 0 1.5rem', fontSize: '13px', opacity: 0.7 }}>Naskenuj a ovládej celou show</p>
+            background: 'white', padding: '3rem', borderRadius: '40px',
+            maxWidth: '380px', width: '100%', textAlign: 'center', color: '#111',
+            boxShadow: '0 40px 100px rgba(0,0,0,0.9)',
+            animation: 'modalFadeIn 0.3s ease-out'
+          }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 0.5rem', fontSize: '24px', fontWeight: 900 }}>Dálkové ovládání</h3>
+            <p style={{ margin: '0 0 2rem', fontSize: '14px', opacity: 0.6 }}>Naskenuj mobilem a ovládej celou show</p>
             
-            <div style={{ background: '#f8f8f8', padding: '1.5rem', borderRadius: '24px', marginBottom: '1.5rem' }}>
-              <img 
-                src={`https://chart.googleapis.com/chart?cht=qr&chs=250x250&chl=${encodeURIComponent(window.location.origin + '/join/' + joinCode)}`}
-                alt="QR Code" 
-                style={{ width: '100%', height: 'auto', display: 'block' }}
-              />
+            <div style={{ background: '#f0f0f0', padding: '2rem', borderRadius: '28px', marginBottom: '2rem', display: 'flex', justifyContent: 'center' }}>
+              {/* QR kód (api.qrserver.com je spolehlivější alternativa) */}
+              {url && (
+                 <img 
+                   src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(url)}`}
+                   alt="QR Code" 
+                   style={{ width: '100%', height: 'auto', display: 'block', borderRadius: '12px' }}
+                 />
+              )}
             </div>
 
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button onClick={handleCopy} style={{ flex: 1, padding: '14px', borderRadius: '16px', background: 'var(--color-gold)', border: 'none', color: 'black', fontWeight: '900', fontSize: '14px', cursor: 'pointer' }}>Kopírovat odkaz</button>
+              <button onClick={handleCopy} style={{ flex: 1, padding: '16px', borderRadius: '16px', background: 'var(--color-gold)', border: 'none', color: 'black', fontWeight: '900', fontSize: '15px', cursor: 'pointer' }}>Kopírovat</button>
               <button 
                 onClick={() => { leaveSession(); setShowQR(false); }} 
-                style={{ background: '#eee', border: 'none', padding: '14px', borderRadius: '16px', color: '#666', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer' }}
+                style={{ background: '#eee', border: 'none', padding: '16px', borderRadius: '16px', color: '#666', fontWeight: '700', fontSize: '15px', cursor: 'pointer' }}
               >
                 Opustit
               </button>
             </div>
             
-            <button onClick={() => setShowQR(false)} style={{ marginTop: '1.5rem', background: 'none', border: 'none', color: '#999', fontSize: '12px', textDecoration: 'underline', cursor: 'pointer', fontWeight: 600 }}>Zavřít panel</button>
+            <button onClick={() => setShowQR(false)} style={{ marginTop: '2rem', background: 'none', border: 'none', color: '#999', fontSize: '14px', textDecoration: 'underline', cursor: 'pointer', fontWeight: 600 }}>Zavřít panel</button>
           </div>
-        )}
-    </div>
+          
+          <style dangerouslySetInnerHTML={{ __html: `
+            @keyframes modalFadeIn {
+              from { transform: scale(0.9); opacity: 0; }
+              to { transform: scale(1); opacity: 1; }
+            }
+          `}} />
+        </div>
+      )}
+    </>
   );
 }
