@@ -15,7 +15,10 @@ export async function joinOrCreateSession(code?: string) {
   if (code) {
     const s = await db.karaokeSession.findUnique({
       where: { joinCode: code.toUpperCase() },
-      include: { queue: true, currentSong: true }
+      include: { 
+        currentSong: true,
+        queue: { include: { song: true }, orderBy: { order: 'asc' } }
+      }
     });
     if (s && s.isActive) return s;
   }
@@ -32,7 +35,10 @@ export async function joinOrCreateSession(code?: string) {
       joinCode: newCode,
       status: 'STOPPED'
     },
-    include: { queue: true, currentSong: true }
+    include: { 
+      currentSong: true,
+      queue: { include: { song: true }, orderBy: { order: 'asc' } }
+    }
   });
 
   return session;
@@ -125,6 +131,10 @@ export async function advanceSessionQueue(code: string) {
       currentSongId: next.songId,
       status: 'PLAYING',
       updatedAt: new Date()
+    },
+    include: { 
+      currentSong: true,
+      queue: { include: { song: true }, orderBy: { order: 'asc' } }
     }
   });
 }
