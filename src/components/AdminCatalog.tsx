@@ -138,19 +138,19 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
                   </div>
                 </div>
 
-                {/* STATUS SUMMARY */}
-                <div style={{ display: 'flex', gap: '1rem', background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '18px', justifyContent: 'space-around' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: hasAudio ? 1 : 0.3 }}>
-                       <span style={{ fontSize: '18px' }}>🔉</span>
-                       <span style={{ fontSize: '10px', fontWeight: 800, marginTop: '4px' }}>AUDIO</span>
+                {/* STATUS & UPLOADERS */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '10px', background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '24px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                       <span style={{ fontSize: '10px', fontWeight: 800, color: hasAudio ? 'var(--color-teal)' : '#666', textAlign: 'center', textTransform: 'uppercase' }}>1. Audio {hasAudio && '✅'}</span>
+                       <AudioUploader songId={song.id} type="audio" />
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: hasLyrics ? 1 : 0.3 }}>
-                       <span style={{ fontSize: '18px' }}>📝</span>
-                       <span style={{ fontSize: '10px', fontWeight: 800, marginTop: '4px' }}>TEXT</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                       <span style={{ fontSize: '10px', fontWeight: 800, color: !!song.instrumentalUrl ? 'var(--color-teal)' : '#666', textAlign: 'center', textTransform: 'uppercase' }}>2. Instr. {!!song.instrumentalUrl && '✅'}</span>
+                       <AudioUploader songId={song.id} type="instrumental" />
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: hasJson ? 1 : 0.3 }}>
-                       <span style={{ fontSize: '18px' }}>⚙️</span>
-                       <span style={{ fontSize: '10px', fontWeight: 800, marginTop: '4px' }}>STUDIO</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                       <span style={{ fontSize: '10px', fontWeight: 800, color: hasJson ? 'var(--color-teal)' : '#666', textAlign: 'center', textTransform: 'uppercase' }}>3. Studio {hasJson && '✅'}</span>
+                       <AudioUploader songId={song.id} type="json" />
                     </div>
                 </div>
 
