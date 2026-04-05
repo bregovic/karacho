@@ -229,9 +229,25 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
                </span>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
-               <button onClick={(e) => { e.stopPropagation(); remoteControl(sessionData.status === 'PLAYING' ? 'PAUSE' : 'PLAY'); }} style={{ width: '40px', height: '40px', borderRadius: '50%', background: sessionData.status === 'PLAYING' ? '#fff' : 'var(--color-gold)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>
-                  {sessionData.status === 'PLAYING' ? '⏸️' : '▶️'}
-               </button>
+              <a 
+                href={`/player/${currentSong?.id}?mode=watch`}
+                style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', transition: 'all 0.2s' }}
+                title="Sledovat bez zvuku (Mirror)"
+              >
+                📺
+              </a>
+              <button 
+                onClick={() => setShowQueueMgr(true)}
+                style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+              >
+                ⏭️
+              </button>
+              <button 
+                onClick={() => remoteControl(sessionData.status === 'PLAYING' ? 'PAUSE' : 'PLAY')}
+                style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'var(--color-gold)', border: 'none', color: 'black', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 0 15px rgba(255,215,0,0.3)' }}
+              >
+                {sessionData.status === 'PLAYING' ? '⏸' : '▶'}
+              </button>
             </div>
           </div>
           
