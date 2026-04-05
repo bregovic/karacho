@@ -2,6 +2,8 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { incrementPlayCount } from '@/app/admin/actions';
+import { useSession } from '@/context/SessionContext';
+import { getSessionStatus, updateSessionState, advanceSessionQueue } from '@/app/actions/session-actions';
 
 interface PlayerBlock {
   lw: string[];
@@ -16,6 +18,7 @@ interface TimingData {
 }
 
 export default function PlayerClient({ song }: { song: any }) {
+  const { joinCode } = useSession();
   const [isPlaying, setIsPlaying] = useState(false);
   const [isInstrumental, setIsInstrumental] = useState(!!song.instrumentalUrl);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -63,31 +66,72 @@ export default function PlayerClient({ song }: { song: any }) {
   };
 
   useEffect(() => {
+    if (!joinCode) return;
+
+    const interval = setInterval(async () => {
+      const s = await getSessionStatus(joinCode);
+      if (!s || !audioRef.current) return;
+
+      // 1. Synchronizace STAVU (Play/Pause)
+      if (s.status === 'PLAYING' && audioRef.current.paused) {
+        audioRef.current.play().catch(() => {});
+      } else if (s.status === 'PAUSED' && !audioRef.current.paused) {
+        audioRef.current.pause();
+      }
+
+      // 2. Synchronizace PÍSNĚ (Pokud dálkové ovládání přepne píseň)
+      if (s.currentSongId && s.currentSongId !== song.id) {
+        window.location.href = `/player/${s.currentSongId}`;
+      }
+    }, 2000); // Každé 2 vteřiny
+
+    return () => clearInterval(interval);
+  }, [joinCode, song.id]);
+
+  useEffect(() => {
     const a = new Audio();
     a.crossOrigin = "anonymous";
     const initialSrc = (!!song.instrumentalUrl) ? song.instrumentalUrl : song.audioUrl;
     a.src = initialSrc;
     a.preload = "auto";
-    a.onplay = () => { setIsPlaying(true); requestWakeLock(); };
-    a.onpause = () => { setIsPlaying(false); releaseWakeLock(); };
+    a.onplay = () => { 
+      setIsPlaying(true); 
+      requestWakeLock(); 
+      // Synchronizace statusu do DB při startu na Masteru
+      if (joinCode) updateSessionState(joinCode, { status: 'PLAYING', currentSongId: song.id });
+    };
+    a.onpause = () => { 
+      setIsPlaying(false); 
+      releaseWakeLock(); 
+      if (joinCode) updateSessionState(joinCode, { status: 'PAUSED' });
+    };
     a.onplaying = () => {
       incrementPlayCount(song.id);
       startTick();
       toggleFullScreen();
     };
-    a.onended = () => { 
+    a.onended = async () => { 
       setIsPlaying(false); 
       lastBlock.current = -1; 
       releaseWakeLock(); 
       
-      // Přehrávání fronty (Queue)
+      // Přehrávání fronty (Shared Session Queue má přednost)
+      if (joinCode) {
+        const next = await advanceSessionQueue(joinCode);
+        if (next && next.currentSongId) {
+          window.location.href = `/player/${next.currentSongId}`;
+          return;
+        }
+      }
+
+      // Lokální fronta (Fallback)
       const q = JSON.parse(localStorage.getItem('karacho_queue') || '[]');
       if (q.length > 0) {
         const nextId = q.shift();
         localStorage.setItem('karacho_queue', JSON.stringify(q));
         window.location.href = `/player/${nextId}`;
       } else {
-        window.location.href = '/admin'; // nebo domů
+        window.location.href = '/'; 
       }
     };
     audioRef.current = a;
