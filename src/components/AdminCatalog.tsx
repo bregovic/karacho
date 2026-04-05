@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import AudioUploader from '@/components/AudioUploader';
+import BulkUploader from '@/components/BulkUploader';
 import SongEditModal from '@/components/SongEditModal';
 import { createSong, deleteSong, updateSong, removeSongResource } from '@/app/admin/actions';
 import { autoAlignSong } from '@/app/admin/auto-align';
@@ -66,6 +67,7 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
         >
           {showForm ? 'ZAVŘÍT' : `➕ PŘIDAT HUDBU`}
         </button>
+        <BulkUploader initialSongs={initialSongs} />
       </div>
  
       {/* FORMULÁŘ PRO NOVOU PÍSEŇ */}
