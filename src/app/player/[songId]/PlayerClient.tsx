@@ -228,13 +228,30 @@ export default function PlayerClient({ song }: { song: any }) {
 
     if (countEl.current && countBarEl.current) {
         const next = blocks.find(b => b.w && b.w.length > 0 && b.w[0].t > visualTime);
-        // Odpočet zapneme dříve (8s předem) a plynuleji
-        if (next && (next.w[0].t - visualTime) < 8.0 && (next.w[0].t - visualTime) > 0.1) {
+        const curBlockIdx = blocks.findIndex(b => visualTime >= b.bs && visualTime < b.be);
+        
+        // CHYTRÝ ODPOČET:
+        // Zobrazujeme pouze pokud:
+        // 1. NEJSME v aktivním bloku s textem (curBlockIdx === -1)
+        // 2. K dalšímu slovu zbývá méně než 8s
+        // 3. MEZERA (intro nebo pauza) je významná (např. jsme na startu nebo předchozí blok skončil už dávno)
+        
+        if (curBlockIdx === -1 && next && (next.w[0].t - visualTime) < 8.0 && (next.w[0].t - visualTime) > 0.1) {
             const diff = next.w[0].t - visualTime;
-            countEl.current.style.display = 'flex';
-            const valEl = countEl.current.querySelector('.cnt-v');
-            if (valEl) valEl.textContent = `${Math.ceil(diff)}`;
-            countBarEl.current.style.width = `${(diff / 8) * 100}%`;
+            
+            // Ještě jedna pojistka: nezobrazovat odpočet pro kratičké pauzy (např. 1s mezi řádky)
+            // Zobrazíme jen pokud je celková mezera mezi bloky > 4s
+            const prevBlock = blocks.slice(0).reverse().find(b => b.be <= visualTime);
+            const gap = prevBlock ? (next.w[0].t - prevBlock.be) : next.w[0].t;
+
+            if (gap > 4.0) {
+                countEl.current.style.display = 'flex';
+                const valEl = countEl.current.querySelector('.cnt-v');
+                if (valEl) valEl.textContent = `${Math.ceil(diff)}`;
+                countBarEl.current.style.width = `${(diff / 8) * 100}%`;
+            } else {
+                countEl.current.style.display = 'none';
+            }
         } else {
             countEl.current.style.display = 'none';
         }
