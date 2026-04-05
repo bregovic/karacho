@@ -246,32 +246,29 @@ export default function PlayerClient({ song }: { song: any }) {
     renderState(state, visualTime);
 
     if (countEl.current && countBarEl.current) {
-        const curBlockIdx = blocks.findIndex(b => t >= b.bs && t < b.be);
-        
         // Hledáme čas nejbližšího slova, které má přijít
         let nextWordTime = -1;
-        if (curBlockIdx === -1) { // Odpočet hledáme jen když nejsme v aktivním bloku zpěvu
-            for (const b of blocks) {
-                for (const w of b.w) {
-                    if (w.t > t) {
-                        nextWordTime = w.t;
-                        break;
-                    }
+        for (const b of blocks) {
+            for (const w of b.w) {
+                if (w.t > t) {
+                    nextWordTime = w.t;
+                    break;
                 }
-                if (nextWordTime !== -1) break;
             }
+            if (nextWordTime !== -1) break;
         }
 
         const diff = nextWordTime !== -1 ? (nextWordTime - t) : -1;
         
         // Zobrazíme pokud do zpěvu zbývá 0.1 - 6 sekund
-        if (diff > 0.1 && diff < 6.0 && curBlockIdx === -1) {
+        if (diff > 0.1 && diff < 6.0) {
             const prevBlock = blocks.slice(0).reverse().find(b => b.be <= t);
-            const isVeryFirstWord = !prevBlock;
+            // První slovo je v prvním bloku, hned na začátku songu (pokud t je malé)
+            const isVeryFirstWord = !prevBlock || t < 5.0; 
             const gap = prevBlock ? (nextWordTime - prevBlock.be) : nextWordTime;
 
             // Zobrazíme odpočet pouze u delších mezer nebo na úplném začátku
-            if (isVeryFirstWord || gap > 4.5) {
+            if (isVeryFirstWord || gap > 4.0) {
                 countEl.current.style.display = 'flex';
                 countEl.current.style.opacity = '1';
                 const valEl = countEl.current.querySelector('.cnt-v');
