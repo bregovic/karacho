@@ -19,10 +19,17 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [sessionData, setSessionData] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Načtení relace při startu (persistence)
+  // Načtení relace při startu (URL param -> localStorage -> default)
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlCode = params.get('code');
     const saved = localStorage.getItem('karacho_session_code');
-    if (saved) {
+
+    if (urlCode) {
+      setJoinCode(urlCode);
+      localStorage.setItem('karacho_session_code', urlCode);
+      loadSession(urlCode);
+    } else if (saved) {
       setJoinCode(saved);
       loadSession(saved);
     } else {
