@@ -7,10 +7,10 @@ export default function HeaderSessionInfo() {
   const { joinCode, createOrJoin, leaveSession } = useSession();
   const [showQR, setShowQR] = useState(false);
 
-  // Při prvním načtení vytvoříme/připojíme relaci pokud není
+  // Automatické vytvoření relace při prvním načtení (pokud žádná není)
   useEffect(() => {
     if (!joinCode) {
-       // createOrJoin(); // Automatické vytváření můžeme nechat na kliknutí
+       createOrJoin();
     }
   }, [joinCode]);
 
@@ -22,17 +22,9 @@ export default function HeaderSessionInfo() {
 
   if (!joinCode) {
     return (
-      <button 
-        onClick={() => createOrJoin()}
-        style={{ 
-          background: 'rgba(255,215,0,0.1)', color: 'var(--color-gold)', 
-          border: '1px solid rgba(255,215,0,0.3)', padding: '4px 10px', 
-          borderRadius: '12px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer',
-          marginTop: '-4px', transition: 'all 0.2s'
-        }}
-      >
-        🛰️ VYTVOŘIT RELACI
-      </button>
+      <div style={{ color: 'var(--color-gold)', fontSize: '10px', fontWeight: 'bold' }}>
+        🔄 INICIALIZACE...
+      </div>
     );
   }
 
@@ -42,48 +34,47 @@ export default function HeaderSessionInfo() {
           onClick={() => setShowQR(!showQR)}
           style={{ 
             background: 'none', border: 'none', padding: 0, cursor: 'pointer', 
-            textAlign: 'left', display: 'flex', flexDirection: 'column' 
+            textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '2px'
           }}
         >
           <span style={{ 
-            fontSize: '14px', fontWeight: 900, color: 'var(--color-gold)', 
-            letterSpacing: '0.12em', filter: 'drop-shadow(0 0 8px rgba(255,215,0,0.4))' 
+            fontSize: '18px', fontWeight: 900, color: 'var(--color-gold)', 
+            letterSpacing: '0.15em', filter: 'drop-shadow(0 0 12px rgba(255,215,0,0.5))' 
           }}>
-            RELACE: {joinCode}
+            # {joinCode}
           </span>
-          <span style={{ fontSize: '9px', opacity: 0.6, color: 'white', fontWeight: 600 }}>KLIKNI PRO QR / SDÍLENÍ</span>
+          <span style={{ fontSize: '10px', opacity: 0.6, color: 'white', fontWeight: 700, letterSpacing: '0.05em' }}>OVLÁDANÍ MOBILEM</span>
         </button>
 
         {showQR && (
           <div style={{
-            position: 'absolute', top: '100%', left: 0, marginTop: '1rem',
-            background: 'white', padding: '1.5rem', borderRadius: '24px',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.8)', zIndex: 10000,
-            width: '260px', textAlign: 'center', color: '#111'
+            position: 'absolute', top: '100%', left: 0, marginTop: '1.5rem',
+            background: 'white', padding: '2.5rem', borderRadius: '32px',
+            boxShadow: '0 30px 80px rgba(0,0,0,0.9)', zIndex: 10000,
+            width: '320px', textAlign: 'center', color: '#111'
           }}>
-            <h3 style={{ margin: '0 0 0.5rem', fontSize: '16px', fontWeight: 800 }}>Dálkové ovládání</h3>
-            <p style={{ margin: '0 0 1rem', fontSize: '11px', opacity: 0.7 }}>Naskenuj mobilem a ovládej frontu i přehrávač</p>
+            <h3 style={{ margin: '0 0 0.5rem', fontSize: '20px', fontWeight: 900 }}>Dálkové ovládání</h3>
+            <p style={{ margin: '0 0 1.5rem', fontSize: '13px', opacity: 0.7 }}>Naskenuj a ovládej celou show</p>
             
-            <div style={{ background: '#f5f5f5', padding: '1rem', borderRadius: '16px', marginBottom: '1rem' }}>
-              {/* QR kód (zástupný přes Google Charts API pro rychlou impl) */}
+            <div style={{ background: '#f8f8f8', padding: '1.5rem', borderRadius: '24px', marginBottom: '1.5rem' }}>
               <img 
-                src={`https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=${encodeURIComponent(window.location.origin + '/join/' + joinCode)}`}
+                src={`https://chart.googleapis.com/chart?cht=qr&chs=250x250&chl=${encodeURIComponent(window.location.origin + '/join/' + joinCode)}`}
                 alt="QR Code" 
                 style={{ width: '100%', height: 'auto', display: 'block' }}
               />
             </div>
 
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={handleCopy} style={{ flex: 1, padding: '10px', borderRadius: '12px', background: 'var(--color-gold)', border: 'none', color: 'black', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' }}>Kopírovat odkaz</button>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={handleCopy} style={{ flex: 1, padding: '14px', borderRadius: '16px', background: 'var(--color-gold)', border: 'none', color: 'black', fontWeight: '900', fontSize: '14px', cursor: 'pointer' }}>Kopírovat odkaz</button>
               <button 
                 onClick={() => { leaveSession(); setShowQR(false); }} 
-                style={{ background: '#eee', border: 'none', padding: '10px', borderRadius: '12px', color: '#666', fontSize: '12px', cursor: 'pointer' }}
+                style={{ background: '#eee', border: 'none', padding: '14px', borderRadius: '16px', color: '#666', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer' }}
               >
                 Opustit
               </button>
             </div>
             
-            <button onClick={() => setShowQR(false)} style={{ marginTop: '1rem', background: 'none', border: 'none', color: '#999', fontSize: '11px', textDecoration: 'underline', cursor: 'pointer' }}>Zavřít</button>
+            <button onClick={() => setShowQR(false)} style={{ marginTop: '1.5rem', background: 'none', border: 'none', color: '#999', fontSize: '12px', textDecoration: 'underline', cursor: 'pointer', fontWeight: 600 }}>Zavřít panel</button>
           </div>
         )}
     </div>

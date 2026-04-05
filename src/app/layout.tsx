@@ -31,10 +31,10 @@ export default async function RootLayout({
           <SessionProvider>
             <GlobalEscape />
             <nav style={{ 
-              padding: '0.75rem clamp(1rem, 4vw, 2.5rem)', 
-              background: 'rgba(0,0,0,0.3)', 
-              backdropFilter: 'blur(20px)', 
-              borderBottom: '1px solid rgba(255,255,255,0.05)', 
+              padding: '1rem clamp(1.5rem, 5vw, 4rem)', 
+              background: 'rgba(0,0,0,0.5)', 
+              backdropFilter: 'blur(30px)', 
+              borderBottom: '1px solid rgba(255,255,255,0.08)', 
               display: 'flex', 
               justifyContent: 'space-between', 
               alignItems: 'center', 
@@ -42,12 +42,14 @@ export default async function RootLayout({
               top: 0, 
               zIndex: 1000 
             }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '16px', textDecoration: 'none' }}>
-                  <img src="/icon.png" alt="Karacho Logo" style={{ width: '42px', height: '42px', borderRadius: '8px' }} />
-                  <span style={{ fontSize: '24px', fontWeight: 900, color: 'var(--color-gold)', letterSpacing: '-0.04em' }}>KARACHO</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '18px', textDecoration: 'none' }}>
+                  <img src="/icon.png" alt="Karacho Logo" style={{ width: '54px', height: '54px', borderRadius: '12px', boxShadow: '0 0 15px rgba(255,215,0,0.1)' }} />
+                  <span style={{ fontSize: '32px', fontWeight: 900, color: 'var(--color-gold)', letterSpacing: '-0.06em', textShadow: '0 0 20px rgba(255,215,0,0.2)' }}>KARACHO</span>
                 </a>
-                <HeaderSessionInfo />
+                <div style={{ marginLeft: '4px' }}>
+                  <HeaderSessionInfo />
+                </div>
               </div>
               <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
                 

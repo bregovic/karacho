@@ -5,9 +5,8 @@ import { revalidatePath } from 'next/cache';
 
 // Funkce pro náhodný 4-místný kód (např. K4CH)
 function generateCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Bez 0, 1, O, I (často se pletou)
   let res = '';
-  for (let i = 0; i < 4; i++) res += chars.charAt(Math.floor(Math.random() * chars.length));
+  for (let i = 0; i < 5; i++) res += Math.floor(Math.random() * 10).toString();
   return res;
 }
 
