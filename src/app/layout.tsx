@@ -43,9 +43,9 @@ export default async function RootLayout({
               zIndex: 1000 
             }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none' }}>
-                  <img src="/icon.png" alt="Karacho Logo" style={{ width: '30px', height: '30px' }} />
-                  <span style={{ fontSize: '18px', fontWeight: 900, color: 'var(--color-gold)', letterSpacing: '-0.02em' }}>KARACHO</span>
+                <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '16px', textDecoration: 'none' }}>
+                  <img src="/icon.png" alt="Karacho Logo" style={{ width: '42px', height: '42px', borderRadius: '8px' }} />
+                  <span style={{ fontSize: '24px', fontWeight: 900, color: 'var(--color-gold)', letterSpacing: '-0.04em' }}>KARACHO</span>
                 </a>
                 <HeaderSessionInfo />
               </div>
@@ -54,16 +54,16 @@ export default async function RootLayout({
                 {session?.user ? (
                   <>
                     {session.user.role === 'ADMIN' && (
-                       <a href="/admin" style={{ color: '#fff', textDecoration: 'none', fontSize: '14px', fontWeight: 500, opacity: 0.7 }}>Admin</a>
+                       <a href="/admin" style={{ color: '#fff', textDecoration: 'none', fontSize: '16px', fontWeight: 600, opacity: 0.85 }}>Admin</a>
                     )}
                     <form action={async () => { "use server"; await signOut(); }}>
-                      <button type="submit" style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '14px', opacity: 0.7 }}>
+                      <button type="submit" style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '16px', fontWeight: 500, opacity: 0.85 }}>
                         Odhlásit
                       </button>
                     </form>
                   </>
                 ) : (
-                  <a href="/api/auth/signin" style={{ color: '#fff', textDecoration: 'none', fontSize: '14px', opacity: 0.7 }}>Přihlásit</a>
+                  <a href="/api/auth/signin" style={{ color: '#fff', textDecoration: 'none', fontSize: '16px', fontWeight: 600, opacity: 0.85 }}>Přihlásit</a>
                 )}
               </div>
             </nav>

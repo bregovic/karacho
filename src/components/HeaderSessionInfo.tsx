@@ -46,12 +46,12 @@ export default function HeaderSessionInfo() {
           }}
         >
           <span style={{ 
-            fontSize: '11px', fontWeight: 900, color: 'var(--color-gold)', 
-            letterSpacing: '0.1em', filter: 'drop-shadow(0 0 5px rgba(255,215,0,0.3))' 
+            fontSize: '14px', fontWeight: 900, color: 'var(--color-gold)', 
+            letterSpacing: '0.12em', filter: 'drop-shadow(0 0 8px rgba(255,215,0,0.4))' 
           }}>
             RELACE: {joinCode}
           </span>
-          <span style={{ fontSize: '7px', opacity: 0.5, color: 'white' }}>KLIKNI PRO QR / SDÍLENÍ</span>
+          <span style={{ fontSize: '9px', opacity: 0.6, color: 'white', fontWeight: 600 }}>KLIKNI PRO QR / SDÍLENÍ</span>
         </button>
 
         {showQR && (
