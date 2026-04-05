@@ -236,7 +236,7 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
       <style jsx>{`
         .glass-panel:hover { transform: translateY(-8px); border-color: rgba(255,215,0,0.3) !important; background: rgba(255,255,255,0.06) !important; }
         .plus-btn:hover { background: rgba(255,215,0,0.4) !important; transform: scale(1.15); }
-        .hero-logo-img { height: 200px; filter: drop-shadow(0 0 60px rgba(255,215,0,0.3)) drop-shadow(0 0 20px rgba(0,0,0,0.9)); }
+        .hero-logo-img { height: 320px; filter: drop-shadow(0 0 80px rgba(255,215,0,0.35)) drop-shadow(0 0 30px rgba(0,0,0,1)); }
         @keyframes slideUp { from { transform: translate(-50%, 30px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
       `}</style>
     </div>
