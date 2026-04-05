@@ -66,25 +66,14 @@ export default function PlayerClient({ song }: { song: any }) {
   };
 
   useEffect(() => {
+    // 📺 LOGIKA POUZE PRO REFRESH PŘI ZMĚNĚ SONGU (Dálkové přepnutí)
     if (!joinCode) return;
-
     const interval = setInterval(async () => {
       const s = await getSessionStatus(joinCode);
-      if (!s || !audioRef.current) return;
-
-      // 1. Synchronizace STAVU (Play/Pause)
-      if (s.status === 'PLAYING' && audioRef.current.paused) {
-        audioRef.current.play().catch(() => {});
-      } else if (s.status === 'PAUSED' && !audioRef.current.paused) {
-        audioRef.current.pause();
+      if (s && s.currentSongId && s.currentSongId !== song.id) {
+         window.location.href = `/player/${s.currentSongId}`;
       }
-
-      // 2. Synchronizace PÍSNĚ (Pokud dálkové ovládání přepne píseň)
-      if (s.currentSongId && s.currentSongId !== song.id) {
-        window.location.href = `/player/${s.currentSongId}`;
-      }
-    }, 2000); // Každé 2 vteřiny
-
+    }, 4000); // Pro přepnutí songu stačí delší interval
     return () => clearInterval(interval);
   }, [joinCode, song.id]);
 
@@ -130,22 +119,44 @@ export default function PlayerClient({ song }: { song: any }) {
     };
     audioRef.current = a;
 
-    // Synchronizace času (Master hlásí, Slave naslouchá)
+    // 📱 SYNCHRONIZACE (Master hlásí stav, Slave a Remote následují)
     const syncInterval = setInterval(async () => {
-       if (!joinCode || !audioRef.current || audioRef.current.paused) return;
+       if (!joinCode || !audioRef.current) return;
        
        if (!isWatchMode) {
-          // Jsem MASTER (TV) -> hlášení času
-          updateSessionState(joinCode, { currentTime: audioRef.current.currentTime });
-       } else {
-          // Jsem SLAVE (Mobil) -> dorovnání času
+          // 📺 JSEM MASTER (TELEVIZE) -> Hlášení času a kontrola dálkového ovládání
           const s = await getSessionStatus(joinCode);
-          if (s && Math.abs(audioRef.current.currentTime - s.currentTime) > 1.5) {
-             audioRef.current.currentTime = s.currentTime;
-             if (videoElRef.current) videoElRef.current.currentTime = s.currentTime;
+          if (s) {
+            // Kontrola, zda nás někdo dálkově nepozastavil/nepustil
+            if (s.status === 'PAUSED' && !audioRef.current.paused) {
+               audioRef.current.pause();
+            } else if (s.status === 'PLAYING' && audioRef.current.paused && userInteracted) {
+               audioRef.current.play().catch(() => {});
+            }
+            // Hlášení aktuálního času do DB pro ostatní
+            if (!audioRef.current.paused) {
+               updateSessionState(joinCode, { currentTime: audioRef.current.currentTime, status: 'PLAYING' });
+            }
+          }
+       } else {
+          // 📱 JSEM SLAVE (MOBIL / WATCH MODE) -> Dorovnání stavu podle TV
+          const s = await getSessionStatus(joinCode);
+          if (s) {
+             // Synchronizace času (pokud jsme mimo o víc než 1.5s)
+             const diff = Math.abs(audioRef.current.currentTime - (s.currentTime || 0));
+             if (diff > 1.5) {
+                audioRef.current.currentTime = s.currentTime || 0;
+                if (videoElRef.current) videoElRef.current.currentTime = s.currentTime || 0;
+             }
+             // Synchronizace stavu (Play/Pause)
+             if (s.status === 'PLAYING' && audioRef.current.paused) {
+                audioRef.current.play().catch(() => {});
+             } else if (s.status === 'PAUSED' && !audioRef.current.paused) {
+                audioRef.current.pause();
+             }
           }
        }
-    }, 4000);
+    }, isWatchMode ? 1500 : 2000); // Slave se doptává častěji
 
     const playAttempt = a.play();
     if (playAttempt !== undefined) {
