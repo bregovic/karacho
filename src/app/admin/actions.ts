@@ -118,6 +118,17 @@ export async function updateSong(songId: string, data: any) {
   revalidatePath('/admin');
 }
 
+export async function bulkRemoveBackground(backgroundUrl: string) {
+  const session = await auth();
+  if (!session?.user) throw new Error('Nejste přihlášeni');
+
+  await db.song.updateMany({
+    where: { backgroundUrl },
+    data: { backgroundUrl: null }
+  });
+  revalidatePath('/admin');
+}
+
 export async function deleteSong(songId: string) {
   await db.song.delete({ where: { id: songId } });
   revalidatePath('/admin');

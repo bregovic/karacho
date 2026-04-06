@@ -5,10 +5,11 @@ interface BackgroundGalleryModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (url: string) => void;
+  onRemove?: (url: string) => void;
   allBackgrounds: string[];
 }
 
-export default function BackgroundGalleryModal({ isOpen, onClose, onSelect, allBackgrounds }: BackgroundGalleryModalProps) {
+export default function BackgroundGalleryModal({ isOpen, onClose, onSelect, onRemove, allBackgrounds }: BackgroundGalleryModalProps) {
   const [search, setSearch] = useState('');
   const [newUrl, setNewUrl] = useState('');
 
@@ -82,8 +83,22 @@ export default function BackgroundGalleryModal({ isOpen, onClose, onSelect, allB
                  }}
                >
                   <img src={url} alt={`Bkg ${i}`} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.5s' }} />
-                  <div className="item-overlay" style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.6), transparent)', opacity: 0, transition: 'opacity 0.3s', display: 'flex', alignItems: 'flex-end', padding: '10px' }}>
-                     <span style={{ color: 'white', fontSize: '11px', fontWeight: 'bold' }}>POUŽÍT FOTKU ✅</span>
+                  <div className="item-overlay" style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)', opacity: 0, transition: 'opacity 0.3s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '15px' }}>
+                     <button 
+                       onClick={(e) => { e.stopPropagation(); onSelect(url); }} 
+                       style={{ background: 'var(--color-teal)', border: 'none', color: 'white', padding: '10px 20px', borderRadius: '10px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}
+                     >
+                       POUŽÍT ✅
+                     </button>
+                     {!url.startsWith('/backgrounds/') && onRemove && (
+                       <button 
+                         onClick={(e) => { e.stopPropagation(); if(confirm('Opravdu chcete tento obrázek z galerie zapomenout?')) onRemove(url); }}
+                         style={{ background: 'rgba(255,0,0,0.4)', border: 'none', color: 'white', width: '35px', height: '35px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}
+                         title="Odstranit z galerie"
+                       >
+                         🗑️
+                       </button>
+                     )}
                   </div>
                </div>
              ))
