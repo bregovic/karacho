@@ -265,10 +265,9 @@ export default function PlayerClient({ song }: { song: any }) {
         // ALE zmizíme jakmile visualTime (ten s předstihem) dosáhne slova (visualDiff <= 0)
         if (diff > 0 && visualDiff > 0 && diff < 6.0) {
             const prevBlock = blocks.slice(0).reverse().find(b => b.be <= t);
-            const isVeryFirstWord = !prevBlock || t < 5.0; 
-            const gap = prevBlock ? (nextWordTime - prevBlock.be) : nextWordTime;
+            const isVeryFirstWord = !prevBlock; // Odpočet chceme JEN na úplném začátku
 
-            if (isVeryFirstWord || gap > 4.0) {
+            if (isVeryFirstWord) {
                 countEl.current.style.display = 'flex';
                 countEl.current.style.opacity = '1';
                 const valEl = countEl.current.querySelector('.cnt-v');
@@ -352,7 +351,7 @@ export default function PlayerClient({ song }: { song: any }) {
     <div className="player-root" style={{ 
       position: 'fixed', inset: 0, background: '#000', color: '#fff', 
       fontFamily: 'Inter, sans-serif', overflow: 'hidden' 
-    }} onClick={() => !userInteracted ? handleStartMaster({ stopPropagation: () => {} } as any) : togglePlay()}>
+    }}>
       
       {/* 🛑 MASTER START OVERLAY (Pro Fullscreen & Autoplay) */}
       {!isPlaying && !userInteracted && (
@@ -364,7 +363,6 @@ export default function PlayerClient({ song }: { song: any }) {
            <div style={{ width: '120px', height: '120px', borderRadius: '50%', background: 'var(--color-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '50px', cursor: 'pointer', boxShadow: '0 0 50px rgba(255,215,0,0.4)', animation: 'pulseDJ 2s infinite' }} onClick={handleStartMaster}>
              ▶️
            </div>
-           <div style={{ textTransform: 'uppercase', letterSpacing: '0.2em', fontWeight: 900, opacity: 0.8 }}>Ready to Rock?</div>
            <style jsx>{`
              @keyframes pulseDJ { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
            `}</style>
@@ -447,6 +445,9 @@ export default function PlayerClient({ song }: { song: any }) {
                   {isInstrumental ? <span>🎻 KARAOKE</span> : <span>👤 ORIGINÁL</span>}
                 </button>
               )}
+              <button onClick={(e) => { e.stopPropagation(); toggleFullScreen(); }} style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }} title="Full Screen">
+                ⛶
+              </button>
               <Link href="/" style={{ padding: '10px 18px', background: 'rgba(255,255,255,0.1)', color: 'white', borderRadius: '8px', textDecoration: 'none', fontSize: '13px', border: '1px solid rgba(255,255,255,0.1)', whiteSpace: 'nowrap' }} onClick={e=>e.stopPropagation()}>Zavřít</Link>
             </div>
 
