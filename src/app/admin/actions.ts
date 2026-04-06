@@ -166,7 +166,7 @@ export async function bulkFetchMissingLyrics() {
         { lyrics: '' }
       ],
       artist: { not: null },
-      title: { not: null }
+      title: { not: '' }
     }
   });
 
