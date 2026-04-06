@@ -134,19 +134,19 @@ export async function fetchLyricsAction(songId: string) {
   if (!song || !song.artist || !song.title) return { error: 'Chybí interpret nebo název' };
 
   try {
-    const res = await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(song.artist)}/${encodeURIComponent(song.title)}`);
+    // Použijeme Lyrist API, které má mnohem lepší podporu pro českou diakritiku
+    const res = await fetch(`https://lyrist.vercel.app/api/${encodeURIComponent(song.title)}/${encodeURIComponent(song.artist)}`);
     if (!res.ok) return { error: 'Text nenalezen' };
     
-    // Zkusíme vynutit UTF-8 dekódování, protože lyrics.ovh občas blbne s encodingem
-    const buffer = await res.arrayBuffer();
-    const decoder = new TextDecoder('utf-8');
-    const text = decoder.decode(buffer);
-    const data = JSON.parse(text);
+    const data = await res.json();
 
     if (data.lyrics) {
-      await db.song.update({ where: { id: songId }, data: { lyrics: data.lyrics } });
+      // Lyrist občas přidává na začátek a konec zbytečné mezery
+      const cleanLyrics = data.lyrics.trim();
+      
+      await db.song.update({ where: { id: songId }, data: { lyrics: cleanLyrics } });
       revalidatePath('/admin');
-      return { success: true, lyrics: data.lyrics };
+      return { success: true, lyrics: cleanLyrics };
     }
     return { error: 'Text nenalezen' };
   } catch (err) {
