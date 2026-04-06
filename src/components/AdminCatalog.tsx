@@ -4,7 +4,7 @@ import Link from 'next/link';
 import AudioUploader from '@/components/AudioUploader';
 import BulkUploader from '@/components/BulkUploader';
 import SongEditModal from '@/components/SongEditModal';
-import { createSong, deleteSong, updateSong, removeSongResource, bulkRemoveBackground, bulkUpdateState, bulkFetchLyrics, fetchLyricsAction } from '@/app/admin/actions';
+import { createSong, deleteSong, updateSong, removeSongResource, bulkRemoveBackground, bulkUpdateState, fetchLyricsAction, bulkFetchMissingLyrics } from '@/app/admin/actions';
 import { autoAlignSong } from '@/app/admin/auto-align';
 import { useTranslation } from '@/lib/translations';
 
@@ -99,6 +99,7 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
             <option value="ACTIVE">🟢 PUBLIKOVÁNO</option>
         </select>
         <button onClick={selectAllFiltered} className="btn-secondary" style={{ padding: '10px' }}>Vybrat vše</button>
+        <button onClick={async () => { if(confirm('Zkusit automaticky najít texty pro všechny písně, kde chybí?')) await bulkFetchMissingLyrics(); }} className="btn-primary" style={{ padding: '14px 20px', background: 'var(--color-teal)', color: 'white', borderRadius: '16px', fontWeight: 700 }}>⚡ AUTOMATICKY DOPLNIT TEXTY</button>
         <button 
           className={showForm ? "btn-secondary" : "btn-primary"} 
           onClick={() => setShowForm(!showForm)}
@@ -243,7 +244,6 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
              Vybráno: <span style={{ color: 'var(--color-teal)' }}>{selectedIds.length}</span> písní
            </div>
            <div style={{ display: 'flex', gap: '10px' }}>
-             <button onClick={async () => { if(confirm('Doatadovat texty k vybraným písním?')) { await bulkFetchLyrics(selectedIds); clearSelection(); } }} className="btn-secondary" style={{ padding: '10px 20px', borderRadius: '14px' }}>✍️ NAČÍST TEXTY</button>
              <button onClick={async () => { if(confirm('Zveřejnit vybrané písně?')) { await bulkUpdateState(selectedIds, 'ACTIVE'); clearSelection(); } }} className="btn-primary" style={{ padding: '10px 20px', background: 'var(--color-teal)', borderRadius: '14px' }}>🚀 PUBLIKOVAT VYBRANÉ</button>
              <button onClick={clearSelection} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', padding: '0 10px' }}>Zrušit</button>
            </div>
