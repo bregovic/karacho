@@ -129,6 +129,43 @@ export async function bulkRemoveBackground(backgroundUrl: string) {
   revalidatePath('/admin');
 }
 
+export async function fetchLyricsAction(songId: string) {
+  const song = await db.song.findUnique({ where: { id: songId } });
+  if (!song || !song.artist || !song.title) return { error: 'Chybí interpret nebo název' };
+
+  try {
+    const res = await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(song.artist)}/${encodeURIComponent(song.title)}`);
+    const data = await res.json();
+    if (data.lyrics) {
+      await db.song.update({ where: { id: songId }, data: { lyrics: data.lyrics } });
+      revalidatePath('/admin');
+      return { success: true, lyrics: data.lyrics };
+    }
+    return { error: 'Text nenalezen' };
+  } catch (err) {
+    return { error: 'Chyba API' };
+  }
+}
+
+export async function bulkFetchLyrics(songIds: string[]) {
+  const results = { count: 0, failed: 0 };
+  for (const id of songIds) {
+    const res = await fetchLyricsAction(id);
+    if (res.success) results.count++;
+    else results.failed++;
+  }
+  revalidatePath('/admin');
+  return results;
+}
+
+export async function bulkUpdateState(songIds: string[], newState: string) {
+  await db.song.updateMany({
+    where: { id: { in: songIds } },
+    data: { state: newState }
+  });
+  revalidatePath('/admin');
+}
+
 export async function deleteSong(songId: string) {
   await db.song.delete({ where: { id: songId } });
   revalidatePath('/admin');

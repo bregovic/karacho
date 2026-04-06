@@ -4,7 +4,7 @@ import Link from 'next/link';
 import AudioUploader from '@/components/AudioUploader';
 import BulkUploader from '@/components/BulkUploader';
 import SongEditModal from '@/components/SongEditModal';
-import { createSong, deleteSong, updateSong, removeSongResource, bulkRemoveBackground } from '@/app/admin/actions';
+import { createSong, deleteSong, updateSong, removeSongResource, bulkRemoveBackground, bulkUpdateState, bulkFetchLyrics, fetchLyricsAction } from '@/app/admin/actions';
 import { autoAlignSong } from '@/app/admin/auto-align';
 import { useTranslation } from '@/lib/translations';
 
@@ -16,6 +16,23 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
   const [tagFilter, setTagFilter] = useState('ALL');
   const [search, setSearch] = useState('');
   const [editingSong, setEditingSong] = useState<any>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  // Pomůcka pro určení stavu workflow
+  const getWorkflowStep = (s: any) => {
+    const hasLyrics = !!s.lyrics && s.lyrics.trim().length > 0;
+    const hasAudio = !!s.audioUrl;
+    const hasInstr = !!s.instrumentalUrl;
+    const hasTiming = !!s.jsonUrl || !!s.timingData;
+    const isActive = s.state === 'ACTIVE';
+
+    if (!hasLyrics) return 'MISSING_LYRICS';
+    if (!hasAudio) return 'MISSING_AUDIO';
+    if (!hasInstr) return 'MISSING_INSTR';
+    if (!hasTiming) return 'MISSING_TIMING';
+    if (!isActive) return 'REVIEW';
+    return 'ACTIVE';
+  };
 
   const allGenres = Array.from(new Set(initialSongs.map(s => s.genre).filter(Boolean)));
   const allTags = Array.from(new Set(initialSongs.flatMap(s => s.tags || []).filter(Boolean)));
@@ -42,18 +59,9 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
   ]));
 
   const filteredSongs = initialSongs.filter(song => {
-    const hasAudio = !!song.audioUrl;
-    const hasJson = !!song.jsonUrl || !!song.timingData;
-    const hasLyrics = !!song.lyrics && song.lyrics.trim().length > 0;
-    const isPublic = song.state === 'ACTIVE';
-
-    if (statusFilter === 'PUBLISHED' && !isPublic) return false;
-    if (statusFilter === 'DRAFTS' && isPublic) return false;
-    if (statusFilter === 'MISSING_LYRICS' && hasLyrics) return false;
-    if (statusFilter === 'MISSING_AUDIO' && hasAudio) return false;
-    if (statusFilter === 'MISSING_TIMING' && hasJson) return false;
-    if (statusFilter === 'READY_TO_PUBLISH' && (!hasAudio || !hasJson || !hasLyrics || isPublic)) return false;
-
+    const step = getWorkflowStep(song);
+    
+    if (statusFilter !== 'ALL' && step !== statusFilter) return false;
     if (genreFilter !== 'ALL' && song.genre !== genreFilter) return false;
     if (tagFilter !== 'ALL' && !(song.tags || []).includes(tagFilter)) return false;
 
@@ -62,6 +70,13 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
 
     return true;
   });
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const clearSelection = () => setSelectedIds([]);
+  const selectAllFiltered = () => setSelectedIds(Array.from(new Set([...selectedIds, ...filteredSongs.map(s => s.id)])));
 
   return (
     <div style={{ padding: 'clamp(1rem, 4vw, 2.5rem)', maxWidth: '1400px', margin: '0 auto' }}>
@@ -76,10 +91,14 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
         />
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ padding: '14px 20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', background: '#111', color: '#fff', fontWeight: 600 }}>
             <option value="ALL">🔍 VŠECHNY STAVY</option>
-            <option value="PUBLISHED">🟢 PUBLIKOVÁNO</option>
-            <option value="DRAFTS">⏳ ROZPRACOVÁNO</option>
-            <option value="READY_TO_PUBLISH">🌟 PŘIPRAVENO</option>
+            <option value="MISSING_LYRICS">✍️ CHYBÍ TEXT</option>
+            <option value="MISSING_AUDIO">🎵 CHYBÍ HUDBA</option>
+            <option value="MISSING_INSTR">🎻 CHYBÍ INSTRUM.</option>
+            <option value="MISSING_TIMING">⏱️ CHYBÍ ČASOVÁNÍ</option>
+            <option value="REVIEW">🚦 KONTROLA</option>
+            <option value="ACTIVE">🟢 PUBLIKOVÁNO</option>
         </select>
+        <button onClick={selectAllFiltered} className="btn-secondary" style={{ padding: '10px' }}>Vybrat vše</button>
         <button 
           className={showForm ? "btn-secondary" : "btn-primary"} 
           onClick={() => setShowForm(!showForm)}
@@ -146,15 +165,24 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
             return (
               <div key={song.id} className="glass-panel song-card-admin" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', borderRadius: '32px', transition: 'all 0.3s' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ flex: 1, overflow: 'hidden' }}>
-                      {song.artist && <span style={{ color: 'var(--color-gold)', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em' }}>{song.artist}</span>}
-                      <h3 style={{ fontSize: '20px', fontWeight: 900, margin: '4px 0', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.title}</h3>
-                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '10px' }}>
-                         {song.genre && <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '10px', fontWeight: 700 }}>{song.genre}</span>}
-                         {song.state === 'ACTIVE' && <span style={{ fontSize: '10px', background: 'rgba(0,177,64,0.15)', color: '#4ade80', padding: '4px 10px', borderRadius: '10px', fontWeight: 900 }}>LIVE ✅</span>}
+                  <div style={{ flex: 1, overflow: 'hidden', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedIds.includes(song.id)} 
+                        onChange={() => toggleSelect(song.id)}
+                        style={{ width: '22px', height: '22px', cursor: 'pointer', accentColor: 'var(--color-teal)' }} 
+                      />
+                      <div style={{ flex: 1, overflow: 'hidden' }}>
+                          {song.artist && <span style={{ color: 'var(--color-gold)', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em' }}>{song.artist}</span>}
+                          <h3 style={{ fontSize: '20px', fontWeight: 900, margin: '4px 0', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.title}</h3>
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '10px' }}>
+                             {song.genre && <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '10px', fontWeight: 700 }}>{song.genre}</span>}
+                             {song.state === 'ACTIVE' && <span style={{ fontSize: '10px', background: 'rgba(0,177,64,0.15)', color: '#4ade80', padding: '4px 10px', borderRadius: '10px', fontWeight: 900 }}>LIVE ✅</span>}
+                          </div>
                       </div>
                   </div>
                   <div style={{ display: 'flex', gap: '6px' }}>
+                      <button onClick={async () => { if(confirm('Načíst text z API?')) await fetchLyricsAction(song.id); }} style={{ background: 'rgba(0,177,64,0.1)', border: 'none', color: '#00B140', width: '38px', height: '38px', borderRadius: '12px', cursor: 'pointer' }} title="Načíst text">✍️</button>
                       <button onClick={() => setEditingSong(song)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', width: '38px', height: '38px', borderRadius: '12px', cursor: 'pointer' }} title="Upravit detail">⚙️</button>
                       <button onClick={() => { if(confirm('Smazat?')) deleteSong(song.id); }} style={{ background: 'rgba(255,75,43,0.1)', border: 'none', color: '#ff4b2b', width: '38px', height: '38px', borderRadius: '12px', cursor: 'pointer' }}>🗑️</button>
                   </div>
@@ -200,6 +228,26 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
             );
           })}
          </div>
+      )}
+
+      {/* STICKY BULK ACTIONS BAR */}
+      {selectedIds.length > 0 && (
+        <div style={{
+          position: 'fixed', bottom: '2rem', left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(15px)',
+          padding: '1rem 2rem', borderRadius: '24px', border: '2px solid var(--color-teal)',
+          display: 'flex', alignItems: 'center', gap: '2rem', zIndex: 1000,
+          boxShadow: '0 20px 60px rgba(0,0,0,0.6)', animation: 'slideIn 0.3s ease-out'
+        }}>
+           <div style={{ color: 'white', fontWeight: 800 }}>
+             Vybráno: <span style={{ color: 'var(--color-teal)' }}>{selectedIds.length}</span> písní
+           </div>
+           <div style={{ display: 'flex', gap: '10px' }}>
+             <button onClick={async () => { if(confirm('Doatadovat texty k vybraným písním?')) { await bulkFetchLyrics(selectedIds); clearSelection(); } }} className="btn-secondary" style={{ padding: '10px 20px', borderRadius: '14px' }}>✍️ NAČÍST TEXTY</button>
+             <button onClick={async () => { if(confirm('Zveřejnit vybrané písně?')) { await bulkUpdateState(selectedIds, 'ACTIVE'); clearSelection(); } }} className="btn-primary" style={{ padding: '10px 20px', background: 'var(--color-teal)', borderRadius: '14px' }}>🚀 PUBLIKOVAT VYBRANÉ</button>
+             <button onClick={clearSelection} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', padding: '0 10px' }}>Zrušit</button>
+           </div>
+        </div>
       )}
       {editingSong && (
         <SongEditModal 
