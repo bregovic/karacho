@@ -259,15 +259,15 @@ export default function PlayerClient({ song }: { song: any }) {
         }
 
         const diff = nextWordTime !== -1 ? (nextWordTime - t) : -1;
+        const visualDiff = nextWordTime !== -1 ? (nextWordTime - visualTime) : -1;
         
-        // Zobrazíme pokud do zpěvu zbývá 0.1 - 6 sekund
-        if (diff > 0.1 && diff < 6.0) {
+        // Zobrazíme pokud do zpěvu zbývá 0.0 - 6 sekund reálného času
+        // ALE zmizíme jakmile visualTime (ten s předstihem) dosáhne slova (visualDiff <= 0)
+        if (diff > 0 && visualDiff > 0 && diff < 6.0) {
             const prevBlock = blocks.slice(0).reverse().find(b => b.be <= t);
-            // První slovo je v prvním bloku, hned na začátku songu (pokud t je malé)
             const isVeryFirstWord = !prevBlock || t < 5.0; 
             const gap = prevBlock ? (nextWordTime - prevBlock.be) : nextWordTime;
 
-            // Zobrazíme odpočet pouze u delších mezer nebo na úplném začátku
             if (isVeryFirstWord || gap > 4.0) {
                 countEl.current.style.display = 'flex';
                 countEl.current.style.opacity = '1';
@@ -276,7 +276,7 @@ export default function PlayerClient({ song }: { song: any }) {
                   const rounded = Math.ceil(diff);
                   valEl.textContent = rounded > 0 ? `${rounded}` : '';
                 }
-                const progress = (Math.max(0, diff - 0.2) / 5) * 100;
+                const progress = (Math.max(0, diff - 0.1) / 5) * 100;
                 countBarEl.current.style.width = `${Math.min(100, progress)}%`;
             } else {
                 countEl.current.style.display = 'none';
