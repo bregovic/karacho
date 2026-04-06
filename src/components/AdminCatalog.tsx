@@ -19,7 +19,18 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
 
   const allGenres = Array.from(new Set(initialSongs.map(s => s.genre).filter(Boolean)));
   const allTags = Array.from(new Set(initialSongs.flatMap(s => s.tags || []).filter(Boolean)));
-  const allBackgrounds = Array.from(new Set(initialSongs.map(s => s.backgroundUrl).filter(Boolean)));
+  const systemBackgrounds = [
+    '/backgrounds/disco.png',
+    '/backgrounds/rock.png',
+    '/backgrounds/retro_80s.png',
+    '/backgrounds/jazz.png',
+    '/backgrounds/pop.png'
+  ];
+
+  const allBackgrounds = Array.from(new Set([
+    ...systemBackgrounds,
+    ...initialSongs.map(s => s.backgroundUrl).filter(Boolean)
+  ]));
 
   const filteredSongs = initialSongs.filter(song => {
     const hasAudio = !!song.audioUrl;
