@@ -161,7 +161,7 @@ export async function bulkFetchLyrics(songIds: string[]) {
 export async function bulkUpdateState(songIds: string[], newState: string) {
   await db.song.updateMany({
     where: { id: { in: songIds } },
-    data: { state: newState }
+    data: { state: newState as any }
   });
   revalidatePath('/admin');
 }
