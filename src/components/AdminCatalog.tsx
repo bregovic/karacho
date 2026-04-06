@@ -24,7 +24,11 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
     '/backgrounds/rock.png',
     '/backgrounds/retro_80s.png',
     '/backgrounds/jazz.png',
-    '/backgrounds/pop.png'
+    '/backgrounds/pop.png',
+    '/backgrounds/country.png',
+    '/backgrounds/hiphop.png',
+    '/backgrounds/jungle.png',
+    '/backgrounds/rocknroll.png'
   ];
 
   const allBackgrounds = Array.from(new Set([
