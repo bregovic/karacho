@@ -4,7 +4,7 @@ import Link from 'next/link';
 import AudioUploader from '@/components/AudioUploader';
 import BulkUploader from '@/components/BulkUploader';
 import SongEditModal from '@/components/SongEditModal';
-import { createSong, deleteSong, updateSong, removeSongResource } from '@/app/admin/actions';
+import { createSong, deleteSong, updateSong, removeSongResource, bulkRemoveBackground } from '@/app/admin/actions';
 import { autoAlignSong } from '@/app/admin/auto-align';
 import { useTranslation } from '@/lib/translations';
 
@@ -28,7 +28,12 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
     '/backgrounds/country.png',
     '/backgrounds/hiphop.png',
     '/backgrounds/jungle.png',
-    '/backgrounds/rocknroll.png'
+    '/backgrounds/rocknroll.png',
+    '/backgrounds/opera.png',
+    '/backgrounds/hightech.png',
+    '/backgrounds/matrix.png',
+    '/backgrounds/tekkno.png',
+    '/backgrounds/funk.png'
   ];
 
   const allBackgrounds = Array.from(new Set([
@@ -202,6 +207,7 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
           onClose={() => setEditingSong(null)} 
           allGenres={allGenres as string[]} 
           allBackgrounds={allBackgrounds as string[]}
+          onRemoveBackground={bulkRemoveBackground}
         />
       )}
     </div>

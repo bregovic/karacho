@@ -8,9 +8,10 @@ interface SongEditModalProps {
   onClose: () => void;
   allGenres?: string[];
   allBackgrounds?: string[];
+  onRemoveBackground?: (url: string) => void;
 }
 
-export default function SongEditModal({ song, onClose, allGenres = [], allBackgrounds = [] }: SongEditModalProps) {
+export default function SongEditModal({ song, onClose, allGenres = [], allBackgrounds = [], onRemoveBackground }: SongEditModalProps) {
   // Inteligentní autopublikace: pokud má song vše potřebné, navrhneme stav ACTIVE
   const hasEssentials = !!song.audioUrl && (!!song.jsonUrl || !!song.timingData);
   
@@ -145,6 +146,7 @@ export default function SongEditModal({ song, onClose, allGenres = [], allBackgr
         isOpen={isGalleryOpen}
         onClose={() => setIsGalleryOpen(false)}
         onSelect={handleApplyBackground}
+        onRemove={onRemoveBackground}
         allBackgrounds={allBackgrounds}
       />
     </>
