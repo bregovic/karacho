@@ -135,7 +135,14 @@ export async function fetchLyricsAction(songId: string) {
 
   try {
     const res = await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(song.artist)}/${encodeURIComponent(song.title)}`);
-    const data = await res.json();
+    if (!res.ok) return { error: 'Text nenalezen' };
+    
+    // Zkusíme vynutit UTF-8 dekódování, protože lyrics.ovh občas blbne s encodingem
+    const buffer = await res.arrayBuffer();
+    const decoder = new TextDecoder('utf-8');
+    const text = decoder.decode(buffer);
+    const data = JSON.parse(text);
+
     if (data.lyrics) {
       await db.song.update({ where: { id: songId }, data: { lyrics: data.lyrics } });
       revalidatePath('/admin');
@@ -143,14 +150,29 @@ export async function fetchLyricsAction(songId: string) {
     }
     return { error: 'Text nenalezen' };
   } catch (err) {
+    console.error('Lyrics API Error:', err);
     return { error: 'Chyba API' };
   }
 }
 
-export async function bulkFetchLyrics(songIds: string[]) {
+export async function bulkFetchMissingLyrics() {
+  const session = await auth();
+  if (!session?.user) throw new Error('Nejste přihlášeni');
+
+  const songsWithoutLyrics = await db.song.findMany({
+    where: { 
+      OR: [
+        { lyrics: null },
+        { lyrics: '' }
+      ],
+      artist: { not: null },
+      title: { not: null }
+    }
+  });
+
   const results = { count: 0, failed: 0 };
-  for (const id of songIds) {
-    const res = await fetchLyricsAction(id);
+  for (const s of songsWithoutLyrics) {
+    const res = await fetchLyricsAction(s.id);
     if (res.success) results.count++;
     else results.failed++;
   }
