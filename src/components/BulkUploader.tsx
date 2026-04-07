@@ -147,7 +147,7 @@ export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) 
                 disabled={uploading}
                 style={{ width: '100%', cursor: 'pointer' }}
               />
-              <p style={{ fontSize: '11px', color: '#666', marginTop: '10px', marginHide: 0 }}>
+              <p style={{ fontSize: '11px', color: '#666', marginTop: '10px', marginBottom: 0 }}>
                 Podporované formáty: <code style={{ color: '#aaa' }}>Interpret - Název.mp3</code>, automaticky čistíme prefixy (1_07...)
               </p>
             </div>
