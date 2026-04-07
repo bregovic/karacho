@@ -258,39 +258,35 @@ export default function PlayerClient({ song }: { song: any }) {
     renderState(state, visualTime);
 
     if (countEl.current && countBarEl.current) {
-        // Hledáme čas nejbližšího slova, které má přijít
-        let nextWordTime = -1;
-        for (const b of blocks) {
-            for (const w of b.w) {
-                if (w.t > t) {
-                    nextWordTime = w.t;
-                    break;
-                }
+        // --- LOGIKA ODPOČTU (3-2-1) ---
+        // 1. Najdeme cílové body (countdowns z JSONu, nebo první slovo jako fallback)
+        const countdownPoints = (data as any).countdowns && (data as any).countdowns.length > 0
+            ? (data as any).countdowns
+            : (blocks.length > 0 && blocks[0].w.length > 0 ? [blocks[0].w[0].t] : []);
+
+        // 2. Najdeme nejbližší bod, ke kterému se blížíme (v okně 3.5s)
+        const targetPoint = countdownPoints.find((pt: number) => (pt > t && pt - t < 3.5));
+
+        if (targetPoint !== undefined) {
+            const diff = targetPoint - t;
+            
+            // Zobrazíme odpočet
+            countEl.current.style.display = 'flex';
+            countEl.current.style.opacity = '1';
+            
+            const valEl = countEl.current.querySelector('.cnt-v');
+            if (valEl) {
+                const rounded = Math.ceil(diff);
+                valEl.textContent = rounded > 0 ? `${rounded}` : '';
             }
-            if (nextWordTime !== -1) break;
-        }
-
-        const diff = nextWordTime !== -1 ? (nextWordTime - t) : -1;
-        const visualDiff = nextWordTime !== -1 ? (nextWordTime - visualTime) : -1;
-        
-        // Zobrazíme pokud do zpěvu zbývá 0.0 - 6 sekund reálného času
-        // ALE zmizíme jakmile visualTime (ten s předstihem) dosáhne slova (visualDiff <= 0)
-        if (diff > 0 && visualDiff > 0 && diff < 6.0) {
-            const prevBlock = blocks.slice(0).reverse().find(b => b.be <= t);
-            const isVeryFirstWord = !prevBlock; // Odpočet chceme JEN na úplném začátku
-
-            if (isVeryFirstWord) {
-                countEl.current.style.display = 'flex';
-                countEl.current.style.opacity = '1';
-                const valEl = countEl.current.querySelector('.cnt-v');
-                if (valEl) {
-                  const rounded = Math.ceil(diff);
-                  valEl.textContent = rounded > 0 ? `${rounded}` : '';
-                }
-                const progress = (Math.max(0, diff - 0.1) / 5) * 100;
-                countBarEl.current.style.width = `${Math.min(100, progress)}%`;
-            } else {
-                countEl.current.style.display = 'none';
+            
+            // Progress bar od 3.0 dolů
+            const progress = (Math.max(0, diff) / 3) * 100;
+            countBarEl.current.style.width = `${Math.min(100, progress)}%`;
+            
+            // Pokud jsme se dostali pod 0.2s k bodu, začneme mizet
+            if (diff < 0.2) {
+                countEl.current.style.opacity = (diff / 0.2).toString();
             }
         } else {
             countEl.current.style.display = 'none';
@@ -420,9 +416,9 @@ export default function PlayerClient({ song }: { song: any }) {
 
       {!hasVideo && (
         <div id="stage" style={{ position: 'absolute', inset: 0, zIndex: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 10vw', gap: '3vh', pointerEvents: 'none' }}>
-            <div ref={countEl} style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: '20px', position: 'absolute', top: '25%', left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
-              <div className="cnt-v" style={{ color: 'var(--color-gold)', fontSize: '130px', lineHeight: 1, fontWeight: 900, textShadow: '0 0 50px rgba(255,215,0,1)', filter: 'drop-shadow(0 4px 15px rgba(0,0,0,0.8))', marginBottom: '-10px' }} />
-              <div style={{ width: '400px', height: '10px', background: 'rgba(255,255,255,0.1)', borderRadius: '5px', overflow: 'hidden', boxShadow: '0 0 25px rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div ref={countEl} style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: '8px', position: 'absolute', top: '12%', left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
+              <div className="cnt-v" style={{ color: 'var(--color-gold)', fontSize: '85px', lineHeight: 1, fontWeight: 900, textShadow: '0 0 40px rgba(255,215,0,0.8)', filter: 'drop-shadow(0 4px 15px rgba(0,0,0,0.8))', marginBottom: '-5px' }} />
+              <div style={{ width: '180px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden', boxShadow: '0 0 25px rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.05)' }}>
                  <div ref={countBarEl} style={{ width: '100%', height: '100%', background: 'linear-gradient(90deg, #FFD700, #FFA500, #FFD700)', boxShadow: '0 0 15px var(--color-gold)', transition: 'width 0.1s linear' }} />
               </div>
             </div>
