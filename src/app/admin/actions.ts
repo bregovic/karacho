@@ -249,8 +249,9 @@ export async function importLyricsFromUrl(songId: string, url: string) {
   try {
     const isKA = url.includes('pisnicky-akordy.cz');
     const isKT = url.includes('karaoketexty.cz');
+    const isSM = url.includes('supermusic.cz') || url.includes('supermusic.sk');
 
-    if (!isKA && !isKT) return { error: 'Nepodporovaný web.' };
+    if (!isKA && !isKT && !isSM) return { error: 'Nepodporovaný web.' };
 
     const res = await fetch(url, {
       headers: {
@@ -267,26 +268,40 @@ export async function importLyricsFromUrl(songId: string, url: string) {
       // Pisnicky-akordy.cz má text v <pre>
       const match = html.match(/<pre[^>]*>([\s\S]*?)<\/pre>/);
       if (match) {
-        // Odstraníme HTML tagy (zejména ty <a> s akordy)
-        lyrics = match[1].replace(/<[^>]*>?/gm, '');
+        lyrics = match[1]; // Necháme i s tagy pro chords, pak vyčistíme pro lyrics
+      }
+    } else if (isSM) {
+      // SuperMusic.cz / sk 
+      const match = html.match(/<div id="songtext"[^>]*>([\s\S]*?)<\/div>/) || html.match(/<div class="song-text"[^>]*>([\s\S]*?)<\/div>/);
+      if (match) {
+        lyrics = match[1].replace(/<br\s*\/?>/gi, '\n');
       }
     } else {
       // Karaoketexty.cz
       const match = html.match(/<p class="text">([\s\S]*?)<\/p>/) || html.match(/<div id="text">([\s\S]*?)<\/div>/);
       if (match) {
-        lyrics = match[1].replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>?/gm, '');
+        lyrics = match[1].replace(/<br\s*\/?>/gi, '\n');
       }
     }
     
     if (!lyrics) return { error: 'Text nenalezen.' };
+
+    // Uložíme čistou verzi (bez HTML tagů) jako verzi s akordy (pokud tam byly)
+    const textWithChords = lyrics.replace(/<[^>]*>?/gm, '').trim();
     
-    // Vyčištění akordů a balastu
-    const finalLyrics = cleanLyrics(lyrics);
+    // Vyčištění akordů a balastu pro Karaoke
+    const finalLyrics = cleanLyrics(textWithChords);
 
     if (finalLyrics.length > 0) {
-      await db.song.update({ where: { id: songId }, data: { lyrics: finalLyrics } });
+      await db.song.update({ 
+        where: { id: songId }, 
+        data: { 
+          lyrics: finalLyrics,
+          chords: textWithChords !== finalLyrics ? textWithChords : null
+        } 
+      });
       revalidatePath('/admin');
-      return { success: true, lyrics: finalLyrics };
+      return { success: true, lyrics: finalLyrics, chords: textWithChords };
     }
     
     return { error: 'Výsledný text je prázdný.' };
@@ -377,6 +392,7 @@ export async function researchSongDataAction(songId: string) {
        const paRes = await importLyricsFromUrl(songId, paUrl);
        if (paRes.success) {
           results.lyrics = paRes.lyrics;
+          if (paRes.chords) results.chords = paRes.chords;
        }
     }
 
