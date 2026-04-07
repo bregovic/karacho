@@ -161,16 +161,17 @@ export default function SongEditModal({
                 🧹 VYČISTIT TEXT
               </button>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <input 
-                  placeholder="URL karaoketexty.cz" 
-                  value={importUrl} 
-                  onChange={e => setImportUrl(e.target.value)}
-                  style={{ padding: '6px 12px', fontSize: '11px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', borderRadius: '8px', width: '180px' }}
-                />
-                <button type="button" onClick={handleImportLyrics} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '11px', borderRadius: '8px' }}>🔗 IMPORT</button>
-              </div>
+            
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input 
+                placeholder="URL karaoketexty.cz" 
+                value={importUrl} 
+                onChange={e => setImportUrl(e.target.value)}
+                style={{ padding: '6px 12px', fontSize: '11px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', borderRadius: '8px', width: '180px' }}
+              />
+              <button type="button" onClick={handleImportLyrics} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '11px', borderRadius: '8px' }}>🔗 IMPORT</button>
             </div>
+
             {importStatus && <div style={{ fontSize: '11px', color: importStatus.startsWith('✅') ? '#4ade80' : '#f87171', marginTop: '-5px' }}>{importStatus}</div>}
             <textarea 
               className="input-field" 
