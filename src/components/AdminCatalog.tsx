@@ -253,8 +253,10 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
         <SongEditModal 
           song={editingSong} 
           onClose={() => setEditingSong(null)} 
-          onRefresh={() => {}} // Placeholder for now
+          allGenres={allGenres as string[]} 
+          allBackgrounds={allBackgrounds as string[]}
           onRemoveBackground={bulkRemoveBackground}
+          onRefresh={() => {}} // In Next.js with Server Actions, revalidatePath handles this, or we can add a local reload
         />
       )}
     </div>

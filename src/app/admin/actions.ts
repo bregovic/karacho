@@ -241,6 +241,65 @@ export async function bulkFetchMissingLyrics() {
   return results;
 }
 
+export async function researchSongDataAction(songId: string) {
+  const song = await db.song.findUnique({ where: { id: songId } });
+  if (!song || !song.artist || !song.title) return { error: 'Chybí interpret nebo název' };
+
+  const artist = song.artist;
+  const title = song.title;
+  const results: any = {};
+
+  try {
+    // 1. VAGALUME RESEARCH (Lyrics + Genre + Album)
+    const vRes = await fetch(`https://api.vagalume.com.br/search.php?art=${encodeURIComponent(artist)}&mus=${encodeURIComponent(title)}&apikey=666a658e7948d9d20233d31c36006c9a`);
+    if (vRes.ok) {
+      const vData = await vRes.json();
+      if (vData.mus && vData.mus[0]) {
+        const track = vData.mus[0];
+        if (track.text && (!song.lyrics || song.lyrics.length < 50)) {
+           // Kontrola diakritiky - pokud obsahuje ? uprostřed slov, ignorovat
+           if (!track.text.includes('?')) {
+              results.lyrics = track.text.trim();
+           }
+        }
+        // Žánr z Vagalume (pokud existuje)
+        if (vData.art && vData.art.genre && vData.art.genre[0]) {
+           results.genre = vData.art.genre[0].name;
+        }
+      }
+    }
+
+    // 2. LAST.FM RESEARCH (Tags + Year + Album)
+    const lfApiKey = '4d75f2b8f847ff7638d2ef1c13d33f3b';
+    const lfRes = await fetch(`https://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key=${lfApiKey}&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}&format=json`);
+    if (lfRes.ok) {
+      const lfData = await lfRes.json();
+      if (lfData.track) {
+        // Tagy
+        if (lfData.track.toptags && lfData.track.toptags.tag) {
+          const tags = lfData.track.toptags.tag
+            .slice(0, 5)
+            .map((t: any) => t.name.toLowerCase())
+            .filter((t: string) => !['seen live', 'favorites'].includes(t));
+          results.tags = Array.from(new Set([...(song.tags || []), ...tags]));
+        }
+        // Album/Year info (Last.fm rok přímo nevrací snadno, ale můžeme zkusit album)
+      }
+    }
+
+    if (Object.keys(results).length > 0) {
+      await db.song.update({ where: { id: songId }, data: results });
+      revalidatePath('/admin');
+      return { success: true, updated: results };
+    }
+
+    return { error: 'Nepodařilo se najít žádná nová metadata.' };
+  } catch (err) {
+    console.error('Research Error:', err);
+    return { error: 'Chyba při researchu dat.' };
+  }
+}
+
 export async function bulkUpdateState(songIds: string[], newState: string) {
   await db.song.updateMany({
     where: { id: { in: songIds } },

@@ -1,14 +1,31 @@
 'use client';
 import { useState } from 'react';
-import { updateSong, updateSongAnimation, updateSongBackground, importLyricsFromUrl } from '@/app/admin/actions';
+import { updateSong, updateSongAnimation, updateSongBackground, importLyricsFromUrl, researchSongDataAction } from '@/app/admin/actions';
 import BackgroundGalleryModal from './BackgroundGalleryModal';
 
-export default function SongEditModal({ song, onClose, onRefresh, onRemoveBackground }: { song: any, onClose: () => void, onRefresh: () => void, onRemoveBackground: (url: string) => Promise<void> }) {
+interface SongEditModalProps {
+  song: any;
+  onClose: () => void;
+  onRefresh: () => void;
+  onRemoveBackground: (url: string) => Promise<void>;
+  allGenres?: string[];
+  allBackgrounds?: string[];
+}
+
+export default function SongEditModal({ 
+  song, 
+  onClose, 
+  onRefresh, 
+  onRemoveBackground,
+  allGenres = [],
+  allBackgrounds = []
+}: SongEditModalProps) {
   const [formData, setFormData] = useState(song);
   const [isSaving, setIsSaving] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [importUrl, setImportUrl] = useState('');
   const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [researching, setResearching] = useState(false);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -16,6 +33,24 @@ export default function SongEditModal({ song, onClose, onRefresh, onRemoveBackgr
     setIsSaving(false);
     onRefresh();
     onClose();
+  };
+
+  const handleResearch = async () => {
+    setResearching(true);
+    setImportStatus('⌛ Zjišťuji...');
+    const res = await researchSongDataAction(song.id);
+    if (res.success && res.updated) {
+      setFormData({ 
+        ...formData, 
+        ...res.updated,
+        tags: res.updated.tags || formData.tags 
+      });
+      setImportStatus('✅ Data doplněna!');
+      setTimeout(() => setImportStatus(null), 3000);
+    } else {
+      setImportStatus(`❌ ${res.error || 'Informace nenalezeny'}`);
+    }
+    setResearching(false);
   };
 
   const handleImportLyrics = async () => {
@@ -41,17 +76,32 @@ export default function SongEditModal({ song, onClose, onRefresh, onRemoveBackgr
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <label style={{ fontSize: '11px', color: '#888', fontWeight: 800, letterSpacing: '0.05em' }}>NÁZEV PÍSNĚ</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+              <label style={{ fontSize: '11px', color: '#888', fontWeight: 800, letterSpacing: '0.05em' }}>ZÁKLADNÍ ÚDAJE</label>
+              <button 
+                onClick={handleResearch} 
+                disabled={researching}
+                className="btn-secondary" 
+                style={{ padding: '4px 12px', fontSize: '10px', borderRadius: '8px', border: '1px solid var(--color-teal)', color: 'var(--color-teal)' }}
+              >
+                {researching ? "⌛ HLEDÁM..." : "🪄 RESEARCH DATA"}
+              </button>
+            </div>
+            
+            <label style={{ fontSize: '11px', color: '#888', fontWeight: 800, letterSpacing: '0.05em', marginTop: '0.5rem' }}>NÁZEV PÍSNĚ</label>
             <input className="input-field" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} />
 
             <label style={{ fontSize: '11px', color: '#888', fontWeight: 800, letterSpacing: '0.05em' }}>INTERPRET / AUTOR</label>
             <input className="input-field" value={formData.artist || ''} onChange={e => setFormData({ ...formData, artist: e.target.value })} />
 
             <label style={{ fontSize: '11px', color: '#888', fontWeight: 800, letterSpacing: '0.05em' }}>ŽÁNR</label>
-            <input className="input-field" value={formData.genre || ''} onChange={e => setFormData({ ...formData, genre: e.target.value })} />
+            <input className="input-field" value={formData.genre || ''} list="genres-list" onChange={e => setFormData({ ...formData, genre: e.target.value })} />
+            <datalist id="genres-list">
+              {allGenres.map(g => <option key={g} value={g} />)}
+            </datalist>
 
             <label style={{ fontSize: '11px', color: '#888', fontWeight: 800, letterSpacing: '0.05em' }}>ŠTÍTKY</label>
-            <input className="input-field" value={(formData.tags || []).join(', ')} onChange={e => setFormData({ ...formData, tags: e.target.value })} />
+            <input className="input-field" value={(formData.tags || []).join(', ')} onChange={e => setFormData({ ...formData, tags: e.target.value.split(',').map((s: string) => s.trim()) })} />
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -68,7 +118,7 @@ export default function SongEditModal({ song, onClose, onRefresh, onRemoveBackgr
 
             <label style={{ fontSize: '11px', color: '#888', fontWeight: 800, letterSpacing: '0.05em' }}>POZADÍ</label>
             <div 
-              style={{ height: '40px', borderRadius: '12px', background: `url(${formData.backgroundUrl || '/placeholder-bg.png'}) center/cover`, border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 800, color: '#fff' }}
+              style={{ height: '40px', borderRadius: '12px', background: `url(${formData.backgroundUrl || '/placeholder-bg.png'}) center/cover`, border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 800, color: '#fff', textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}
               onClick={() => setShowGallery(true)}
             >
               {!formData.backgroundUrl && "VYBRAT POZADÍ"}
@@ -111,13 +161,15 @@ export default function SongEditModal({ song, onClose, onRefresh, onRemoveBackgr
 
       {showGallery && (
         <BackgroundGalleryModal 
+          isOpen={showGallery}
+          allBackgrounds={allBackgrounds}
           onSelect={async (url) => {
             setFormData({ ...formData, backgroundUrl: url });
             await updateSongBackground(song.id, url);
             setShowGallery(false);
           }}
           onClose={() => setShowGallery(false)}
-          onRemoveBackground={onRemoveBackground}
+          onRemove={(url) => onRemoveBackground(url)}
         />
       )}
     </div>
