@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/context/SessionContext';
 import { updateSessionState, advanceSessionQueue, addToSessionQueue, removeFromSessionQueue } from '@/app/actions/session-actions';
+import { requestSong } from '@/app/admin/actions';
 
 interface Song {
   id: string;
@@ -34,6 +35,10 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
   const [queueSize, setQueueSize] = useState(0);
   const [joinId, setJoinId] = useState('');
   const [showQueueMgr, setShowQueueMgr] = useState(false);
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [reqTitle, setReqTitle] = useState('');
+  const [reqArtist, setReqArtist] = useState('');
+  const [isRequesting, setIsRequesting] = useState(false);
 
   const handleRemoveFromQueue = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -101,6 +106,24 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
     refreshSession();
   };
 
+  const handleRequestSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reqTitle || !reqArtist) return;
+    
+    setIsRequesting(true);
+    const res = await requestSong(reqTitle, reqArtist);
+    setIsRequesting(false);
+    
+    if (res.success) {
+      alert("🎉 Žádost odeslána! Zkusíme to co nejdříve přidat.");
+      setShowRequestModal(false);
+      setReqTitle('');
+      setReqArtist('');
+    } else {
+      alert("Něco se nepovedlo: " + (res.error || 'Neznámá chyba'));
+    }
+  };
+
   const selectStyle = { 
     padding: '14px 20px', borderRadius: '14px', 
     border: '1px solid rgba(255,255,255,0.15)', 
@@ -125,6 +148,18 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
 
         <div className="hero-logo-wrap" style={{ position: 'relative', zIndex: 1, marginBottom: 'clamp(2rem, 6vw, 4rem)' }}>
           <img src="/logo.png" alt="Karacho" className="hero-logo-img" />
+        </div>
+
+        {/* DECENTNÍ REQUEST BUTTON NAHOŘE */}
+        <div style={{ position: 'relative', zIndex: 10, marginBottom: '1.5rem' }}>
+          <button 
+            onClick={() => setShowRequestModal(true)}
+            style={{ padding: '8px 16px', borderRadius: '40px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, transition: 'all 0.2s' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = '#fff'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.6)'; }}
+          >
+            ➕ Chybí ti tu něco? Dej nám vědět!
+          </button>
         </div>
 
         {/* JOIN BY ID BOX */}
@@ -172,8 +207,17 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
         maxWidth: '1500px', width: '100%', margin: '0 auto', boxSizing: 'border-box'
       }}>
         {!hasSongs ? (
-          <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.5)', padding: '5rem 1rem', fontSize: '18px' }}>
-            Nic nenalezeno. Zkuste hledat jinak.
+          <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.5)', padding: '5rem 1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2rem' }}>
+            <span style={{ fontSize: '20px' }}>🔍 Nic jsme nenašli pro "{search}"</span>
+            <button 
+              onClick={() => {
+                if (search) setReqTitle(search);
+                setShowRequestModal(true);
+              }}
+              style={{ padding: '16px 32px', borderRadius: '50px', background: 'var(--color-gold)', color: '#000', border: 'none', fontWeight: 900, cursor: 'pointer', fontSize: '15px' }}
+            >
+              ŽÁDOST O ZAŘAZENÍ
+            </button>
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: '2rem' }}>
@@ -344,6 +388,58 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
           zIndex: 6000, fontWeight: 900, animation: 'slideUp 0.3s', boxShadow: '0 0 20px rgba(0,180,216,0.3)'
         }}>
           ✅ SKLADBA JE VE FRONTĚ
+        </div>
+      )}
+
+      {/* 📝 REQUEST MODAL */}
+      {showRequestModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 110000, 
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(20px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem'
+        }} onClick={() => setShowRequestModal(false)}>
+          <div style={{
+            width: '100%', maxWidth: '400px', background: '#111', borderRadius: '32px', padding: '2.5rem',
+            border: '1px solid rgba(255,215,0,0.2)', boxShadow: '0 20px 60px rgba(0,0,0,1)',
+            animation: 'slideUpModal 0.3s ease-out'
+          }} onClick={e => e.stopPropagation()}>
+            <h2 style={{ fontSize: '24px', fontWeight: 900, marginBottom: '0.5rem', color: 'var(--color-gold)' }}>Chybějící hit? 🎤</h2>
+            <p style={{ opacity: 0.6, fontSize: '14px', marginBottom: '2rem' }}>Napiš nám co ti tu chybí a my to zkusíme co nejdříve připravit!</p>
+            
+            <form onSubmit={handleRequestSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 800, opacity: 0.5, textTransform: 'uppercase' }}>Název písně</label>
+                <input 
+                  type="text" required placeholder="např. Svařák"
+                  value={reqTitle} onChange={e => setReqTitle(e.target.value)}
+                  style={{ padding: '14px 18px', borderRadius: '16px', background: '#222', border: '1px solid rgba(255,255,255,0.1)', color: 'white', outline: 'none' }}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '1rem' }}>
+                <label style={{ fontSize: '11px', fontWeight: 800, opacity: 0.5, textTransform: 'uppercase' }}>Interpret</label>
+                <input 
+                  type="text" required placeholder="např. Harlej"
+                  value={reqArtist} onChange={e => setReqArtist(e.target.value)}
+                  style={{ padding: '14px 18px', borderRadius: '16px', background: '#222', border: '1px solid rgba(255,255,255,0.1)', color: 'white', outline: 'none' }}
+                />
+              </div>
+              
+              <div style={{ display: 'flex', gap: '10px', marginTop: '1rem' }}>
+                <button 
+                  type="button" onClick={() => setShowRequestModal(false)}
+                  style={{ flex: 1, padding: '14px', borderRadius: '16px', background: 'rgba(255,255,255,0.05)', border: 'none', color: 'white', fontWeight: 800, cursor: 'pointer' }}
+                >
+                  Zrušit
+                </button>
+                <button 
+                  type="submit" disabled={isRequesting}
+                  style={{ flex: 2, padding: '14px', borderRadius: '16px', background: 'var(--color-gold)', color: 'black', border: 'none', fontWeight: 900, cursor: 'pointer' }}
+                >
+                  {isRequesting ? 'Odesílám...' : 'ODESLAT ŽÁDOST'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

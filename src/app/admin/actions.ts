@@ -101,6 +101,25 @@ export async function incrementPlayCount(songId: string) {
   }
 }
 
+export async function requestSong(title: string, artist: string) {
+  if (!title || !artist) return { error: 'Název a interpret jsou povinné' };
+  
+  try {
+    const song = await db.song.create({
+      data: {
+        title: title.trim(),
+        artist: artist.trim(),
+        state: 'REQUESTED' as any,
+      },
+    });
+    revalidatePath('/admin');
+    return { success: true, song };
+  } catch (err) {
+    console.error('Request song fail:', err);
+    return { error: 'Nepodařilo se odeslat žádost' };
+  }
+}
+
 export async function updateSongAnimation(songId: string, animationStyle: string) {
   await db.song.update({ where: { id: songId }, data: { animationStyle } });
   revalidatePath('/admin');
