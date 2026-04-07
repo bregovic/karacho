@@ -211,14 +211,14 @@ export default function PlayerClient({ song }: { song: any }) {
   };
 
   const getVoiceState = (t: number, voice: number) => {
-    const ci = blocks.findIndex(b => t >= b.bs && t < b.be && (b.v || 1) === voice);
+    const ci = blocks.findIndex(b => t >= b.bs && t < b.be && ((b.v || 1) === voice || b.v === 3));
     if (ci < 0) return null;
     const cb = blocks[ci];
     let nc = 0;
     for (const w of cb.w || []) {
       if (t >= w.t) nc = w.i + 1;
     }
-    const nextIdx = blocks.findIndex((b, idx) => idx > ci && (b.v || 1) === voice);
+    const nextIdx = blocks.findIndex((b, idx) => idx > ci && ((b.v || 1) === voice || b.v === 3));
     return {
       cb, nc, ci,
       next: nextIdx >= 0 ? blocks[nextIdx] : null
@@ -356,14 +356,6 @@ export default function PlayerClient({ song }: { song: any }) {
         #cur-line-2 { color: #f87171; }
         @keyframes blockIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
         .block-new { animation: blockIn 0.3s ease-out forwards; }
-        @media (orientation: portrait) {
-          #cur-line-1, #cur-line-2 { font-size: clamp(22px, 8vw, 42px); padding: 0 1rem; }
-          .ln-ctx { font-size: clamp(12px, 4vw, 18px); }
-          #stage { padding: 0 5vw !important; gap: 2vh !important; }
-          #controls { flex-direction: column !important; align-items: stretch !important; padding: 1.5rem !important; gap: 1.2rem !important; }
-          .btn-group { display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 12px; }
-          .meta-info { display: flex; justify-content: space-between; align-items: flex-end; width: 100%; font-size: 11px !important; }
-        }
       `}} />
 
       <div style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
@@ -379,35 +371,37 @@ export default function PlayerClient({ song }: { song: any }) {
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 40%, transparent 60%, rgba(0,0,0,0.8) 100%)' }} />
       </div>
 
-      {!hasVideo && (
-        <div id="stage" style={{ position: 'absolute', inset: 0, zIndex: 3, display: 'flex', flexDirection: 'column', padding: '12vh 10vw 4vh 10vw', boxSizing: 'border-box', pointerEvents: 'none' }}>
-            <div ref={countEl} style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: '8px', position: 'absolute', top: '12%', left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
-              <div className="cnt-v" style={{ color: 'var(--color-gold)', fontSize: '85px', lineHeight: 1, fontWeight: 900, textShadow: '0 0 40px rgba(255,215,0,0.8)', filter: 'drop-shadow(0 4px 15px rgba(0,0,0,0.8))', marginBottom: '-5px' }} />
-              <div style={{ width: '180px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden', boxShadow: '0 0 25px rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                 <div ref={countBarEl} style={{ width: '100%', height: '100%', background: 'linear-gradient(90deg, #FFD700, #FFA500, #FFD700)', boxShadow: '0 0 15px var(--color-gold)', transition: 'width 0.1s linear' }} />
-              </div>
-            </div>
-            <div ref={nextLineEl1} className="ln-ctx" />
+      <div id="stage" style={{ position: 'relative', width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', pointerEvents: 'none', zIndex: 3 }}>
+        <div ref={countEl} style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: '8px', position: 'absolute', top: '12%', left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
+          <div className="cnt-v" style={{ color: 'var(--color-gold)', fontSize: '85px', lineHeight: 1, fontWeight: 900, textShadow: '0 0 40px rgba(255,215,0,0.8)', filter: 'drop-shadow(0 4px 15px rgba(0,0,0,0.8))', marginBottom: '-5px' }} />
+          <div style={{ width: '180px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden', boxShadow: '0 0 25px rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.05)' }}>
+             <div ref={countBarEl} style={{ width: '100%', height: '100%', background: 'linear-gradient(90deg, #FFD700, #FFA500, #FFD700)', boxShadow: '0 0 15px var(--color-gold)', transition: 'width 0.1s linear' }} />
+          </div>
         </div>
-      )}
+        
+        <div id="voice1" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '10vh 5vw 0 5vw', gap: '2vh' }}>
+          <div id="cur-line-1" ref={curLineEl1}></div>
+          <div className="ln-ctx" ref={nextLineEl1} style={{ opacity: 0.6, fontSize: '0.6em' }}></div>
+        </div>
+
+        <div id="voice2" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '0 5vw 10vh 5vw', gap: '2vh' }}>
+          <div id="cur-line-2" ref={curLineEl2}></div>
+          <div className="ln-ctx" ref={nextLineEl2} style={{ opacity: 0.6, fontSize: '0.6em' }}></div>
+        </div>
+      </div>
 
       <div id="ui-layer" style={{ position: 'absolute', inset: 0, zIndex: 10, pointerEvents: 'none', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
          <div id="controls" style={{ padding: '2rem', display: 'flex', alignItems: 'center', gap: '1.5rem', pointerEvents: 'auto', background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }}>
-            
-            {/* META INFO (Řádek 1 na mobilu) */}
             <div className="meta-info" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>
                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>{song.artist} – {song.title}</span>
                    <span ref={timeEl}>0:00 / 0:00</span>
                 </div>
-                
-                {/* PROGRESS BAR (Řádek 2 na mobilu) */}
                 <div onClick={handleSeek} style={{ height: '8px', background: 'rgba(255,255,255,0.15)', borderRadius: '4px', cursor: 'pointer', position: 'relative' }}>
                    <div ref={pbarEl} style={{ height: '100%', background: 'var(--color-gold)', width: '0%', borderRadius: '4px', boxShadow: '0 0 12px var(--glow)' }} />
                 </div>
             </div>
 
-            {/* BUTTONS (Řádek 3 na mobilu) */}
             <div className="btn-group" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
               <button onClick={togglePlay} style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'var(--color-gold)', border: 'none', color: '#000', fontSize: '22px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                  {isPlaying ? '⏸' : '▶'}
