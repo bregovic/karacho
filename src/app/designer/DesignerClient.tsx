@@ -205,20 +205,46 @@ export default function DesignerClient({ song }: { song: any }) {
        return;
     }
 
-    if (e.key.toLowerCase() === 'a') {
-      const lineIdx = curLineRef.current;
-      if (lineIdx >= 0) {
-        setVoiceMap(prev => ({ ...prev, [lineIdx]: 1 }));
-        forceUpdate();
+    const handleWordTiming = (v?: number) => {
+      if (!audioRef.current) return;
+      const t = audioRef.current.currentTime;
+      
+      if (curLineRef.current < 0) {
+        curLineRef.current = 0;
+        eventsRef.current.push({ type: 'line', time: t, lineIdx: 0 });
       }
+
+      if (v) {
+        setVoiceMap(prev => ({ ...prev, [curLineRef.current]: v }));
+      }
+
+      const nextW = curWordRef.current + 1;
+      const lineLen = linesRef.current[curLineRef.current]?.length || 0;
+
+      if (nextW < lineLen) {
+        eventsRef.current.push({ type: 'word', time: t, lineIdx: curLineRef.current, wordIdx: nextW });
+        restoreState();
+        forceUpdate();
+      } else {
+        const nextL = curLineRef.current + 1;
+        if (nextL < linesRef.current.length) {
+          curLineRef.current = nextL;
+          curWordRef.current = 0;
+          if (v) setVoiceMap(prev => ({ ...prev, [nextL]: v }));
+          eventsRef.current.push({ type: 'line', time: t, lineIdx: nextL });
+          eventsRef.current.push({ type: 'word', time: t, lineIdx: nextL, wordIdx: 0 });
+          restoreState();
+          forceUpdate();
+        }
+      }
+    };
+
+    if (e.key.toLowerCase() === 'a') {
+      handleWordTiming(1);
       return;
     }
     if (e.key.toLowerCase() === 'd') {
-      const lineIdx = curLineRef.current;
-      if (lineIdx >= 0) {
-        setVoiceMap(prev => ({ ...prev, [lineIdx]: 2 }));
-        forceUpdate();
-      }
+      handleWordTiming(2);
       return;
     }
 
@@ -261,31 +287,7 @@ export default function DesignerClient({ song }: { song: any }) {
 
     if (e.code === 'KeyW' || e.code === 'ArrowRight') {
       e.preventDefault();
-      if (curLineRef.current < 0) {
-        // Pokud jsme ještě nezačali, první W označí začátek první linky
-        curLineRef.current = 0;
-        eventsRef.current.push({ type: 'line', time: t, lineIdx: 0 });
-      }
-
-      const nextW = curWordRef.current + 1;
-      const lineLen = linesRef.current[curLineRef.current]?.length || 0;
-
-      if (nextW < lineLen) {
-        eventsRef.current.push({ type: 'word', time: t, lineIdx: curLineRef.current, wordIdx: nextW });
-        restoreState();
-        forceUpdate();
-      } else {
-        // PO POSLEDNÍM SLOVĚ SKOČÍME NA DALŠÍ ŘÁDEK (Enter chování)
-        const nextL = curLineRef.current + 1;
-        if (nextL < linesRef.current.length) {
-          curLineRef.current = nextL;
-          curWordRef.current = 0;
-          eventsRef.current.push({ type: 'line', time: t, lineIdx: nextL });
-          eventsRef.current.push({ type: 'word', time: t, lineIdx: nextL, wordIdx: 0 });
-          restoreState();
-          forceUpdate();
-        }
-      }
+      handleWordTiming();
       return;
     }
 
