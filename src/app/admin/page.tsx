@@ -15,5 +15,9 @@ export default async function AdminPage() {
     orderBy: { createdAt: 'desc' },
   });
 
-  return <AdminCatalog initialSongs={songs} />;
+  const adminEmails = await db.adminEmail.findMany({
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return <AdminCatalog initialSongs={songs} adminEmails={adminEmails} />;
 }

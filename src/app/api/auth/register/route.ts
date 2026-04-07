@@ -21,8 +21,16 @@ export async function POST(req: NextRequest) {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Kontrola, zda je email v whitelistu administrátorů
+    const isAdmin = await db.adminEmail.findUnique({ where: { email } });
+
     await db.user.create({
-      data: { name, email, password: hashedPassword },
+      data: { 
+        name, 
+        email, 
+        password: hashedPassword,
+        role: isAdmin ? 'ADMIN' : 'USER'
+      },
     });
 
     return NextResponse.json({ success: true });

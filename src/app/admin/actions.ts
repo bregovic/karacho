@@ -334,3 +334,23 @@ export async function deleteSong(songId: string) {
   await db.song.delete({ where: { id: songId } });
   revalidatePath('/admin');
 }
+
+export async function addAdminEmail(email: string) {
+  const session = await auth();
+  if (session?.user?.role !== 'ADMIN') throw new Error('Nemáte oprávnění');
+
+  await db.adminEmail.upsert({
+    where: { email },
+    update: {},
+    create: { email }
+  });
+  revalidatePath('/admin');
+}
+
+export async function removeAdminEmail(id: string) {
+  const session = await auth();
+  if (session?.user?.role !== 'ADMIN') throw new Error('Nemáte oprávnění');
+
+  await db.adminEmail.delete({ where: { id } });
+  revalidatePath('/admin');
+}
