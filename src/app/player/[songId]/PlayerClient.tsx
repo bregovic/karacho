@@ -9,6 +9,7 @@ interface PlayerBlock {
   lw: string[];
   bs: number;
   be: number;
+  v?: number; // Hlas 1 nebo 2
   w: { t: number; i: number }[];
 }
 
@@ -41,16 +42,17 @@ export default function PlayerClient({ song }: { song: any }) {
   const wakeLockRef = useRef<any>(null);
   const rafRef = useRef<number | null>(null);
 
-  const prevLineEl = useRef<HTMLDivElement>(null);
-  const curLineEl = useRef<HTMLDivElement>(null);
-  const nextLineEl = useRef<HTMLDivElement>(null);
+  const curLineEl1 = useRef<HTMLDivElement>(null);
+  const nextLineEl1 = useRef<HTMLDivElement>(null);
+  const curLineEl2 = useRef<HTMLDivElement>(null);
+  const nextLineEl2 = useRef<HTMLDivElement>(null);
   const pbarEl = useRef<HTMLDivElement>(null);
   const timeEl = useRef<HTMLSpanElement>(null);
   const countEl = useRef<HTMLDivElement>(null);
   const countBarEl = useRef<HTMLDivElement>(null);
 
-  const lastBlock = useRef<number>(-1);
-  const lastColored = useRef<number>(-1);
+  const lastBlock1 = useRef<number>(-1);
+  const lastBlock2 = useRef<number>(-1);
 
   const data: TimingData = (song.timingData as any) || { blocks: [], dur: 0 };
   const blocks = data.blocks || [];
@@ -78,23 +80,21 @@ export default function PlayerClient({ song }: { song: any }) {
   };
 
   useEffect(() => {
-    // 📺 LOGIKA POUZE PRO REFRESH PŘI ZMĚNĚ SONGU (Dálkové přepnutí)
     if (!joinCode) return;
     const interval = setInterval(async () => {
       const s = await getSessionStatus(joinCode);
       if (s && s.currentSongId && s.currentSongId !== song.id) {
          window.location.href = `/player/${s.currentSongId}`;
       }
-    }, 4000); // Pro přepnutí songu stačí delší interval
+    }, 4000);
     return () => clearInterval(interval);
   }, [joinCode, song.id]);
 
   useEffect(() => {
     const isWatchMode = window.location.search.includes('mode=watch');
-
     const a = new Audio();
     a.crossOrigin = "anonymous";
-    a.muted = isWatchMode; // Tichý režim pro hosty
+    a.muted = isWatchMode;
     const initialSrc = (!!song.instrumentalUrl) ? song.instrumentalUrl : song.audioUrl;
     a.src = initialSrc;
     a.preload = "auto";
@@ -115,11 +115,10 @@ export default function PlayerClient({ song }: { song: any }) {
     };
     a.onended = async () => { 
       setIsPlaying(false); 
-      lastBlock.current = -1; 
+      lastBlock1.current = -1; 
+      lastBlock2.current = -1;
       releaseWakeLock(); 
-      
-      if (isWatchMode) return; // Slave neposouvá frontu
-
+      if (isWatchMode) return;
       if (joinCode) {
         const next = await advanceSessionQueue(joinCode);
         if (next && next.currentSongId) {
@@ -131,36 +130,28 @@ export default function PlayerClient({ song }: { song: any }) {
     };
     audioRef.current = a;
 
-    // 📱 SYNCHRONIZACE (Master hlásí stav, Slave a Remote následují)
     const syncInterval = setInterval(async () => {
        if (!joinCode || !audioRef.current) return;
-       
        if (!isWatchMode) {
-          // 📺 JSEM MASTER (TELEVIZE) -> Hlášení času a kontrola dálkového ovládání
           const s = await getSessionStatus(joinCode);
           if (s) {
-            // Kontrola, zda nás někdo dálkově nepozastavil/nepustil
             if (s.status === 'PAUSED' && !audioRef.current.paused) {
                audioRef.current.pause();
             } else if (s.status === 'PLAYING' && audioRef.current.paused && userInteracted) {
                audioRef.current.play().catch(() => {});
             }
-            // Hlášení aktuálního času do DB pro ostatní
             if (!audioRef.current.paused) {
                updateSessionState(joinCode, { currentTime: audioRef.current.currentTime, status: 'PLAYING' });
             }
           }
        } else {
-          // 📱 JSEM SLAVE (MOBIL / WATCH MODE) -> Dorovnání stavu podle TV
           const s = await getSessionStatus(joinCode);
           if (s) {
-             // Synchronizace času (pokud jsme mimo o víc než 1.5s)
              const diff = Math.abs(audioRef.current.currentTime - (s.currentTime || 0));
              if (diff > 1.5) {
                 audioRef.current.currentTime = s.currentTime || 0;
                 if (videoElRef.current) videoElRef.current.currentTime = s.currentTime || 0;
              }
-             // Synchronizace stavu (Play/Pause)
              if (s.status === 'PLAYING' && audioRef.current.paused) {
                 audioRef.current.play().catch(() => {});
              } else if (s.status === 'PAUSED' && !audioRef.current.paused) {
@@ -168,7 +159,7 @@ export default function PlayerClient({ song }: { song: any }) {
              }
           }
        }
-    }, isWatchMode ? 1500 : 2000); // Slave se doptává častěji
+    }, isWatchMode ? 1500 : 2000);
 
     const playAttempt = a.play();
     if (playAttempt !== undefined) {
@@ -203,10 +194,7 @@ export default function PlayerClient({ song }: { song: any }) {
   const togglePlay = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (!audioRef.current) return;
-    
-    // Zapneme full screen při prvním kliku (nebo kdykoliv spustíme play)
     toggleFullScreen();
-
     if (audioRef.current.paused) {
       audioRef.current.play();
       if (videoElRef.current) videoElRef.current.play();
@@ -222,18 +210,18 @@ export default function PlayerClient({ song }: { song: any }) {
     rafRef.current = requestAnimationFrame(tick);
   };
 
-  const getState = (t: number) => {
-    const ci = blocks.findIndex(b => t >= b.bs && t < b.be);
+  const getVoiceState = (t: number, voice: number) => {
+    const ci = blocks.findIndex(b => t >= b.bs && t < b.be && (b.v || 1) === voice);
     if (ci < 0) return null;
     const cb = blocks[ci];
     let nc = 0;
-    for (const w of cb.w) {
+    for (const w of cb.w || []) {
       if (t >= w.t) nc = w.i + 1;
     }
+    const nextIdx = blocks.findIndex((b, idx) => idx > ci && (b.v || 1) === voice);
     return {
       cb, nc, ci,
-      prev: ci > 0 ? blocks[ci - 1] : null,
-      next: ci < blocks.length - 1 ? blocks[ci + 1] : null
+      next: nextIdx >= 0 ? blocks[nextIdx] : null
     };
   };
 
@@ -241,8 +229,12 @@ export default function PlayerClient({ song }: { song: any }) {
     if (!audioRef.current) return;
     const t = audioRef.current.currentTime;
     const d = audioRef.current.duration || dur || 1;
-    // visualTime - synchronizace s obrazovkou (předstih 0.5s pro plynulé karaoke)
     const visualTime = t + 0.5;
+
+    const s1 = getVoiceState(visualTime, 1);
+    const s2 = getVoiceState(visualTime, 2);
+    renderVoiceState(s1, visualTime, 1);
+    renderVoiceState(s2, visualTime, 2);
 
     if (pbarEl.current) pbarEl.current.style.width = `${(t / d) * 100}%`;
     if (videoElRef.current) {
@@ -254,40 +246,20 @@ export default function PlayerClient({ song }: { song: any }) {
         timeEl.current.textContent = `${fmt(t)} / ${fmt(d)}`;
     }
 
-    const state = getState(visualTime);
-    renderState(state, visualTime);
-
     if (countEl.current && countBarEl.current) {
-        // --- LOGIKA ODPOČTU (3-2-1) ---
-        // 1. Najdeme cílové body (countdowns z JSONu, nebo první slovo jako fallback)
         const countdownPoints = (data as any).countdowns && (data as any).countdowns.length > 0
             ? (data as any).countdowns
             : (blocks.length > 0 && blocks[0].w.length > 0 ? [blocks[0].w[0].t] : []);
-
-        // 2. Najdeme nejbližší bod, ke kterému se blížíme (v okně 3.5s)
         const targetPoint = countdownPoints.find((pt: number) => (pt > t && pt - t < 3.5));
-
         if (targetPoint !== undefined) {
             const diff = targetPoint - t;
-            
-            // Zobrazíme odpočet
             countEl.current.style.display = 'flex';
             countEl.current.style.opacity = '1';
-            
             const valEl = countEl.current.querySelector('.cnt-v');
-            if (valEl) {
-                const rounded = Math.ceil(diff);
-                valEl.textContent = rounded > 0 ? `${rounded}` : '';
-            }
-            
-            // Progress bar od 3.0 dolů
+            if (valEl) valEl.textContent = Math.ceil(diff) > 0 ? `${Math.ceil(diff)}` : '';
             const progress = (Math.max(0, diff) / 3) * 100;
             countBarEl.current.style.width = `${Math.min(100, progress)}%`;
-            
-            // Pokud jsme se dostali pod 0.2s k bodu, začneme mizet
-            if (diff < 0.2) {
-                countEl.current.style.opacity = (diff / 0.2).toString();
-            }
+            if (diff < 0.2) countEl.current.style.opacity = (diff / 0.2).toString();
         } else {
             countEl.current.style.display = 'none';
         }
@@ -298,26 +270,28 @@ export default function PlayerClient({ song }: { song: any }) {
     }
   };
 
-  const renderState = (state: any, t: number) => {
-    const prev = prevLineEl.current;
-    const cur = curLineEl.current;
-    const nextText = nextLineEl.current;
+  const renderVoiceState = (state: any, t: number, voice: number) => {
+    const cur = voice === 1 ? curLineEl1.current : curLineEl2.current;
+    const nextText = voice === 1 ? nextLineEl1.current : nextLineEl2.current;
+    const lastBlkRef = voice === 1 ? lastBlock1 : lastBlock2;
+
     if (!state) {
       if (cur) cur.innerHTML = '';
       if (nextText) nextText.textContent = '';
-      lastBlock.current = -1;
+      lastBlkRef.current = -1;
       return;
     }
     const { cb, ci, next: nb } = state;
     if (nextText) nextText.textContent = nb ? nb.lw.join(' ') : '';
-    if (ci !== lastBlock.current) {
+    
+    if (ci !== lastBlkRef.current) {
       if (cur) {
         cur.innerHTML = cb.lw.map((w: string, i: number) => `<span class="w-wrap"><span class="w-off">${w}</span><span class="w-on">${w}</span></span>`).join(' ');
         cur.classList.remove('block-new');
         void cur.offsetWidth; 
         cur.classList.add('block-new');
       }
-      lastBlock.current = ci;
+      lastBlkRef.current = ci;
     }
     if (cur) {
       const wraps = cur.querySelectorAll('.w-wrap');
@@ -341,18 +315,15 @@ export default function PlayerClient({ song }: { song: any }) {
     const t = ((e.clientX - r.left) / r.width) * audioRef.current.duration;
     audioRef.current.currentTime = t;
     if (videoElRef.current) videoElRef.current.currentTime = t;
-    const state = getState(t);
-    renderState(state, t);
   };
 
   const [userInteracted, setUserInteracted] = useState(false);
-
   const hasVideo = !!song.videoUrl;
 
   const handleStartMaster = (e: React.MouseEvent) => {
     e.stopPropagation();
     setUserInteracted(true);
-    togglePlay(); // Spustí play i fullscreen
+    togglePlay();
   };
 
   return (
@@ -360,8 +331,6 @@ export default function PlayerClient({ song }: { song: any }) {
       position: 'fixed', inset: 0, background: '#000', color: '#fff', 
       fontFamily: 'Inter, sans-serif', overflow: 'hidden' 
     }}>
-      
-      {/* 🛑 MASTER START OVERLAY (Pro Fullscreen & Autoplay) */}
       {!isPlaying && !userInteracted && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 1000, 
@@ -382,20 +351,16 @@ export default function PlayerClient({ song }: { song: any }) {
         .w-wrap { position: relative; display: inline-block; padding: 0; margin: 0 0.1em; }
         .w-off { color: rgba(255,255,255,1); text-shadow: 1px 1px 3px rgba(0,0,0,0.9); }
         .w-on { position: absolute; left: 0; top: 0; width: 0%; overflow: hidden; white-space: nowrap; color: #ffd700; text-shadow: 1px 1px 3px rgba(0,0,0,0.9); }
-        .ln-ctx { font-size: clamp(14px, 3.5vw, 28px); color: rgba(255,255,255,0.4); font-weight: 700; text-align: center; min-height: 1.4em; }
-        #cur-line { font-size: clamp(28px, 6.5vw, 82px); font-weight: 900; text-align: center; min-height: 1.2em; line-height: 1.2; letter-spacing: -0.01em; }
+        .ln-ctx { font-size: clamp(14px, 2.5vw, 24px); color: rgba(255,255,255,0.4); font-weight: 700; text-align: center; min-height: 1.4em; transition: opacity 0.3s; }
+        #cur-line-1, #cur-line-2 { font-size: clamp(24px, 5.5vw, 72px); font-weight: 900; text-align: center; min-height: 1.2em; line-height: 1.2; letter-spacing: -0.01em; }
+        #cur-line-2 { color: #f87171; }
         @keyframes blockIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
         .block-new { animation: blockIn 0.3s ease-out forwards; }
         @media (orientation: portrait) {
-          #cur-line { font-size: clamp(22px, 8vw, 42px); padding: 0 1rem; }
+          #cur-line-1, #cur-line-2 { font-size: clamp(22px, 8vw, 42px); padding: 0 1rem; }
           .ln-ctx { font-size: clamp(12px, 4vw, 18px); }
           #stage { padding: 0 5vw !important; gap: 2vh !important; }
-          #controls { 
-            flex-direction: column !important; 
-            align-items: stretch !important; 
-            padding: 1.5rem !important; 
-            gap: 1.2rem !important;
-          }
+          #controls { flex-direction: column !important; align-items: stretch !important; padding: 1.5rem !important; gap: 1.2rem !important; }
           .btn-group { display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 12px; }
           .meta-info { display: flex; justify-content: space-between; align-items: flex-end; width: 100%; font-size: 11px !important; }
         }
@@ -415,15 +380,14 @@ export default function PlayerClient({ song }: { song: any }) {
       </div>
 
       {!hasVideo && (
-        <div id="stage" style={{ position: 'absolute', inset: 0, zIndex: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 10vw', gap: '3vh', pointerEvents: 'none' }}>
+        <div id="stage" style={{ position: 'absolute', inset: 0, zIndex: 3, display: 'flex', flexDirection: 'column', padding: '12vh 10vw 4vh 10vw', boxSizing: 'border-box', pointerEvents: 'none' }}>
             <div ref={countEl} style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: '8px', position: 'absolute', top: '12%', left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
               <div className="cnt-v" style={{ color: 'var(--color-gold)', fontSize: '85px', lineHeight: 1, fontWeight: 900, textShadow: '0 0 40px rgba(255,215,0,0.8)', filter: 'drop-shadow(0 4px 15px rgba(0,0,0,0.8))', marginBottom: '-5px' }} />
               <div style={{ width: '180px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden', boxShadow: '0 0 25px rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.05)' }}>
                  <div ref={countBarEl} style={{ width: '100%', height: '100%', background: 'linear-gradient(90deg, #FFD700, #FFA500, #FFD700)', boxShadow: '0 0 15px var(--color-gold)', transition: 'width 0.1s linear' }} />
               </div>
             </div>
-           <div ref={curLineEl} id="cur-line" />
-           <div ref={nextLineEl} className="ln-ctx" />
+            <div ref={nextLineEl1} className="ln-ctx" />
         </div>
       )}
 
