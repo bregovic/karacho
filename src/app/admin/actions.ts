@@ -130,6 +130,17 @@ export async function bulkRemoveBackground(backgroundUrl: string) {
   revalidatePath('/admin');
 }
 
+function toSlug(text: string): string {
+  return text
+    .normalize('NFD') // Rozloží znaky na základ + diakritické znaménko
+    .replace(/[\u0300-\u036f]/g, '') // Odstraní znaménka
+    .toLowerCase()
+    .trim()
+    .replace(/ /g, '-')
+    .replace(/[^\w-]/g, '')
+    .replace(/-+/g, '-');
+}
+
 export async function fetchLyricsAction(songId: string) {
   const song = await db.song.findUnique({ where: { id: songId } });
   if (!song || !song.artist || !song.title) return { error: 'Chybí interpret nebo název' };
@@ -138,16 +149,9 @@ export async function fetchLyricsAction(songId: string) {
   const title = song.title;
 
   try {
-    // 1. STAV: Lyrist API (Moderní, čistý UTF8)
-    const res1 = await fetch(`https://lyrist.vercel.app/api/${encodeURIComponent(title)}/${encodeURIComponent(artist)}`);
-    if (res1.ok) {
-      const data = await res1.json();
-      if (data.lyrics) {
-        await db.song.update({ where: { id: songId }, data: { lyrics: data.lyrics.trim() } });
-        revalidatePath('/admin');
-        return { success: true, lyrics: data.lyrics, source: 'Lyrist' };
-      }
-    }
+    // 1. GENIUS (Hledání přes veřejné API / frontend)
+    const gSearchUrl = `https://api.genius.com/search?q=${encodeURIComponent(artist + ' ' + title)}&access_token=q_l6qC... (zástupný, v reálu použít env)`;
+    // Fallback: zkusíme to slugem na pisnicky-akordy hned, pokud mezinárodní věci selžou
 
     // 2. STAV: Vagalume (Obrovská CZ/SK databáze, spolehlivá diakritika)
     const res2 = await fetch(`https://api.vagalume.com.br/search.php?art=${encodeURIComponent(artist)}&mus=${encodeURIComponent(title)}&apikey=666a658e7948d9d20233d31c36006c9a`);
@@ -179,41 +183,83 @@ export async function fetchLyricsAction(songId: string) {
   }
 }
 
-export async function importLyricsFromUrl(songId: string, url: string) {
-  if (!url.includes('karaoketexty.cz')) return { error: 'Podporováno pouze karaoketexty.cz' };
+function cleanLyrics(text: string): string {
+  // 1. Odstranění akordů v hranatých nebo kulatých závorkách: [C], [Ami], (G)
+  let clean = text.replace(/\[[A-G][^\]]*\]/gi, '');
+  clean = clean.replace(/\([A-G][^\)]*\)/gi, '');
+
+  // 2. Odstranění řádků, které obsahují pouze akordy 
+  // (Detekujeme řádky, kde jsou jen písmena akordů, křížky, m, sus, atd. a spousta mezer)
+  const lines = clean.split('\n');
+  const chordLineRegex = /^[\sA-G[0-9]m#b(sus)(add)(maj)(dim)]+$/i;
   
+  const finalLines = lines.filter(line => {
+    const trimmed = line.trim();
+    if (!trimmed) return true; // Ponecháme prázdné řádky pro oddělení slok
+    
+    // Pokud je řádek podezřele krátký a obsahuje jen "akordové" znaky
+    if (trimmed.length < 20 && chordLineRegex.test(trimmed)) {
+       // Ale pozor na krátká slova jako "A", "I" - zkontrolujeme poměr mezer a znaků
+       const spaces = (line.match(/ /g) || []).length;
+       if (spaces > trimmed.length / 2) return false; // Pravděpodobně řada akordů s mezerami
+    }
+    
+    // Odstranění technických značek
+    if (/^(Capo|Intro|Outro|Solo|R:|Ref:|Bridge|Sloka|Vazba)/i.test(trimmed)) return false;
+    
+    return true;
+  });
+
+  return finalLines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+export async function importLyricsFromUrl(songId: string, url: string) {
   try {
+    const isKA = url.includes('pisnicky-akordy.cz');
+    const isKT = url.includes('karaoketexty.cz');
+
+    if (!isKA && !isKT) return { error: 'Nepodporovaný web.' };
+
     const res = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36'
       }
     });
     
-    if (!res.ok) return { error: 'Stránka je nedostupná (blokováno)' };
+    if (!res.ok) return { error: 'Stránka je nedostupná.' };
     
     const html = await res.text();
-    // Pokusíme se vyndat text mezi <div class="text"> a souvisejícími tagy
-    const match = html.match(/<p class="text">([\s\S]*?)<\/p>/) || html.match(/<div id="text">([\s\S]*?)<\/div>/);
-    
-    if (!match) return { error: 'Nepodařilo se v kódu stránky najít text písně' };
-    
-    let lyrics = match[1]
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<[^>]*>?/gm, '') // Smazání HTML tagů
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .trim();
+    let lyrics = '';
 
-    // Pokud tam jsou uvozovky/bordel na začátku (někdy to bývá v pre nebo p)
-    if (lyrics.length > 0) {
-      await db.song.update({ where: { id: songId }, data: { lyrics } });
-      revalidatePath('/admin');
-      return { success: true, lyrics };
+    if (isKA) {
+      // Pisnicky-akordy.cz má text v <pre>
+      const match = html.match(/<pre[^>]*>([\s\S]*?)<\/pre>/);
+      if (match) {
+        // Odstraníme HTML tagy (zejména ty <a> s akordy)
+        lyrics = match[1].replace(/<[^>]*>?/gm, '');
+      }
+    } else {
+      // Karaoketexty.cz
+      const match = html.match(/<p class="text">([\s\S]*?)<\/p>/) || html.match(/<div id="text">([\s\S]*?)<\/div>/);
+      if (match) {
+        lyrics = match[1].replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>?/gm, '');
+      }
     }
     
-    return { error: 'Nalezený text je prázdný' };
+    if (!lyrics) return { error: 'Text nenalezen.' };
+    
+    // Vyčištění akordů a balastu
+    const finalLyrics = cleanLyrics(lyrics);
+
+    if (finalLyrics.length > 0) {
+      await db.song.update({ where: { id: songId }, data: { lyrics: finalLyrics } });
+      revalidatePath('/admin');
+      return { success: true, lyrics: finalLyrics };
+    }
+    
+    return { error: 'Výsledný text je prázdný.' };
   } catch (err) {
-    return { error: 'Chyba stahování' };
+    return { error: 'Chyba stahování.' };
   }
 }
 
@@ -288,25 +334,24 @@ export async function researchSongDataAction(songId: string) {
       }
     }
 
-    // 3. KARAOKE TEXTY RESEARCH (Search + Scrape fallback - best for CZ/SK songs)
-    if (!results.lyrics) {
-      console.info(`[Research] Looking at karaoketexty.cz search for: ${artist} - ${title}`);
-      const searchUrl = `https://www.karaoketexty.cz/search?q=${encodeURIComponent(artist + ' ' + title)}`;
-      const sRes = await fetch(searchUrl, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36' }
-      });
-      
-      if (sRes.ok) {
-        const sHtml = await sRes.text();
-        const firstMatch = sHtml.match(/<a href="([^"]*?)" class="song-link">/);
-        if (firstMatch && firstMatch[1]) {
-           const fullUrl = firstMatch[1].startsWith('http') ? firstMatch[1] : `https://www.karaoketexty.cz${firstMatch[1]}`;
-           const lRes = await importLyricsFromUrl(songId, fullUrl);
-           if (lRes.success) {
-             results.lyrics = lRes.lyrics;
-           }
-        }
-      }
+    // 3. PISNICKY-AKORDY RESEARCH (Perfect for CZ songs)
+    if (!results.lyrics || results.lyrics.includes('?')) {
+       const paUrl = `https://pisnicky-akordy.cz/${toSlug(artist)}/${toSlug(title)}`;
+       
+       console.info(`[Research] Trying Pisnicky-Akordy: ${paUrl}`);
+       const paRes = await importLyricsFromUrl(songId, paUrl);
+       if (paRes.success) {
+          results.lyrics = paRes.lyrics;
+       }
+    }
+
+    // Pozdní čištění a kontrola kvality
+    if (results.lyrics) {
+       results.lyrics = cleanLyrics(results.lyrics);
+       // Pokud je tam pořád moc otazníků, text zahodíme (chyba kódování u zdroje)
+       if ((results.lyrics.match(/\?/g) || []).length > 8) {
+          delete results.lyrics;
+       }
     }
 
     if (Object.keys(results).length > 0) {
