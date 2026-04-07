@@ -132,6 +132,7 @@ enum SongState {
   ANIMATION
   TESTING
   ACTIVE
+  REQUESTED
 }
 
 model AdminEmail {
