@@ -23,10 +23,11 @@ export default function SongEditModal({
   const [formData, setFormData] = useState(song);
   const [isSaving, setIsSaving] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
-  const [importUrl, setImportUrl] = useState('');
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [researching, setResearching] = useState(false);
   const [activeTextView, setActiveTextView] = useState<'lyrics' | 'chords'>('lyrics');
+  const [blacklist, setBlacklist] = useState('');
+  const [importUrl, setImportUrl] = useState('');
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -67,9 +68,9 @@ export default function SongEditModal({
     }
   };
 
-  const handleCleanLyrics = async () => {
+  const handleCleanLyrics = async (customBlacklist: string[] = []) => {
     setImportStatus('⌛ Čistím...');
-    const res = await manuallyCleanLyricsAction(song.id, formData.lyrics || '');
+    const res = await manuallyCleanLyricsAction(song.id, formData.lyrics || '', customBlacklist);
     if (res.success) {
       setFormData({ ...formData, lyrics: res.lyrics });
       setImportStatus('✅ Text vyčištěn (akordy pryč)!');
@@ -167,15 +168,23 @@ export default function SongEditModal({
                   AKORDY 🎸
                 </button>
               </div>
-              <button 
-                type="button" 
-                onClick={handleCleanLyrics} 
-                className="btn-secondary" 
-                style={{ padding: '4px 12px', fontSize: '10px', borderRadius: '8px', border: '1px solid var(--color-gold)', color: 'var(--color-gold)' }}
-                title="Odstraní akordy a vyčistí text"
-              >
-                🧹 VYČISTIT TEXT
-              </button>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input 
+                  placeholder="Blacklist (intro, sólo...)" 
+                  value={blacklist} 
+                  onChange={e => setBlacklist(e.target.value)}
+                  style={{ padding: '6px 12px', fontSize: '10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--color-gold)', borderRadius: '8px', width: '130px' }}
+                />
+                <button 
+                  type="button" 
+                  onClick={() => handleCleanLyrics(blacklist.split(/[\s,]+/).filter(x => x))} 
+                  className="btn-secondary" 
+                  style={{ padding: '4px 12px', fontSize: '10px', borderRadius: '8px', border: '1px solid var(--color-gold)', color: 'var(--color-gold)' }}
+                  title="Odstraní akordy a slova z blacklistu"
+                >
+                  🧹 VYČISTIT TEXT
+                </button>
+              </div>
             </div>
             
             <div style={{ display: 'flex', gap: '8px' }}>

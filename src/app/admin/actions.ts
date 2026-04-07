@@ -37,15 +37,14 @@ export async function createSong(formData: FormData) {
   return song;
 }
 
-export async function manuallyCleanLyricsAction(songId: string, currentText: string) {
-  try {
-    const cleaned = cleanLyrics(currentText);
+export async function manuallyCleanLyricsAction(songId: string, currentLyrics: string, customBlacklist: string[] = []) {
+  const cleaned = cleanLyrics(currentLyrics, customBlacklist);
+  if (cleaned) {
     await db.song.update({ where: { id: songId }, data: { lyrics: cleaned } });
     revalidatePath('/admin');
     return { success: true, lyrics: cleaned };
-  } catch (err) {
-    return { error: 'Chyba při čištění textu.' };
   }
+  return { error: 'Nepodařilo se vyčistit text' };
 }
 
 export async function updateSongAudio(songId: string, audioUrl: string) {
@@ -169,8 +168,12 @@ export async function fetchLyricsAction(songId: string) {
     if (res2.ok) {
       const data = await res2.json();
       if (data.mus && data.mus[0] && data.mus[0].text) {
-        const lyrics = data.mus[0].text.trim();
-        await db.song.update({ where: { id: songId }, data: { lyrics } });
+        const rawLyrics = data.mus[0].text.trim();
+        const lyrics = cleanLyrics(rawLyrics);
+        await db.song.update({ where: { id: songId }, data: { 
+          lyrics,
+          chords: rawLyrics !== lyrics ? rawLyrics : null
+        } });
         revalidatePath('/admin');
         return { success: true, lyrics, source: 'Vagalume' };
       }
@@ -181,9 +184,14 @@ export async function fetchLyricsAction(songId: string) {
     if (res3.ok) {
       const data = await res3.json();
       if (data.lyrics) {
-        await db.song.update({ where: { id: songId }, data: { lyrics: data.lyrics.trim() } });
+        const rawLyrics = data.lyrics.trim();
+        const lyrics = cleanLyrics(rawLyrics);
+        await db.song.update({ where: { id: songId }, data: { 
+          lyrics,
+          chords: rawLyrics !== lyrics ? rawLyrics : null
+        } });
         revalidatePath('/admin');
-        return { success: true, lyrics: data.lyrics, source: 'Lyrics.ovh' };
+        return { success: true, lyrics, source: 'Lyrics.ovh' };
       }
     }
 
@@ -235,17 +243,20 @@ function cleanLyrics(text: string): string {
        continue;
     }
 
-    // EXTRA: Kontrola zda se nejedná o výčet slov typu "Em D G"
+    // EXTRA: Kontrola zda se nejedná o výčet slov typu "Ami Dmi G"
     const words = trimmed.split(/\s+/);
     if (words.length >= 1) {
-       const isAllChords = words.every(w => /^[A-G](maj|min|dim|aug|sus|m|#|b|7|9|11|13)*$/i.test(w) || /^[\/|,\(\)\+\-]+$/.test(w));
+       // regex s podporou pro Ami, Emi, Dmi
+       const isAllChords = words.every(w => /^[A-G](maj|min|dim|aug|sus|mi|m|#|b|7|9|11|13)*$/i.test(w) || /^[\/|,\(\)\+\-]+$/.test(w));
        if (isAllChords) continue;
     }
 
-    // Odstranění technických značek na začátku řádku
-    if (/^(Capo|Intro|Outro|Solo|R:|Ref:|Bridge|Sloka|Vazba|Chorus|Verse|\d+\.)/i.test(trimmed)) {
-       // Pokud je to jen "R: ", pryč s tím. Pokud je to "1. Sloka", taky pryč.
-       if (trimmed.length < 10) continue;
+    // Odstranění technických značek na začátku řádku (CZ i EN termíny)
+    if (/^(Capo|Intro|Outro|Solo|Sólo|Soloing|Predehra|Předehra|Mezihra|Interlude|R:|Ref:|Refren|Refrén|Bridge|Sloka|Vazba|Chorus|Verse|Instrumental|Zpěv|Skladba|\d+\.)/i.test(trimmed)) {
+       // Pokud je to jen technický nadpis řádku (krátký), tak pryč. 
+       // Pokud je tam i text písně (očekáváme délku > 20), tak to třeba necháme smazat jen to slovo?
+       // Ale obvykle jsou tyto značky na samostatném řádku, tak je mažeme celé.
+       if (trimmed.length < 25) continue;
     }
     
     finalLines.push(trimmed);
