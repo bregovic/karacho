@@ -504,18 +504,7 @@ export default function DesignerClient({ song }: { song: any }) {
                 <div ref={prevLineEl} style={{ minHeight: '60px', color: 'rgba(255,255,255,0.15)', fontSize: 'clamp(20px, 4vw, 40px)', fontWeight: 500, letterSpacing: '2px', transition: 'all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)' }} />
                 
                 {/* Aktuální řádek */}
-                <div style={{ position: 'relative' }}>
-                  <div style={{ 
-                    position: 'absolute', top: '-40px', left: '50%', transform: 'translateX(-50%)',
-                    background: (voiceMap[curLineRef.current] || 1) === 1 ? 'var(--color-gold)' : '#ff4b2b',
-                    color: (voiceMap[curLineRef.current] || 1) === 1 ? 'black' : 'white',
-                    padding: '2px 10px', borderRadius: '4px', fontSize: '10px', fontWeight: 900,
-                    letterSpacing: '1px', opacity: curLineRef.current >= 0 ? 1 : 0
-                  }}>
-                    {(voiceMap[curLineRef.current] || 1) === 1 ? 'HLAS 1' : 'HLAS 2'}
-                  </div>
-                  <div ref={curLineEl} id="cur-line" style={{ minHeight: '120px', color: 'white', fontSize: 'clamp(40px, 8vw, 85px)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '4px', textShadow: '0 0 40px rgba(255,255,255,0.15)', transition: 'all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1)', filter: isPlaying ? 'none' : 'blur(2px)', opacity: isPlaying ? 1 : 0.6 }} />
-                </div>
+                <div ref={curLineEl} id="cur-line" style={{ minHeight: '120px', color: 'white', fontSize: 'clamp(40px, 8vw, 85px)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '4px', textShadow: '0 0 40px rgba(255,255,255,0.15)', transition: 'all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1)', filter: isPlaying ? 'none' : 'blur(2px)', opacity: isPlaying ? 1 : 0.6 }} />
                 
                 {/* Následující řádek */}
                 <div ref={nextLineEl} style={{ minHeight: '60px', color: 'rgba(255,255,255,0.15)', fontSize: 'clamp(20px, 4vw, 40px)', fontWeight: 500, letterSpacing: '2px', transition: 'all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)' }} />
