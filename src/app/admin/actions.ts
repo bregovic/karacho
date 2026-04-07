@@ -133,25 +133,86 @@ export async function fetchLyricsAction(songId: string) {
   const song = await db.song.findUnique({ where: { id: songId } });
   if (!song || !song.artist || !song.title) return { error: 'Chybí interpret nebo název' };
 
-  try {
-    // Použijeme Lyrist API, které má mnohem lepší podporu pro českou diakritiku
-    const res = await fetch(`https://lyrist.vercel.app/api/${encodeURIComponent(song.title)}/${encodeURIComponent(song.artist)}`);
-    if (!res.ok) return { error: 'Text nenalezen' };
-    
-    const data = await res.json();
+  const artist = song.artist;
+  const title = song.title;
 
-    if (data.lyrics) {
-      // Lyrist občas přidává na začátek a konec zbytečné mezery
-      const cleanLyrics = data.lyrics.trim();
-      
-      await db.song.update({ where: { id: songId }, data: { lyrics: cleanLyrics } });
-      revalidatePath('/admin');
-      return { success: true, lyrics: cleanLyrics };
+  try {
+    // 1. STAV: Lyrist API (Moderní, čistý UTF8)
+    const res1 = await fetch(`https://lyrist.vercel.app/api/${encodeURIComponent(title)}/${encodeURIComponent(artist)}`);
+    if (res1.ok) {
+      const data = await res1.json();
+      if (data.lyrics) {
+        await db.song.update({ where: { id: songId }, data: { lyrics: data.lyrics.trim() } });
+        revalidatePath('/admin');
+        return { success: true, lyrics: data.lyrics, source: 'Lyrist' };
+      }
     }
-    return { error: 'Text nenalezen' };
+
+    // 2. STAV: Vagalume (Obrovská CZ/SK databáze, spolehlivá diakritika)
+    const res2 = await fetch(`https://api.vagalume.com.br/search.php?art=${encodeURIComponent(artist)}&mus=${encodeURIComponent(title)}&apikey=666a658e7948d9d20233d31c36006c9a`);
+    if (res2.ok) {
+      const data = await res2.json();
+      if (data.mus && data.mus[0] && data.mus[0].text) {
+        const lyrics = data.mus[0].text.trim();
+        await db.song.update({ where: { id: songId }, data: { lyrics } });
+        revalidatePath('/admin');
+        return { success: true, lyrics, source: 'Vagalume' };
+      }
+    }
+
+    // 3. STAV: Lyrics.ovh (Fallback)
+    const res3 = await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`);
+    if (res3.ok) {
+      const data = await res3.json();
+      if (data.lyrics) {
+        await db.song.update({ where: { id: songId }, data: { lyrics: data.lyrics.trim() } });
+        revalidatePath('/admin');
+        return { success: true, lyrics: data.lyrics, source: 'Lyrics.ovh' };
+      }
+    }
+
+    return { error: 'Text nenalezen na žádném zdroji' };
   } catch (err) {
-    console.error('Lyrics API Error:', err);
+    console.error('Lyrics Fetch Error:', err);
     return { error: 'Chyba API' };
+  }
+}
+
+export async function importLyricsFromUrl(songId: string, url: string) {
+  if (!url.includes('karaoketexty.cz')) return { error: 'Podporováno pouze karaoketexty.cz' };
+  
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36'
+      }
+    });
+    
+    if (!res.ok) return { error: 'Stránka je nedostupná (blokováno)' };
+    
+    const html = await res.text();
+    // Pokusíme se vyndat text mezi <div class="text"> a souvisejícími tagy
+    const match = html.match(/<p class="text">([\s\S]*?)<\/p>/) || html.match(/<div id="text">([\s\S]*?)<\/div>/);
+    
+    if (!match) return { error: 'Nepodařilo se v kódu stránky najít text písně' };
+    
+    let lyrics = match[1]
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<[^>]*>?/gm, '') // Smazání HTML tagů
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .trim();
+
+    // Pokud tam jsou uvozovky/bordel na začátku (někdy to bývá v pre nebo p)
+    if (lyrics.length > 0) {
+      await db.song.update({ where: { id: songId }, data: { lyrics } });
+      revalidatePath('/admin');
+      return { success: true, lyrics };
+    }
+    
+    return { error: 'Nalezený text je prázdný' };
+  } catch (err) {
+    return { error: 'Chyba stahování' };
   }
 }
 
