@@ -253,8 +253,7 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
         <SongEditModal 
           song={editingSong} 
           onClose={() => setEditingSong(null)} 
-          allGenres={allGenres as string[]} 
-          allBackgrounds={allBackgrounds as string[]}
+          onRefresh={() => {}} // Placeholder for now
           onRemoveBackground={bulkRemoveBackground}
         />
       )}
