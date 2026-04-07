@@ -182,7 +182,19 @@ export default function SongEditModal({
           </div>
         </div>
 
-        <div style={{ marginTop: '2.5rem', display: 'flex', gap: '1rem', justifyContent: 'flex-end', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '1.5rem' }}>
+            {formData.chords && (
+              <>
+                <label style={{ fontSize: '11px', color: '#ff4b2b', fontWeight: 800, letterSpacing: '0.05em', marginTop: '0.5rem' }}>AKORDY / INSTRUM. INFO (ZÁLOHA)</label>
+                <textarea 
+                  className="input-field" 
+                  style={{ height: '80px', fontFamily: 'monospace', fontSize: '11px', lineHeight: '1.4', background: 'rgba(255,75,43,0.05)', color: '#ffb5a7' }} 
+                  value={formData.chords} 
+                  readOnly 
+                />
+              </>
+            )}
+            
+            <div style={{ marginTop: '2.5rem', display: 'flex', gap: '1rem', justifyContent: 'flex-end', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '1.5rem' }}>
           <button onClick={onClose} className="btn-secondary" style={{ padding: '12px 30px', borderRadius: '14px' }}>Zrušit</button>
           <button 
             onClick={handleSave} 

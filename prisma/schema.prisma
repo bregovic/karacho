@@ -60,6 +60,7 @@ model Song {
   tags          String[]
   year          Int?
   lyrics        String?
+  chords        String?
   maxBlockChars Int       @default(40)
   playCount     Int       @default(0)
   rating        Float     @default(0.0)
