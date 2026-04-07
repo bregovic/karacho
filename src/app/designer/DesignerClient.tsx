@@ -198,14 +198,12 @@ export default function DesignerClient({ song }: { song: any }) {
       return;
     }
 
-    if (view !== 'editor' || !audioRef.current) return;
+    if (view !== 'editor') return;
     
     // Ignorujeme klávesy pokud uživatel přepisuje uvnitř inputu
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
        return;
     }
-
-    const t = audioRef.current.currentTime;
 
     if (e.key.toLowerCase() === 'a') {
       const lineIdx = curLineRef.current;
@@ -213,6 +211,7 @@ export default function DesignerClient({ song }: { song: any }) {
         setVoiceMap(prev => ({ ...prev, [lineIdx]: 1 }));
         forceUpdate();
       }
+      return;
     }
     if (e.key.toLowerCase() === 'd') {
       const lineIdx = curLineRef.current;
@@ -220,7 +219,11 @@ export default function DesignerClient({ song }: { song: any }) {
         setVoiceMap(prev => ({ ...prev, [lineIdx]: 2 }));
         forceUpdate();
       }
+      return;
     }
+
+    if (!audioRef.current) return;
+    const t = audioRef.current.currentTime;
 
     if (e.code === 'Space') {
       e.preventDefault();
@@ -307,12 +310,12 @@ export default function DesignerClient({ song }: { song: any }) {
       forceUpdate();
       return;
     }
-  };
+  }, [view, voiceMap]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  });
+  }, [handleKeyDown]);
 
   const tick = () => {
     if (!audioRef.current || view !== 'editor') return;
@@ -499,7 +502,18 @@ export default function DesignerClient({ song }: { song: any }) {
                 <div ref={prevLineEl} style={{ minHeight: '60px', color: 'rgba(255,255,255,0.15)', fontSize: 'clamp(20px, 4vw, 40px)', fontWeight: 500, letterSpacing: '2px', transition: 'all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)' }} />
                 
                 {/* Aktuální řádek */}
-                <div ref={curLineEl} id="cur-line" style={{ minHeight: '120px', color: 'white', fontSize: 'clamp(40px, 8vw, 85px)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '4px', textShadow: '0 0 40px rgba(255,255,255,0.15)', transition: 'all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1)', filter: isPlaying ? 'none' : 'blur(2px)', opacity: isPlaying ? 1 : 0.6 }} />
+                <div style={{ position: 'relative' }}>
+                  <div style={{ 
+                    position: 'absolute', top: '-40px', left: '50%', transform: 'translateX(-50%)',
+                    background: (voiceMap[curLineRef.current] || 1) === 1 ? 'var(--color-gold)' : '#ff4b2b',
+                    color: (voiceMap[curLineRef.current] || 1) === 1 ? 'black' : 'white',
+                    padding: '2px 10px', borderRadius: '4px', fontSize: '10px', fontWeight: 900,
+                    letterSpacing: '1px', opacity: curLineRef.current >= 0 ? 1 : 0
+                  }}>
+                    {(voiceMap[curLineRef.current] || 1) === 1 ? 'HLAS 1' : 'HLAS 2'}
+                  </div>
+                  <div ref={curLineEl} id="cur-line" style={{ minHeight: '120px', color: 'white', fontSize: 'clamp(40px, 8vw, 85px)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '4px', textShadow: '0 0 40px rgba(255,255,255,0.15)', transition: 'all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1)', filter: isPlaying ? 'none' : 'blur(2px)', opacity: isPlaying ? 1 : 0.6 }} />
+                </div>
                 
                 {/* Následující řádek */}
                 <div ref={nextLineEl} style={{ minHeight: '60px', color: 'rgba(255,255,255,0.15)', fontSize: 'clamp(20px, 4vw, 40px)', fontWeight: 500, letterSpacing: '2px', transition: 'all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)' }} />
@@ -599,7 +613,10 @@ export default function DesignerClient({ song }: { song: any }) {
                const isLine = ev.type === 'line';
                const isCountdown = ev.type === 'countdown';
                let text = '';
-               if (isLine) text = `[Line ${ev.lineIdx+1}]`;
+               if (isLine) {
+                 const v = voiceMap[ev.lineIdx] || 1;
+                 text = `[Line ${ev.lineIdx+1}] ${v === 1 ? 'G' : 'R'}`;
+               }
                else if (isCountdown) text = `🚦 ODPOČET (3, 2, 1)`;
                else text = linesRef.current[ev.lineIdx]?.[ev.wordIdx] || '???';
 
