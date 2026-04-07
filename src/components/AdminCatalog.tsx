@@ -8,10 +8,20 @@ import { createSong, deleteSong, updateSong, removeSongResource, bulkRemoveBackg
 import { autoAlignSong } from '@/app/admin/auto-align';
 import { useTranslation } from '@/lib/translations';
 
-export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) {
+import AdminTeam from '@/components/AdminTeam';
+
+export default function AdminCatalog({ 
+  initialSongs,
+  adminEmails = []
+}: { 
+  initialSongs: any[],
+  adminEmails?: any[]
+}) {
   const t = useTranslation('cs');
+  const [activeTab, setActiveTab] = useState<'SONGS' | 'TEAM'>('SONGS');
   const [showForm, setShowForm] = useState(false);
   const [statusFilter, setStatusFilter] = useState('ALL');
+  // ... rest of state
   const [genreFilter, setGenreFilter] = useState('ALL');
   const [tagFilter, setTagFilter] = useState('ALL');
   const [search, setSearch] = useState('');
@@ -81,8 +91,44 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
   return (
     <div style={{ padding: 'clamp(1rem, 4vw, 2.5rem)', maxWidth: '1400px', margin: '0 auto' }}>
       
-      {/* FILTRAČNÍ PANEL S TLAČÍTKEM + NOVÁ PÍSEŇ */}
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '2.5rem', background: 'rgba(255,255,255,0.04)', padding: '1.2rem', borderRadius: '24px', flexWrap: 'wrap', alignItems: 'center', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 10px 40px rgba(0,0,0,0.3)' }}>
+      {/* NAVIGATION TABS */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '2rem' }}>
+        <button 
+          onClick={() => setActiveTab('SONGS')}
+          style={{ 
+            padding: '12px 24px', 
+            borderRadius: '14px', 
+            border: 'none', 
+            background: activeTab === 'SONGS' ? 'var(--color-teal)' : 'rgba(255,255,255,0.05)', 
+            color: activeTab === 'SONGS' ? 'black' : 'white',
+            fontWeight: 800,
+            cursor: 'pointer'
+          }}
+        >
+          🎵 KATALOG PÍSNÍ
+        </button>
+        <button 
+          onClick={() => setActiveTab('TEAM')}
+          style={{ 
+            padding: '12px 24px', 
+            borderRadius: '14px', 
+            border: 'none', 
+            background: activeTab === 'TEAM' ? 'var(--color-teal)' : 'rgba(255,255,255,0.05)', 
+            color: activeTab === 'TEAM' ? 'black' : 'white',
+            fontWeight: 800,
+            cursor: 'pointer'
+          }}
+        >
+          👥 TÝM & ADMINI
+        </button>
+      </div>
+
+      {activeTab === 'TEAM' ? (
+        <AdminTeam adminEmails={adminEmails} />
+      ) : (
+        <>
+          {/* FILTRAČNÍ PANEL S TLAČÍTKEM + NOVÁ PÍSEŇ */}
+          <div style={{ display: 'flex', gap: '1rem', marginBottom: '2.5rem', background: 'rgba(255,255,255,0.04)', padding: '1.2rem', borderRadius: '24px', flexWrap: 'wrap', alignItems: 'center', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 10px 40px rgba(0,0,0,0.3)' }}>
         <input 
            type="text" 
            placeholder={t('search_placeholder')}
@@ -160,7 +206,6 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
           {filteredSongs.map((song) => {
             const hasAudio = !!song.audioUrl;
             const hasJson = !!song.jsonUrl || !!song.timingData;
-            const hasLyrics = !!song.lyrics && song.lyrics.trim().length > 0;
             const canPlay = !!song.videoUrl || hasJson;
 
             return (
@@ -258,6 +303,8 @@ export default function AdminCatalog({ initialSongs }: { initialSongs: any[] }) 
           onRemoveBackground={bulkRemoveBackground}
           onRefresh={() => {}} // In Next.js with Server Actions, revalidatePath handles this, or we can add a local reload
         />
+      )}
+        </>
       )}
     </div>
   );
