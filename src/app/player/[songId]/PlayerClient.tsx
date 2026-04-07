@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { incrementPlayCount } from '@/app/admin/actions';
 import { useSession } from '@/context/SessionContext';
@@ -23,6 +23,18 @@ export default function PlayerClient({ song }: { song: any }) {
   const [isInstrumental, setIsInstrumental] = useState(!!song.instrumentalUrl);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [renderTick, setRenderTick] = useState(0);
+
+  const systemBackgrounds = useMemo(() => [
+    '/backgrounds/disco.png', '/backgrounds/rock.png', '/backgrounds/retro_80s.png',
+    '/backgrounds/jazz.png', '/backgrounds/pop.png', '/backgrounds/country.png',
+    '/backgrounds/hiphop.png', '/backgrounds/jungle.png', '/backgrounds/rocknroll.png',
+    '/backgrounds/opera.png', '/backgrounds/hightech.png', '/backgrounds/matrix.png',
+    '/backgrounds/tekkno.png', '/backgrounds/funk.png'
+  ], []);
+
+  const randomBackground = useMemo(() => {
+    return systemBackgrounds[Math.floor(Math.random() * systemBackgrounds.length)];
+  }, [systemBackgrounds]);
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const videoElRef = useRef<HTMLVideoElement | null>(null);
@@ -398,7 +410,7 @@ export default function PlayerClient({ song }: { song: any }) {
           <video ref={videoElRef} src={song.videoUrl || ''} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
           <img 
-            src={song.backgroundUrl || 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=2070&auto=format&fit=crop'}
+            src={song.backgroundUrl || randomBackground}
             onLoad={() => setImgLoaded(true)}
             style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(0.35) saturate(1.2)', opacity: imgLoaded ? 1 : 0, transition: 'opacity 0.8s ease-in-out' }} 
           />
