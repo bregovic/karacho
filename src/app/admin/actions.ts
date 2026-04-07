@@ -202,7 +202,7 @@ export async function fetchLyricsAction(songId: string) {
   }
 }
 
-function cleanLyrics(text: string): string {
+function cleanLyrics(text: string, customBlacklist: string[] = []): string {
   if (!text) return '';
 
   // 1. Předčištění: smazání všeho v hranatých závorkách (nejčastější formát akordů)
@@ -254,9 +254,17 @@ function cleanLyrics(text: string): string {
     // Odstranění technických značek na začátku řádku (CZ i EN termíny)
     if (/^(Capo|Intro|Outro|Solo|Sólo|Soloing|Predehra|Předehra|Mezihra|Interlude|R:|Ref:|Refren|Refrén|Bridge|Sloka|Vazba|Chorus|Verse|Instrumental|Zpěv|Skladba|\d+\.)/i.test(trimmed)) {
        // Pokud je to jen technický nadpis řádku (krátký), tak pryč. 
-       // Pokud je tam i text písně (očekáváme délku > 20), tak to třeba necháme smazat jen to slovo?
-       // Ale obvykle jsou tyto značky na samostatném řádku, tak je mažeme celé.
        if (trimmed.length < 25) continue;
+    }
+
+    // Odstranění vlastních slov z blacklistu (pokud jsou definována)
+    if (customBlacklist.length > 0) {
+      customBlacklist.forEach(word => {
+        if (!word) return;
+        const regex = new RegExp(`\\b${word}\\b`, 'gi');
+        trimmed = trimmed.replace(regex, '').trim();
+      });
+      if (!trimmed) continue;
     }
     
     finalLines.push(trimmed);
