@@ -197,8 +197,9 @@ export default function SongEditModal({
                 fontFamily: 'monospace', 
                 fontSize: '13px', 
                 lineHeight: '1.6',
+                color: 'white', // DEFINITIVNÍ BARVA TEXTU
                 border: activeTextView === 'chords' ? '1px solid rgba(255,75,43,0.3)' : '1px solid rgba(255,255,255,0.1)',
-                background: activeTextView === 'chords' ? 'rgba(255,75,43,0.02)' : 'rgba(0,0,0,0.3)'
+                background: activeTextView === 'chords' ? 'rgba(255,75,43,0.1)' : 'rgba(0,0,0,0.5)'
               }} 
               value={(activeTextView === 'lyrics' ? formData.lyrics : formData.chords) || ''} 
               onChange={e => {
@@ -210,7 +211,7 @@ export default function SongEditModal({
           </div>
         </div>
 
-            <div style={{ marginTop: '2.5rem', display: 'flex', gap: '1rem', justifyContent: 'flex-end', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '1.5rem' }}>
+        <div style={{ marginTop: '2.5rem', display: 'flex', gap: '1rem', justifyContent: 'flex-end', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '1.5rem' }}>
           <button onClick={onClose} className="btn-secondary" style={{ padding: '12px 30px', borderRadius: '14px' }}>Zrušit</button>
           <button 
             onClick={handleSave} 

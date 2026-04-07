@@ -230,6 +230,14 @@ function cleanLyrics(text: string): string {
        continue;
     }
 
+    // EXTRA CHECK: Řádky které obsahují jen výčet krátkých "akordových" slov oddělených čárkami
+    // Např: "Em, D, Am, Em"
+    const commaParts = trimmed.split(/[\s,]+/);
+    if (commaParts.length > 2) {
+      const isPureChordLine = commaParts.every(p => /^[A-G](maj|min|dim|aug|m|#|b|7|9|11|13)*$/i.test(p.trim()) || p.trim() === '');
+      if (isPureChordLine) continue;
+    }
+
     // Odstranění technických značek na začátku řádku
     if (/^(Capo|Intro|Outro|Solo|R:|Ref:|Bridge|Sloka|Vazba|Chorus|Verse|\d+\.)/i.test(trimmed)) {
        // Pokud je to jen "R: ", pryč s tím. Pokud je to "1. Sloka", taky pryč.
