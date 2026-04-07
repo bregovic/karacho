@@ -214,28 +214,32 @@ function cleanLyrics(text: string): string {
     trimmed = trimmed.replace(/\(\d+x\)/gi, '').replace(/x\d+/gi, '').trim();
     if (!trimmed) continue;
 
-    // INTELLIGENT CHORD DETECTION (Ratio check)
-    // Spočítáme znaky, které se typicky vyskytují v akordech: A-G, m, #, b, čísla, lomenítka, čárky, mezer
-    const chordChars = (trimmed.match(/[A-G0-9m#b/|,\(\)\+\-]/gi) || []).length;
-    const totalChars = trimmed.length;
-    const ratio = chordChars / totalChars;
+    // --- THE DEFINITIVE CHORD OBLITERATOR V3 ---
+    // 1. Očistíme řádek o mezery pro výpočet husoty
+    const noSpaces = trimmed.replace(/\s/g, '');
+    if (!noSpaces) continue;
 
-    // Pokud je 80% znaků na řádku "akordových"
-    // A zároveň tam nejsou typické samohlásky v poměru (v češtině je hodně e, i, o, a, u)
-    const vowelCount = (trimmed.match(/[eiouyáéíóúů]/gi) || []).length;
-    const vowelRatio = vowelCount / totalChars;
+    // 2. Regex pro "akordové" znaky a symboly (velká písmena A-G, malé m, dim, sus, maj, čísla, křížky, béčka, lomenítka)
+    // Přidáváme i typické kytarové značky
+    const chordMatches = noSpaces.match(/([A-G]|maj|min|dim|sus|add|m|#|b|7|9|11|13|[\/|,\(\)\+\-])/gi) || [];
+    const chordCharsCount = chordMatches.join('').length;
+    
+    // 3. Spočítáme samohlásky (indikátor běžného textu)
+    const vowelCount = (noSpaces.match(/[eiouyáéíóúů]/gi) || []).length;
+    const ratio = chordCharsCount / noSpaces.length;
+    const vowelRatio = vowelCount / noSpaces.length;
 
-    if (ratio > 0.8 && vowelRatio < 0.2) {
-       // Je to na 99% řada akordů
+    // Pokud řádek tvoří z více než 75% akordové symboly a má minimum samohlásek -> PRYČ s ním
+    // Extrémně krátké řádky (1-3 znaky) co jsou jen akordy bereme taky
+    if ((ratio > 0.75 && vowelRatio < 0.15) || (noSpaces.length <= 4 && ratio > 0.8)) {
        continue;
     }
 
-    // EXTRA CHECK: Řádky které obsahují jen výčet krátkých "akordových" slov oddělených čárkami
-    // Např: "Em, D, Am, Em"
-    const commaParts = trimmed.split(/[\s,]+/);
-    if (commaParts.length > 2) {
-      const isPureChordLine = commaParts.every(p => /^[A-G](maj|min|dim|aug|m|#|b|7|9|11|13)*$/i.test(p.trim()) || p.trim() === '');
-      if (isPureChordLine) continue;
+    // EXTRA: Kontrola zda se nejedná o výčet slov typu "Em D G"
+    const words = trimmed.split(/\s+/);
+    if (words.length >= 1) {
+       const isAllChords = words.every(w => /^[A-G](maj|min|dim|aug|sus|m|#|b|7|9|11|13)*$/i.test(w) || /^[\/|,\(\)\+\-]+$/.test(w));
+       if (isAllChords) continue;
     }
 
     // Odstranění technických značek na začátku řádku
