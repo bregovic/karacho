@@ -37,6 +37,17 @@ export async function createSong(formData: FormData) {
   return song;
 }
 
+export async function manuallyCleanLyricsAction(songId: string, currentText: string) {
+  try {
+    const cleaned = cleanLyrics(currentText);
+    await db.song.update({ where: { id: songId }, data: { lyrics: cleaned } });
+    revalidatePath('/admin');
+    return { success: true, lyrics: cleaned };
+  } catch (err) {
+    return { error: 'Chyba při čištění textu.' };
+  }
+}
+
 export async function updateSongAudio(songId: string, audioUrl: string) {
   await db.song.update({ where: { id: songId }, data: { audioUrl } });
   revalidatePath('/admin');
@@ -184,33 +195,54 @@ export async function fetchLyricsAction(songId: string) {
 }
 
 function cleanLyrics(text: string): string {
-  // 1. Odstranění akordů v hranatých nebo kulatých závorkách: [C], [Ami], (G)
-  let clean = text.replace(/\[[A-G][^\]]*\]/gi, '');
-  clean = clean.replace(/\([A-G][^\)]*\)/gi, '');
+  if (!text) return '';
 
-  // 2. Odstranění řádků, které obsahují pouze akordy 
-  // (Detekujeme řádky, kde jsou jen písmena akordů, křížky, m, sus, atd. a spousta mezer)
-  const lines = clean.split('\n');
-  const chordLineRegex = /^[\sA-G[0-9]m#b(sus)(add)(maj)(dim)]+$/i;
+  // 1. Předčištění: smazání všeho v hranatých závorkách (nejčastější formát akordů)
+  let clean = text.replace(/\[[^\]]*\]/g, ''); 
   
-  const finalLines = lines.filter(line => {
-    const trimmed = line.trim();
-    if (!trimmed) return true; // Ponecháme prázdné řádky pro oddělení slok
-    
-    // Pokud je řádek podezřele krátký a obsahuje jen "akordové" znaky
-    if (trimmed.length < 20 && chordLineRegex.test(trimmed)) {
-       // Ale pozor na krátká slova jako "A", "I" - zkontrolujeme poměr mezer a znaků
-       const spaces = (line.match(/ /g) || []).length;
-       if (spaces > trimmed.length / 2) return false; // Pravděpodobně řada akordů s mezerami
+  const lines = clean.split('\n');
+  const finalLines = [];
+
+  for (let line of lines) {
+    let trimmed = line.trim();
+    if (!trimmed) {
+      finalLines.push('');
+      continue;
     }
     
-    // Odstranění technických značek
-    if (/^(Capo|Intro|Outro|Solo|R:|Ref:|Bridge|Sloka|Vazba)/i.test(trimmed)) return false;
-    
-    return true;
-  });
+    // Smazání (4x), (x2) apod.
+    trimmed = trimmed.replace(/\(\d+x\)/gi, '').replace(/x\d+/gi, '').trim();
+    if (!trimmed) continue;
 
-  return finalLines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    // INTELLIGENT CHORD DETECTION (Ratio check)
+    // Spočítáme znaky, které se typicky vyskytují v akordech: A-G, m, #, b, čísla, lomenítka, čárky, mezer
+    const chordChars = (trimmed.match(/[A-G0-9m#b/|,\(\)\+\-]/gi) || []).length;
+    const totalChars = trimmed.length;
+    const ratio = chordChars / totalChars;
+
+    // Pokud je 80% znaků na řádku "akordových"
+    // A zároveň tam nejsou typické samohlásky v poměru (v češtině je hodně e, i, o, a, u)
+    const vowelCount = (trimmed.match(/[eiouyáéíóúů]/gi) || []).length;
+    const vowelRatio = vowelCount / totalChars;
+
+    if (ratio > 0.8 && vowelRatio < 0.2) {
+       // Je to na 99% řada akordů
+       continue;
+    }
+
+    // Odstranění technických značek na začátku řádku
+    if (/^(Capo|Intro|Outro|Solo|R:|Ref:|Bridge|Sloka|Vazba|Chorus|Verse|\d+\.)/i.test(trimmed)) {
+       // Pokud je to jen "R: ", pryč s tím. Pokud je to "1. Sloka", taky pryč.
+       if (trimmed.length < 10) continue;
+    }
+    
+    finalLines.push(trimmed);
+  }
+
+  return finalLines
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 export async function importLyricsFromUrl(songId: string, url: string) {
@@ -335,7 +367,10 @@ export async function researchSongDataAction(songId: string) {
     }
 
     // 3. PISNICKY-AKORDY RESEARCH (Perfect for CZ songs)
-    if (!results.lyrics || results.lyrics.includes('?')) {
+    const currentLyrics = results.lyrics || song.lyrics || '';
+    const needsBetterLyrics = !currentLyrics || currentLyrics.length < 100 || currentLyrics.includes('[') || (currentLyrics.match(/,/g) || []).length > 10;
+
+    if (needsBetterLyrics) {
        const paUrl = `https://pisnicky-akordy.cz/${toSlug(artist)}/${toSlug(title)}`;
        
        console.info(`[Research] Trying Pisnicky-Akordy: ${paUrl}`);
@@ -351,6 +386,12 @@ export async function researchSongDataAction(songId: string) {
        // Pokud je tam pořád moc otazníků, text zahodíme (chyba kódování u zdroje)
        if ((results.lyrics.match(/\?/g) || []).length > 8) {
           delete results.lyrics;
+       }
+    } else if (song.lyrics) {
+       // Pokud jsme nenašli nový text, ale ten stávající je špinavý, aspoň ho vyčistíme
+       const cleaned = cleanLyrics(song.lyrics);
+       if (cleaned !== song.lyrics) {
+          results.lyrics = cleaned;
        }
     }
 

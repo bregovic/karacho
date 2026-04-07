@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { updateSong, updateSongAnimation, updateSongBackground, importLyricsFromUrl, researchSongDataAction } from '@/app/admin/actions';
+import { updateSong, updateSongAnimation, updateSongBackground, importLyricsFromUrl, researchSongDataAction, manuallyCleanLyricsAction } from '@/app/admin/actions';
 import BackgroundGalleryModal from './BackgroundGalleryModal';
 
 interface SongEditModalProps {
@@ -60,6 +60,18 @@ export default function SongEditModal({
     if (res.success) {
       setFormData({ ...formData, lyrics: res.lyrics });
       setImportStatus('✅ Text úspěšně stažen!');
+      setTimeout(() => setImportStatus(null), 3000);
+    } else {
+      setImportStatus(`❌ ${res.error}`);
+    }
+  };
+
+  const handleCleanLyrics = async () => {
+    setImportStatus('⌛ Čistím...');
+    const res = await manuallyCleanLyricsAction(song.id, formData.lyrics || '');
+    if (res.success) {
+      setFormData({ ...formData, lyrics: res.lyrics });
+      setImportStatus('✅ Text vyčištěn (akordy pryč)!');
       setTimeout(() => setImportStatus(null), 3000);
     } else {
       setImportStatus(`❌ ${res.error}`);
@@ -139,7 +151,17 @@ export default function SongEditModal({
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem' }}>
               <label style={{ fontSize: '11px', color: '#888', fontWeight: 800, letterSpacing: '0.05em' }}>TEXT PÍSNĚ</label>
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <button 
+                type="button" 
+                onClick={handleCleanLyrics} 
+                className="btn-secondary" 
+                style={{ padding: '4px 12px', fontSize: '10px', borderRadius: '8px', border: '1px solid var(--color-gold)', color: 'var(--color-gold)' }}
+                title="Odstraní akordy a vyčistí text"
+              >
+                🧹 VYČISTIT TEXT
+              </button>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <input 
                   placeholder="URL karaoketexty.cz" 
                   value={importUrl} 
