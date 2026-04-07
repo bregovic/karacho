@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/context/SessionContext';
 import { updateSessionState, advanceSessionQueue, addToSessionQueue, removeFromSessionQueue } from '@/app/actions/session-actions';
-import { requestSong } from '@/app/admin/actions';
+import { requestSong, checkDuplicateSong } from '@/app/admin/actions';
 
 interface Song {
   id: string;
@@ -109,6 +109,24 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
   const handleRequestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reqTitle || !reqArtist) return;
+    
+    // Kontrola duplicit před odesláním žádosti
+    const dup = await checkDuplicateSong(reqTitle, reqArtist);
+    if (dup) {
+      if (dup.state === 'ACTIVE') {
+        alert("🎤 Tuhle písničku už v katalogu máme! Schválně se podívej do seznamu.");
+        setShowRequestModal(false);
+        return;
+      }
+      if ((dup.state as string) === 'REQUESTED') {
+        alert("📝 O tuhle píseň už někdo požádal. Pracujeme na tom, abychom ji přidali co nejdříve!");
+        setShowRequestModal(false);
+        return;
+      }
+      alert(`⚠️ Tato píseň už v systému je (Stav: ${dup.state}). Nemusíš o ni žádat.`);
+      setShowRequestModal(false);
+      return;
+    }
     
     setIsRequesting(true);
     const res = await requestSong(reqTitle, reqArtist);
