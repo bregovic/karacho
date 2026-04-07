@@ -26,6 +26,7 @@ export default function SongEditModal({
   const [importUrl, setImportUrl] = useState('');
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [researching, setResearching] = useState(false);
+  const [activeTextView, setActiveTextView] = useState<'lyrics' | 'chords'>('lyrics');
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -58,7 +59,7 @@ export default function SongEditModal({
     setImportStatus('⌛ Stahuji...');
     const res = await importLyricsFromUrl(song.id, importUrl);
     if (res.success) {
-      setFormData({ ...formData, lyrics: res.lyrics });
+      setFormData({ ...formData, lyrics: res.lyrics, chords: res.chords || formData.chords });
       setImportStatus('✅ Text úspěšně stažen!');
       setTimeout(() => setImportStatus(null), 3000);
     } else {
@@ -150,7 +151,22 @@ export default function SongEditModal({
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem' }}>
-              <label style={{ fontSize: '11px', color: '#888', fontWeight: 800, letterSpacing: '0.05em' }}>TEXT PÍSNĚ</label>
+              <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.05)', padding: '4px', borderRadius: '10px' }}>
+                <button 
+                  type="button" 
+                  onClick={() => setActiveTextView('lyrics')}
+                  style={{ padding: '6px 14px', fontSize: '10px', borderRadius: '8px', border: 'none', background: activeTextView === 'lyrics' ? 'var(--color-teal)' : 'transparent', color: activeTextView === 'lyrics' ? 'black' : 'white', fontWeight: 800, cursor: 'pointer' }}
+                >
+                  TEXT 🎤
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setActiveTextView('chords')}
+                  style={{ padding: '6px 14px', fontSize: '10px', borderRadius: '8px', border: 'none', background: activeTextView === 'chords' ? '#ff4b2b' : 'transparent', color: activeTextView === 'chords' ? 'white' : '#888', fontWeight: 800, cursor: 'pointer' }}
+                >
+                  AKORDY 🎸
+                </button>
+              </div>
               <button 
                 type="button" 
                 onClick={handleCleanLyrics} 
@@ -164,36 +180,36 @@ export default function SongEditModal({
             
             <div style={{ display: 'flex', gap: '8px' }}>
               <input 
-                placeholder="URL karaoketexty.cz" 
+                placeholder="URL (karaoketexty, supermusic...)" 
                 value={importUrl} 
                 onChange={e => setImportUrl(e.target.value)}
-                style={{ padding: '6px 12px', fontSize: '11px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', borderRadius: '8px', width: '180px' }}
+                style={{ padding: '6px 12px', fontSize: '11px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', borderRadius: '8px', width: '220px' }}
               />
               <button type="button" onClick={handleImportLyrics} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '11px', borderRadius: '8px' }}>🔗 IMPORT</button>
             </div>
 
             {importStatus && <div style={{ fontSize: '11px', color: importStatus.startsWith('✅') ? '#4ade80' : '#f87171', marginTop: '-5px' }}>{importStatus}</div>}
+            
             <textarea 
               className="input-field" 
-              style={{ height: '180px', fontFamily: 'monospace', fontSize: '13px', lineHeight: '1.6' }} 
-              value={formData.lyrics || ''} 
-              onChange={e => setFormData({ ...formData, lyrics: e.target.value })}
+              style={{ 
+                height: '240px', 
+                fontFamily: 'monospace', 
+                fontSize: '13px', 
+                lineHeight: '1.6',
+                border: activeTextView === 'chords' ? '1px solid rgba(255,75,43,0.3)' : '1px solid rgba(255,255,255,0.1)',
+                background: activeTextView === 'chords' ? 'rgba(255,75,43,0.02)' : 'rgba(0,0,0,0.3)'
+              }} 
+              value={(activeTextView === 'lyrics' ? formData.lyrics : formData.chords) || ''} 
+              onChange={e => {
+                const val = e.target.value;
+                if (activeTextView === 'lyrics') setFormData({ ...formData, lyrics: val });
+                else setFormData({ ...formData, chords: val });
+              }}
             />
           </div>
         </div>
 
-            {formData.chords && (
-              <>
-                <label style={{ fontSize: '11px', color: '#ff4b2b', fontWeight: 800, letterSpacing: '0.05em', marginTop: '0.5rem' }}>AKORDY / INSTRUM. INFO (ZÁLOHA)</label>
-                <textarea 
-                  className="input-field" 
-                  style={{ height: '80px', fontFamily: 'monospace', fontSize: '11px', lineHeight: '1.4', background: 'rgba(255,75,43,0.05)', color: '#ffb5a7' }} 
-                  value={formData.chords} 
-                  readOnly 
-                />
-              </>
-            )}
-            
             <div style={{ marginTop: '2.5rem', display: 'flex', gap: '1rem', justifyContent: 'flex-end', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '1.5rem' }}>
           <button onClick={onClose} className="btn-secondary" style={{ padding: '12px 30px', borderRadius: '14px' }}>Zrušit</button>
           <button 

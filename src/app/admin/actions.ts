@@ -381,18 +381,26 @@ export async function researchSongDataAction(songId: string) {
       }
     }
 
-    // 3. PISNICKY-AKORDY RESEARCH (Perfect for CZ songs)
+    // 3. SUPERMUSIC & PISNICKY-AKORDY RESEARCH (Perfect for CZ songs)
     const currentLyrics = results.lyrics || song.lyrics || '';
-    const needsBetterLyrics = !currentLyrics || currentLyrics.length < 100 || currentLyrics.includes('[') || (currentLyrics.match(/,/g) || []).length > 10;
+    const needsBetterLyrics = !currentLyrics || currentLyrics.length < 100 || currentLyrics.includes('[') || (currentLyrics.match(/,/g) || []).length > 2;
 
     if (needsBetterLyrics) {
-       const paUrl = `https://pisnicky-akordy.cz/${toSlug(artist)}/${toSlug(title)}`;
+       // A. Zkusíme nejdřív SuperMusic (často lepší formátování)
+       const smUrl = `https://supermusic.cz/skupina.php?action=song&idinterpret=${toSlug(artist)}&idpisen=${toSlug(title)}`;
+       const smRes = await importLyricsFromUrl(songId, smUrl);
        
-       console.info(`[Research] Trying Pisnicky-Akordy: ${paUrl}`);
-       const paRes = await importLyricsFromUrl(songId, paUrl);
-       if (paRes.success) {
-          results.lyrics = paRes.lyrics;
-          if (paRes.chords) results.chords = paRes.chords;
+       if (smRes.success) {
+          results.lyrics = smRes.lyrics;
+          if (smRes.chords) results.chords = smRes.chords;
+       } else {
+          // B. Pokud SuperMusic selže, zkusíme Pisnicky-Akordy (jako dřív)
+          const paUrl = `https://pisnicky-akordy.cz/${toSlug(artist)}/${toSlug(title)}`;
+          const paRes = await importLyricsFromUrl(songId, paUrl);
+          if (paRes.success) {
+             results.lyrics = paRes.lyrics;
+             if (paRes.chords) results.chords = paRes.chords;
+          }
        }
     }
 
