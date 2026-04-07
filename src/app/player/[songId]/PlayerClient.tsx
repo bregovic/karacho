@@ -46,6 +46,8 @@ export default function PlayerClient({ song }: { song: any }) {
   const nextLineEl1 = useRef<HTMLDivElement>(null);
   const curLineEl2 = useRef<HTMLDivElement>(null);
   const nextLineEl2 = useRef<HTMLDivElement>(null);
+  const curLineElC = useRef<HTMLDivElement>(null);
+  const nextLineElC = useRef<HTMLDivElement>(null);
   const pbarEl = useRef<HTMLDivElement>(null);
   const timeEl = useRef<HTMLSpanElement>(null);
   const countEl = useRef<HTMLDivElement>(null);
@@ -53,6 +55,7 @@ export default function PlayerClient({ song }: { song: any }) {
 
   const lastBlock1 = useRef<number>(-1);
   const lastBlock2 = useRef<number>(-1);
+  const lastBlockC = useRef<number>(-1);
 
   const data: TimingData = (song.timingData as any) || { blocks: [], dur: 0 };
   const blocks = data.blocks || [];
@@ -117,6 +120,7 @@ export default function PlayerClient({ song }: { song: any }) {
       setIsPlaying(false); 
       lastBlock1.current = -1; 
       lastBlock2.current = -1;
+      lastBlockC.current = -1;
       releaseWakeLock(); 
       if (isWatchMode) return;
       if (joinCode) {
@@ -211,14 +215,14 @@ export default function PlayerClient({ song }: { song: any }) {
   };
 
   const getVoiceState = (t: number, voice: number) => {
-    const ci = blocks.findIndex(b => t >= b.bs && t < b.be && ((b.v || 1) === voice || b.v === 3));
+    const ci = blocks.findIndex(b => t >= b.bs && t < b.be && ((b.v || 3) === voice));
     if (ci < 0) return null;
     const cb = blocks[ci];
     let nc = 0;
     for (const w of cb.w || []) {
       if (t >= w.t) nc = w.i + 1;
     }
-    const nextIdx = blocks.findIndex((b, idx) => idx > ci && ((b.v || 1) === voice || b.v === 3));
+    const nextIdx = blocks.findIndex((b, idx) => idx > ci && ((b.v || 3) === voice));
     return {
       cb, nc, ci,
       next: nextIdx >= 0 ? blocks[nextIdx] : null
@@ -233,8 +237,10 @@ export default function PlayerClient({ song }: { song: any }) {
 
     const s1 = getVoiceState(visualTime, 1);
     const s2 = getVoiceState(visualTime, 2);
+    const sC = getVoiceState(visualTime, 3);
     renderVoiceState(s1, visualTime, 1);
     renderVoiceState(s2, visualTime, 2);
+    renderVoiceState(sC, visualTime, 3);
 
     if (pbarEl.current) pbarEl.current.style.width = `${(t / d) * 100}%`;
     if (videoElRef.current) {
@@ -271,9 +277,9 @@ export default function PlayerClient({ song }: { song: any }) {
   };
 
   const renderVoiceState = (state: any, t: number, voice: number) => {
-    const cur = voice === 1 ? curLineEl1.current : curLineEl2.current;
-    const nextText = voice === 1 ? nextLineEl1.current : nextLineEl2.current;
-    const lastBlkRef = voice === 1 ? lastBlock1 : lastBlock2;
+    const cur = voice === 1 ? curLineEl1.current : (voice === 2 ? curLineEl2.current : curLineElC.current);
+    const nextText = voice === 1 ? nextLineEl1.current : (voice === 2 ? nextLineEl2.current : nextLineElC.current);
+    const lastBlkRef = voice === 1 ? lastBlock1 : (voice === 2 ? lastBlock2 : lastBlockC);
 
     if (!state) {
       if (cur) cur.innerHTML = '';
@@ -286,7 +292,10 @@ export default function PlayerClient({ song }: { song: any }) {
     
     if (ci !== lastBlkRef.current) {
       if (cur) {
-        const fillColor = voice === 1 ? '#ffd700' : '#ff758c';
+        let fillColor = '#ffd700'; // Center (W)
+        if (voice === 1) fillColor = '#ff4b2b'; // Voice 1 (A) - Červená
+        if (voice === 2) fillColor = '#00d2ff'; // Voice 2 (D) - Modrá
+
         cur.innerHTML = cb.lw.map((w: string, i: number) => `<span class="w-wrap"><span class="w-off">${w}</span><span class="w-on" style="color: ${fillColor}">${w}</span></span>`).join(' ');
         cur.classList.remove('block-new');
         void cur.offsetWidth; 
@@ -351,10 +360,9 @@ export default function PlayerClient({ song }: { song: any }) {
         .player-root { --glow: rgba(255, 215, 0, 0.55); }
         .w-wrap { position: relative; display: inline-block; padding: 0; margin: 0 0.1em; }
         .w-off { color: rgba(255,255,255,1); text-shadow: 1px 1px 3px rgba(0,0,0,0.9); }
-        .w-on { position: absolute; left: 0; top: 0; width: 0%; overflow: hidden; white-space: nowrap; color: #ffd700; text-shadow: 1px 1px 3px rgba(0,0,0,0.9); }
+        .w-on { position: absolute; left: 0; top: 0; width: 0%; overflow: hidden; white-space: nowrap; text-shadow: 1px 1px 3px rgba(0,0,0,0.9); }
         .ln-ctx { font-size: clamp(14px, 1.8vw, 22px); color: rgba(255,255,255,0.4); font-weight: 700; text-align: center; min-height: 1.4em; transition: opacity 0.3s; }
-        #cur-line-1, #cur-line-2 { font-size: clamp(24px, 5.5vw, 70px); font-weight: 900; text-align: center; min-height: 1.2em; line-height: 1.1; letter-spacing: -0.01em; }
-        #cur-line-2 { color: white; }
+        #cur-line-1, #cur-line-2, #cur-line-C { font-size: clamp(24px, 5.5vw, 70px); font-weight: 900; text-align: center; min-height: 1.2em; line-height: 1.1; letter-spacing: -0.01em; }
         @keyframes blockIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
         .block-new { animation: blockIn 0.3s ease-out forwards; }
       `}} />
@@ -372,20 +380,23 @@ export default function PlayerClient({ song }: { song: any }) {
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 40%, transparent 60%, rgba(0,0,0,0.8) 100%)' }} />
       </div>
 
+      {/* STAGE (Layout hybridní - Center + Duet) */}
       <div id="stage" style={{ position: 'relative', width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', pointerEvents: 'none', zIndex: 3 }}>
-        <div ref={countEl} style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: '8px', position: 'absolute', top: '12%', left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
-          <div className="cnt-v" style={{ color: 'var(--color-gold)', fontSize: '85px', lineHeight: 1, fontWeight: 900, textShadow: '0 0 40px rgba(255,215,0,0.8)', filter: 'drop-shadow(0 4px 15px rgba(0,0,0,0.8))', marginBottom: '-5px' }} />
-          <div style={{ width: '180px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden', boxShadow: '0 0 25px rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.05)' }}>
-             <div ref={countBarEl} style={{ width: '100%', height: '100%', background: 'linear-gradient(90deg, #FFD700, #FFA500, #FFD700)', boxShadow: '0 0 15px var(--color-gold)', transition: 'width 0.1s linear' }} />
-          </div>
-        </div>
         
-        <div id="voice1" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '10vh 5vw 0 5vw', gap: '3vh' }}>
+        {/* HLAS 1 (Top) */}
+        <div id="voice1" style={{ position: 'absolute', top: '15%', left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3vh', padding: '0 5vw' }}>
           <div id="cur-line-1" ref={curLineEl1} style={{ color: 'white' }}></div>
           <div className="ln-ctx" ref={nextLineEl1} style={{ opacity: 0.4 }}></div>
         </div>
 
-        <div id="voice2" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '0 5vw 10vh 5vw', gap: '3vh' }}>
+        {/* HLAS CENTER (Standard W) */}
+        <div id="voice3" style={{ position: 'absolute', top: '50%', left: 0, right: 0, transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3vh', padding: '0 5vw' }}>
+          <div id="cur-line-C" ref={curLineElC} style={{ color: 'white' }}></div>
+          <div className="ln-ctx" ref={nextLineElC} style={{ opacity: 0.4 }}></div>
+        </div>
+
+        {/* HLAS 2 (Bottom) */}
+        <div id="voice2" style={{ position: 'absolute', bottom: '25%', left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3vh', padding: '0 5vw' }}>
           <div id="cur-line-2" ref={curLineEl2} style={{ color: 'white' }}></div>
           <div className="ln-ctx" ref={nextLineEl2} style={{ opacity: 0.4 }}></div>
         </div>
