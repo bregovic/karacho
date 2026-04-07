@@ -120,6 +120,18 @@ export async function requestSong(title: string, artist: string) {
   }
 }
 
+export async function checkDuplicateSong(title: string, artist: string) {
+  if (!title) return null;
+  const existing = await db.song.findFirst({
+    where: {
+      title: { equals: title.trim(), mode: 'insensitive' },
+      artist: artist ? { equals: artist.trim(), mode: 'insensitive' } : null
+    },
+    select: { id: true, title: true, artist: true, state: true }
+  });
+  return existing;
+}
+
 export async function updateSongAnimation(songId: string, animationStyle: string) {
   await db.song.update({ where: { id: songId }, data: { animationStyle } });
   revalidatePath('/admin');

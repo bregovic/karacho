@@ -4,7 +4,7 @@ import Link from 'next/link';
 import AudioUploader from '@/components/AudioUploader';
 import BulkUploader from '@/components/BulkUploader';
 import SongEditModal from '@/components/SongEditModal';
-import { createSong, deleteSong, updateSong, removeSongResource, bulkRemoveBackground, bulkUpdateState, fetchLyricsAction, bulkFetchMissingLyrics } from '@/app/admin/actions';
+import { createSong, deleteSong, updateSong, removeSongResource, bulkRemoveBackground, bulkUpdateState, fetchLyricsAction, bulkFetchMissingLyrics, checkDuplicateSong } from '@/app/admin/actions';
 import { autoAlignSong } from '@/app/admin/auto-align';
 import { useTranslation } from '@/lib/translations';
 
@@ -160,7 +160,22 @@ export default function AdminCatalog({
       {showForm && (
         <div className="glass-panel" style={{ marginBottom: '2.5rem', padding: '2.5rem', borderRadius: '32px', border: '1px solid var(--color-teal)', animation: 'slideDown 0.3s ease-out' }}>
           <h2 style={{ color: 'var(--color-gold)', marginBottom: '1.5rem', fontSize: '24px' }}>🎵 Přidat novou skladbu</h2>
-          <form action={async (fd) => { await createSong(fd); setShowForm(false); }} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+          <form onSubmit={async (e) => { 
+            e.preventDefault();
+            const fd = new FormData(e.target as HTMLFormElement);
+            const title = fd.get('title') as string;
+            const artist = fd.get('artist') as string;
+            
+            const dup = await checkDuplicateSong(title, artist);
+            if (dup) {
+              if (!confirm(`⚠️ Píseň "${dup.title}" od "${dup.artist || '?'}" už v katalogu existuje (ID: ${dup.id}, Stav: ${dup.state}). Chcete ji i přesto vytvořit znovu?`)) {
+                return;
+              }
+            }
+            
+            await createSong(fd); 
+            setShowForm(false); 
+          }} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <label style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-teal)', textTransform: 'uppercase' }}>Název skladby *</label>
               <input name="title" required placeholder="Např. Zvonky štěstí" style={{ padding: '14px', borderRadius: '12px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }} />
