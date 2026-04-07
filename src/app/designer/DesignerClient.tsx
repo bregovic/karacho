@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef, useEffect, ChangeEvent } from 'react';
+import { useState, useRef, useEffect, ChangeEvent, useCallback } from 'react';
 import Link from 'next/link';
 import { autoAlignSong } from '@/app/admin/auto-align';
 
@@ -191,7 +191,7 @@ export default function DesignerClient({ song }: { song: any }) {
     renderUI();
   };
 
-  const handleKeyDown = (e: KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
     // Esc pro návrat domů/zpět
     if (e.code === 'Escape') {
       window.location.href = '/admin';
