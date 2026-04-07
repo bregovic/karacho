@@ -29,6 +29,7 @@ export async function createSong(formData: FormData) {
       tags,
       lyrics: lyrics || null,
       audioUrl: audioUrl || null,
+      animationStyle: 'karaoke-classic'
     },
   });
 
@@ -284,6 +285,27 @@ export async function researchSongDataAction(songId: string) {
           results.tags = Array.from(new Set([...(song.tags || []), ...tags]));
         }
         // Album/Year info (Last.fm rok přímo nevrací snadno, ale můžeme zkusit album)
+      }
+    }
+
+    // 3. KARAOKE TEXTY RESEARCH (Search + Scrape fallback - best for CZ/SK songs)
+    if (!results.lyrics) {
+      console.info(`[Research] Looking at karaoketexty.cz search for: ${artist} - ${title}`);
+      const searchUrl = `https://www.karaoketexty.cz/search?q=${encodeURIComponent(artist + ' ' + title)}`;
+      const sRes = await fetch(searchUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36' }
+      });
+      
+      if (sRes.ok) {
+        const sHtml = await sRes.text();
+        const firstMatch = sHtml.match(/<a href="([^"]*?)" class="song-link">/);
+        if (firstMatch && firstMatch[1]) {
+           const fullUrl = firstMatch[1].startsWith('http') ? firstMatch[1] : `https://www.karaoketexty.cz${firstMatch[1]}`;
+           const lRes = await importLyricsFromUrl(songId, fullUrl);
+           if (lRes.success) {
+             results.lyrics = lRes.lyrics;
+           }
+        }
       }
     }
 

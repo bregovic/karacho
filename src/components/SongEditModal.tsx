@@ -118,10 +118,23 @@ export default function SongEditModal({
 
             <label style={{ fontSize: '11px', color: '#888', fontWeight: 800, letterSpacing: '0.05em' }}>POZADÍ</label>
             <div 
-              style={{ height: '40px', borderRadius: '12px', background: `url(${formData.backgroundUrl || '/placeholder-bg.png'}) center/cover`, border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 800, color: '#fff', textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}
+              style={{ 
+                height: '40px', 
+                borderRadius: '12px', 
+                background: formData.backgroundUrl ? `url(${formData.backgroundUrl}) center/cover` : 'linear-gradient(45deg, #111, #222)', 
+                border: '1px solid rgba(255,255,255,0.1)', 
+                cursor: 'pointer', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                fontSize: '10px', 
+                fontWeight: 800, 
+                color: '#fff', 
+                textShadow: '0 2px 4px rgba(0,0,0,0.8)' 
+              }}
               onClick={() => setShowGallery(true)}
             >
-              {!formData.backgroundUrl && "VYBRAT POZADÍ"}
+              {!formData.backgroundUrl && "➕ VYBRAT POZADÍ Z GALERIE"}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem' }}>
