@@ -20,6 +20,7 @@ export default function DesignerClient({ song }: { song: any }) {
   const [isAligning, setIsAligning] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const rafRef = useRef<number | null>(null);
+  const [voiceMap, setVoiceMap] = useState<Record<number, number>>({});
 
   const [rawText, setRawText] = useState((song?.lyrics || '') as string);
 
@@ -57,6 +58,9 @@ export default function DesignerClient({ song }: { song: any }) {
       const newEvents: TimingEvent[] = [];
       song.timingData.blocks.forEach((b: any) => {
         newEvents.push({ type: 'line', time: b.bs, lineIdx: b.li });
+        if (b.v) {
+          setVoiceMap(prev => ({ ...prev, [b.li]: b.v }));
+        }
         if (b.w) {
           b.w.forEach((w: any) => {
             newEvents.push({ type: 'word', time: w.t, lineIdx: b.li, wordIdx: w.i });
@@ -202,6 +206,21 @@ export default function DesignerClient({ song }: { song: any }) {
     }
 
     const t = audioRef.current.currentTime;
+
+    if (e.key.toLowerCase() === 'a') {
+      const lineIdx = curLineRef.current;
+      if (lineIdx >= 0) {
+        setVoiceMap(prev => ({ ...prev, [lineIdx]: 1 }));
+        forceUpdate();
+      }
+    }
+    if (e.key.toLowerCase() === 'd') {
+      const lineIdx = curLineRef.current;
+      if (lineIdx >= 0) {
+        setVoiceMap(prev => ({ ...prev, [lineIdx]: 2 }));
+        forceUpdate();
+      }
+    }
 
     if (e.code === 'Space') {
       e.preventDefault();
@@ -376,7 +395,7 @@ export default function DesignerClient({ song }: { song: any }) {
           if (nextLE.length) blockEnd = (nextLE[0] as any).time;
        }
        blocks.push({
-         li, lw, bs: blockStart, be: blockEnd, w: wordEvs.map((w: any) => ({ t: (w as any).time, i: (w as any).wordIdx }))
+         li, lw, bs: blockStart, be: blockEnd, v: voiceMap[li] || 1, w: wordEvs.map((w: any) => ({ t: (w as any).time, i: (w as any).wordIdx }))
        });
     }
 
@@ -498,6 +517,7 @@ export default function DesignerClient({ song }: { song: any }) {
                 <span><b>Enter</b> Blok</span>
                 <span><b>Space</b> Pauza</span>
                 <span><b>Backspace</b> Zpět</span>
+                <span><b>A / D</b> Hlas 1 / 2</span>
              </div>
           </div>
 
