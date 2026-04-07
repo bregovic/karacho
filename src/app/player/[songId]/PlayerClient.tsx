@@ -286,7 +286,8 @@ export default function PlayerClient({ song }: { song: any }) {
     
     if (ci !== lastBlkRef.current) {
       if (cur) {
-        cur.innerHTML = cb.lw.map((w: string, i: number) => `<span class="w-wrap"><span class="w-off">${w}</span><span class="w-on">${w}</span></span>`).join(' ');
+        const fillColor = voice === 1 ? '#ffd700' : '#ff758c';
+        cur.innerHTML = cb.lw.map((w: string, i: number) => `<span class="w-wrap"><span class="w-off">${w}</span><span class="w-on" style="color: ${fillColor}">${w}</span></span>`).join(' ');
         cur.classList.remove('block-new');
         void cur.offsetWidth; 
         cur.classList.add('block-new');
@@ -351,9 +352,9 @@ export default function PlayerClient({ song }: { song: any }) {
         .w-wrap { position: relative; display: inline-block; padding: 0; margin: 0 0.1em; }
         .w-off { color: rgba(255,255,255,1); text-shadow: 1px 1px 3px rgba(0,0,0,0.9); }
         .w-on { position: absolute; left: 0; top: 0; width: 0%; overflow: hidden; white-space: nowrap; color: #ffd700; text-shadow: 1px 1px 3px rgba(0,0,0,0.9); }
-        .ln-ctx { font-size: clamp(14px, 2.5vw, 24px); color: rgba(255,255,255,0.4); font-weight: 700; text-align: center; min-height: 1.4em; transition: opacity 0.3s; }
-        #cur-line-1, #cur-line-2 { font-size: clamp(24px, 5.5vw, 72px); font-weight: 900; text-align: center; min-height: 1.2em; line-height: 1.2; letter-spacing: -0.01em; }
-        #cur-line-2 { color: #f87171; }
+        .ln-ctx { font-size: clamp(14px, 1.8vw, 22px); color: rgba(255,255,255,0.4); font-weight: 700; text-align: center; min-height: 1.4em; transition: opacity 0.3s; }
+        #cur-line-1, #cur-line-2 { font-size: clamp(24px, 5.5vw, 70px); font-weight: 900; text-align: center; min-height: 1.2em; line-height: 1.1; letter-spacing: -0.01em; }
+        #cur-line-2 { color: white; }
         @keyframes blockIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
         .block-new { animation: blockIn 0.3s ease-out forwards; }
       `}} />
@@ -379,14 +380,14 @@ export default function PlayerClient({ song }: { song: any }) {
           </div>
         </div>
         
-        <div id="voice1" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '10vh 5vw 0 5vw', gap: '2vh' }}>
-          <div id="cur-line-1" ref={curLineEl1}></div>
-          <div className="ln-ctx" ref={nextLineEl1} style={{ opacity: 0.6, fontSize: '0.6em' }}></div>
+        <div id="voice1" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '10vh 5vw 0 5vw', gap: '3vh' }}>
+          <div id="cur-line-1" ref={curLineEl1} style={{ color: 'white' }}></div>
+          <div className="ln-ctx" ref={nextLineEl1} style={{ opacity: 0.4 }}></div>
         </div>
 
-        <div id="voice2" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '0 5vw 10vh 5vw', gap: '2vh' }}>
-          <div id="cur-line-2" ref={curLineEl2}></div>
-          <div className="ln-ctx" ref={nextLineEl2} style={{ opacity: 0.6, fontSize: '0.6em' }}></div>
+        <div id="voice2" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '0 5vw 10vh 5vw', gap: '3vh' }}>
+          <div id="cur-line-2" ref={curLineEl2} style={{ color: 'white' }}></div>
+          <div className="ln-ctx" ref={nextLineEl2} style={{ opacity: 0.4 }}></div>
         </div>
       </div>
 
