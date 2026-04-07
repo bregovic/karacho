@@ -58,9 +58,7 @@ export default function DesignerClient({ song }: { song: any }) {
       const newEvents: TimingEvent[] = [];
       song.timingData.blocks.forEach((b: any) => {
         newEvents.push({ type: 'line', time: b.bs, lineIdx: b.li });
-        if (b.v) {
-          setVoiceMap(prev => ({ ...prev, [b.li]: b.v }));
-        }
+        setVoiceMap(prev => ({ ...prev, [b.li]: b.v || 3 }));
         if (b.w) {
           b.w.forEach((w: any) => {
             newEvents.push({ type: 'word', time: w.t, lineIdx: b.li, wordIdx: w.i });
@@ -214,9 +212,8 @@ export default function DesignerClient({ song }: { song: any }) {
         eventsRef.current.push({ type: 'line', time: t, lineIdx: 0 });
       }
 
-      if (v) {
-        setVoiceMap(prev => ({ ...prev, [curLineRef.current]: v }));
-      }
+      const targetVoice = v !== undefined ? v : 3;
+      setVoiceMap(prev => ({ ...prev, [curLineRef.current]: targetVoice }));
 
       const nextW = curWordRef.current + 1;
       const lineLen = linesRef.current[curLineRef.current]?.length || 0;
@@ -230,7 +227,7 @@ export default function DesignerClient({ song }: { song: any }) {
         if (nextL < linesRef.current.length) {
           curLineRef.current = nextL;
           curWordRef.current = 0;
-          if (v) setVoiceMap(prev => ({ ...prev, [nextL]: v }));
+          setVoiceMap(prev => ({ ...prev, [nextL]: targetVoice }));
           eventsRef.current.push({ type: 'line', time: t, lineIdx: nextL });
           eventsRef.current.push({ type: 'word', time: t, lineIdx: nextL, wordIdx: 0 });
           restoreState();
@@ -245,6 +242,10 @@ export default function DesignerClient({ song }: { song: any }) {
     }
     if (e.key.toLowerCase() === 'd') {
       handleWordTiming(2);
+      return;
+    }
+    if (e.key.toLowerCase() === 's') {
+      handleWordTiming(3);
       return;
     }
 
@@ -400,7 +401,7 @@ export default function DesignerClient({ song }: { song: any }) {
           if (nextLE.length) blockEnd = (nextLE[0] as any).time;
        }
        blocks.push({
-         li, lw, bs: blockStart, be: blockEnd, v: voiceMap[li] || 1, w: wordEvs.map((w: any) => ({ t: (w as any).time, i: (w as any).wordIdx }))
+         li, lw, bs: blockStart, be: blockEnd, v: voiceMap[li] || 3, w: wordEvs.map((w: any) => ({ t: (w as any).time, i: (w as any).wordIdx }))
        });
     }
 
