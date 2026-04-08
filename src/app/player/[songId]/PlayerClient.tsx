@@ -327,34 +327,14 @@ export default function PlayerClient({ song }: { song: any }) {
     if (videoElRef.current) videoElRef.current.currentTime = t;
   };
 
-  const [userInteracted, setUserInteracted] = useState(false);
+  const [userInteracted, setUserInteracted] = useState(true);
   const hasVideo = !!song.videoUrl;
-
-  const handleStartMaster = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setUserInteracted(true);
-    togglePlay();
-  };
 
   return (
     <div className="player-root" style={{ 
       position: 'fixed', inset: 0, background: '#000', color: '#fff', 
       fontFamily: 'Inter, sans-serif', overflow: 'hidden' 
     }}>
-      {!isPlaying && !userInteracted && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 1000, 
-          background: 'rgba(0,0,0,0.95)', backdropFilter: 'blur(10px)',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2rem'
-        }}>
-           <div style={{ width: '120px', height: '120px', borderRadius: '50%', background: 'var(--color-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '50px', cursor: 'pointer', boxShadow: '0 0 50px rgba(255,215,0,0.4)', animation: 'pulseDJ 2s infinite' }} onClick={handleStartMaster}>
-             ▶️
-           </div>
-           <style jsx>{`
-             @keyframes pulseDJ { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
-           `}</style>
-        </div>
-      )}
       
       <style dangerouslySetInnerHTML={{ __html: `
         .player-root { --glow: rgba(255, 215, 0, 0.55); }
