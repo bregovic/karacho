@@ -339,12 +339,14 @@ export default function PlayerClient({ song }: { song: any }) {
       <style dangerouslySetInnerHTML={{ __html: `
         .player-root { --glow: rgba(255, 215, 0, 0.55); }
         .w-wrap { position: relative; display: inline-block; padding: 0; margin: 0 0.1em; }
-        .w-off { color: rgba(255,255,255,1); text-shadow: 1px 1px 3px rgba(0,0,0,0.9); }
         .w-on { position: absolute; left: 0; top: 0; width: 0%; overflow: hidden; white-space: nowrap; text-shadow: 1px 1px 3px rgba(0,0,0,0.9); }
         .ln-ctx { font-size: clamp(14px, 1.8vw, 22px); color: rgba(255,255,255,0.4); font-weight: 700; text-align: center; min-height: 1.4em; transition: opacity 0.3s; }
         #cur-line-1, #cur-line-2, #cur-line-C { font-size: clamp(24px, 5.5vw, 70px); font-weight: 900; text-align: center; min-height: 1.2em; line-height: 1.1; letter-spacing: -0.01em; }
         @keyframes blockIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
         .block-new { animation: blockIn 0.3s ease-out forwards; }
+        @media (max-width: 600px) {
+          .footer-title-hide { display: none !important; }
+        }
       `}} />
 
       <div style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
@@ -361,7 +363,7 @@ export default function PlayerClient({ song }: { song: any }) {
       </div>
 
       <div id="stage" style={{ position: 'relative', width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', pointerEvents: 'none', zIndex: 3 }}>
-        <div ref={countEl} style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: '8px', position: 'absolute', top: '12%', left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
+        <div ref={countEl} style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: '8px', position: 'absolute', top: '20%', left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
           <div className="cnt-v" style={{ color: 'var(--color-gold)', fontSize: '85px', lineHeight: 1, fontWeight: 900, textShadow: '0 0 40px rgba(255,215,0,0.8)', filter: 'drop-shadow(0 4px 15px rgba(0,0,0,0.8))', marginBottom: '-5px' }} />
           <div style={{ width: '180px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden', boxShadow: '0 0 25px rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.05)' }}>
              <div ref={countBarEl} style={{ width: '100%', height: '100%', background: 'linear-gradient(90deg, #FFD700, #FFA500, #FFD700)', boxShadow: '0 0 15px var(--color-gold)', transition: 'width 0.1s linear' }} />
@@ -391,14 +393,13 @@ export default function PlayerClient({ song }: { song: any }) {
          <div id="controls" style={{ padding: '2rem', display: 'flex', alignItems: 'center', gap: '1.5rem', pointerEvents: 'auto', background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }}>
             <div className="meta-info" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>
-                   <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>{song.artist} – {song.title}</span>
+                   <span className="footer-title-hide" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>{song.artist} – {song.title}</span>
                    <span ref={timeEl}>0:00 / 0:00</span>
                 </div>
                 <div onClick={handleSeek} style={{ height: '8px', background: 'rgba(255,255,255,0.15)', borderRadius: '4px', cursor: 'pointer', position: 'relative' }}>
                    <div ref={pbarEl} style={{ height: '100%', background: 'var(--color-gold)', width: '0%', borderRadius: '4px', boxShadow: '0 0 12px var(--glow)' }} />
                 </div>
             </div>
-
             <div className="btn-group" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
               <button onClick={togglePlay} style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'var(--color-gold)', border: 'none', color: '#000', fontSize: '22px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                  {isPlaying ? '⏸' : '▶'}
