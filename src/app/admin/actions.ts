@@ -114,9 +114,22 @@ export async function requestSong(title: string, artist: string) {
     });
     revalidatePath('/admin');
     return { success: true, song };
-  } catch (err) {
-    console.error('Request song fail:', err);
-    return { error: 'Nepodařilo se odeslat žádost' };
+  } catch (err: any) {
+    console.error('Request song fail detailed:', err);
+    try {
+       const songFallback = await db.song.create({
+         data: {
+           title: title.trim(),
+           artist: artist.trim(),
+           state: 'NEW',
+           tags: ['ŽÁDOST']
+         }
+       });
+       revalidatePath('/admin');
+       return { success: true, song: songFallback, note: 'Uloženo jako NEW' };
+    } catch (err2: any) {
+       return { error: 'Chyba databáze: ' + (err2?.message || 'Neznámý problém') };
+    }
   }
 }
 
