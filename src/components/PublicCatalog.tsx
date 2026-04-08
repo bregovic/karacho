@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useSession } from '@/context/SessionContext';
 import { updateSessionState, advanceSessionQueue, addToSessionQueue, removeFromSessionQueue } from '@/app/actions/session-actions';
 import { requestSong, checkDuplicateSong } from '@/app/admin/actions';
@@ -39,6 +40,7 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
   const [reqTitle, setReqTitle] = useState('');
   const [reqArtist, setReqArtist] = useState('');
   const [isRequesting, setIsRequesting] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
 
   const handleRemoveFromQueue = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -153,6 +155,45 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', paddingBottom: joinCode ? '110px' : '0' }}>
       
+      {/* 🍔 HAMBURGER MENU / TOP NAV */}
+      <div style={{ position: 'fixed', top: '25px', right: '30px', zIndex: 10000, display: 'flex', gap: '1rem', alignItems: 'center' }}>
+        <div style={{ position: 'relative' }}>
+          <button 
+            onClick={() => setShowMenu(!showMenu)}
+            style={{ width: '45px', height: '45px', borderRadius: '14px', background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', fontSize: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)', transition: 'all 0.2s' }}
+          >
+            {showMenu ? '✕' : '☰'}
+          </button>
+
+          {showMenu && (
+            <div style={{ position: 'absolute', top: '55px', right: 0, width: '220px', background: '#111', borderRadius: '20px', border: '1px solid rgba(255,215,0,0.2)', boxShadow: '0 20px 50px rgba(0,0,0,0.8)', overflow: 'hidden', animation: 'slideDownMenu 0.3s ease-out' }}>
+               <div 
+                 onClick={() => { setShowRequestModal(true); setShowMenu(false); }}
+                 style={{ padding: '16px 20px', cursor: 'pointer', transition: 'all 0.2s', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }}
+                 className="menu-item"
+               >
+                 <span>➕</span>
+                 <span style={{ fontSize: '14px', fontWeight: 700 }}>Chybějící hit?</span>
+               </div>
+               {isAdmin && (
+                 <Link href="/admin" style={{ textDecoration: 'none', color: 'inherit' }}>
+                   <div style={{ padding: '16px 20px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }} className="menu-item">
+                     <span>⚙️</span>
+                     <span style={{ fontSize: '14px', fontWeight: 700 }}>Administrace</span>
+                   </div>
+                 </Link>
+               )}
+               <Link href="/api/auth/signout" style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <div style={{ padding: '16px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }} className="menu-item">
+                    <span>🚪</span>
+                    <span style={{ fontSize: '14px', fontWeight: 700 }}>Odhlásit se</span>
+                  </div>
+               </Link>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* === HERO SEKCE === */}
       <section style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center',
@@ -166,18 +207,6 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
 
         <div className="hero-logo-wrap" style={{ position: 'relative', zIndex: 1, marginBottom: 'clamp(2rem, 6vw, 4rem)' }}>
           <img src="/logo.png" alt="Karacho" className="hero-logo-img" />
-        </div>
-
-        {/* DECENTNÍ REQUEST BUTTON NAHOŘE */}
-        <div style={{ position: 'relative', zIndex: 10, marginBottom: '1.5rem' }}>
-          <button 
-            onClick={() => setShowRequestModal(true)}
-            style={{ padding: '8px 16px', borderRadius: '40px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, transition: 'all 0.2s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = '#fff'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.6)'; }}
-          >
-            ➕ Chybí ti tu něco? Dej nám vědět!
-          </button>
         </div>
 
         {/* JOIN BY ID BOX */}
@@ -333,7 +362,7 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
           position: 'fixed', inset: 0, zIndex: 100000, 
           background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(15px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem'
-        }} onClick={() => setShowQueueMgr(false)}>
+        }} onMouseUp={(e) => { if (e.target === e.currentTarget) setShowQueueMgr(false); }}>
           
           <div style={{
             width: '100%', maxWidth: '600px', maxHeight: '85vh', background: '#111', 
@@ -415,7 +444,7 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
           position: 'fixed', inset: 0, zIndex: 110000, 
           background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(20px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem'
-        }} onClick={() => setShowRequestModal(false)}>
+        }} onMouseUp={(e) => { if (e.target === e.currentTarget) setShowRequestModal(false); }}>
           <div style={{
             width: '100%', maxWidth: '400px', background: '#111', borderRadius: '32px', padding: '2.5rem',
             border: '1px solid rgba(255,215,0,0.2)', boxShadow: '0 20px 60px rgba(0,0,0,1)',
