@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { incrementPlayCount } from '@/app/admin/actions';
 import { useSession } from '@/context/SessionContext';
 import { getSessionStatus, updateSessionState, advanceSessionQueue } from '@/app/actions/session-actions';
+import { recordSinging } from '@/app/actions/user-actions';
 
 interface PlayerBlock {
   lw: string[];
@@ -113,6 +114,7 @@ export default function PlayerClient({ song }: { song: any }) {
     };
     a.onplaying = () => {
       incrementPlayCount(song.id);
+      recordSinging(song.id);
       startTick();
       if (!isWatchMode) toggleFullScreen();
     };

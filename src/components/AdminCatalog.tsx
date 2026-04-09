@@ -18,7 +18,7 @@ export default function AdminCatalog({
   adminEmails?: any[]
 }) {
   const t = useTranslation('cs');
-  const [activeTab, setActiveTab] = useState<'SONGS' | 'TEAM'>('SONGS');
+  const [activeTab, setActiveTab] = useState<'SONGS' | 'TEAM' | 'TECH'>('SONGS');
   const [showForm, setShowForm] = useState(false);
   const [statusFilter, setStatusFilter] = useState('ALL');
   // ... rest of state
@@ -121,6 +121,21 @@ export default function AdminCatalog({
         >
           👥 TÝM & ADMINI
         </button>
+        <Link href="/admin/tech" style={{ textDecoration: 'none' }}>
+          <button 
+            style={{ 
+              padding: '12px 24px', 
+              borderRadius: '14px', 
+              border: '1px solid rgba(255,215,0,0.2)', 
+              background: 'rgba(255,215,0,0.1)', 
+              color: 'var(--color-gold)',
+              fontWeight: 800,
+              cursor: 'pointer'
+            }}
+          >
+            ⚙️ TECHNICKÉ PARAMETRY
+          </button>
+        </Link>
       </div>
 
       {activeTab === 'TEAM' ? (
