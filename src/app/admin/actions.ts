@@ -3,12 +3,18 @@
 import { db } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
+import { logAdminAction } from '@/app/actions/admin-extra-actions';
+
+async function ensureAdmin() {
+  const session = await auth();
+  if (session?.user?.role !== 'ADMIN') {
+    throw new Error('Nemáte oprávnění k této akci.');
+  }
+  return session;
+}
 
 export async function createSong(formData: FormData) {
-  const session = await auth();
-  if (!session?.user) {
-    throw new Error('Nejste přihlášeni');
-  }
+  const session = await ensureAdmin();
 
   const title = formData.get('title') as string;
   const artist = formData.get('artist') as string;
@@ -29,15 +35,19 @@ export async function createSong(formData: FormData) {
       tags,
       lyrics: lyrics || null,
       audioUrl: audioUrl || null,
-      animationStyle: 'karaoke-classic'
+      animationStyle: 'karaoke-classic',
+      createdById: session.user.id
     },
   });
+
+  await logAdminAction('CREATE_SONG', `Vytvořena píseň: ${title} (${artist})`, 'Song', song.id);
 
   revalidatePath('/admin');
   return song;
 }
 
 export async function manuallyCleanLyricsAction(songId: string, currentLyrics: string, customBlacklist: string[] = []) {
+  await ensureAdmin();
   const cleaned = cleanLyrics(currentLyrics, customBlacklist);
   if (cleaned) {
     await db.song.update({ where: { id: songId }, data: { lyrics: cleaned } });
@@ -48,22 +58,26 @@ export async function manuallyCleanLyricsAction(songId: string, currentLyrics: s
 }
 
 export async function updateSongAudio(songId: string, audioUrl: string) {
+  await ensureAdmin();
   await db.song.update({ where: { id: songId }, data: { audioUrl } });
   revalidatePath('/admin');
 }
 
 export async function updateSongInstrumental(songId: string, instrumentalUrl: string) {
+  await ensureAdmin();
   await db.song.update({ where: { id: songId }, data: { instrumentalUrl } });
   revalidatePath('/admin');
 }
 
 export async function updateSongJson(songId: string, jsonUrl: string) {
+  await ensureAdmin();
   await db.song.update({ where: { id: songId }, data: { jsonUrl } });
   revalidatePath('/admin');
   revalidatePath('/designer');
 }
 
 export async function updateSongVideo(songId: string, videoUrl: string, videoSize?: number) {
+  await ensureAdmin();
   await db.song.update({ 
     where: { id: songId }, 
     data: { videoUrl, videoSize: videoSize || undefined } 
@@ -73,6 +87,7 @@ export async function updateSongVideo(songId: string, videoUrl: string, videoSiz
 }
 
 export async function removeSongResource(songId: string, type: 'audio' | 'instrumental' | 'background' | 'json' | 'video') {
+  await ensureAdmin();
   const data: any = {};
   if (type === 'audio') data.audioUrl = null;
   if (type === 'instrumental') data.instrumentalUrl = null;
@@ -101,7 +116,7 @@ export async function incrementPlayCount(songId: string) {
   }
 }
 
-export async function requestSong(title: string, artist: string) {
+export async function requestSong(title: string, artist: string, email?: string) {
   if (!title || !artist) return { error: 'Název a interpret jsou povinné' };
   
   try {
@@ -110,6 +125,7 @@ export async function requestSong(title: string, artist: string) {
         title: title.trim(),
         artist: artist.trim(),
         state: 'REQUESTED' as any,
+        requestedByEmail: email || null
       },
     });
     revalidatePath('/admin');
@@ -122,7 +138,8 @@ export async function requestSong(title: string, artist: string) {
            title: title.trim(),
            artist: artist.trim(),
            state: 'NEW',
-           tags: ['ŽÁDOST']
+           tags: ['ŽÁDOST'],
+           requestedByEmail: email || null
          }
        });
        revalidatePath('/admin');
@@ -170,6 +187,9 @@ export async function updateSong(songId: string, data: any) {
     where: { id: songId }, 
     data 
   });
+
+  await logAdminAction('UPDATE_SONG', `Upravena píseň ID: ${songId}`, 'Song', songId);
+
   revalidatePath('/admin');
 }
 
@@ -517,6 +537,9 @@ export async function bulkUpdateState(songIds: string[], newState: string) {
 
 export async function deleteSong(songId: string) {
   await db.song.delete({ where: { id: songId } });
+  
+  await logAdminAction('DELETE_SONG', `Smazána píseň ID: ${songId}`, 'Song', songId);
+
   revalidatePath('/admin');
 }
 

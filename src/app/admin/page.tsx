@@ -7,8 +7,8 @@ export const forceDynamic = true;
 
 export default async function AdminPage() {
   const session = await auth();
-  if (!session?.user) {
-    redirect('/api/auth/signin');
+  if (!session?.user || session.user.role !== 'ADMIN') {
+    redirect('/');
   }
 
   const songs = await db.song.findMany({

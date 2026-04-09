@@ -6,6 +6,8 @@ import AuthProvider from "@/components/AuthProvider";
 import { SessionProvider } from "@/context/SessionContext";
 import HeaderSessionInfo from "@/components/HeaderSessionInfo";
 import GlobalEscape from "@/components/GlobalEscape";
+import TopHamburger from "@/components/TopHamburger";
+import GlobalRequestModal from "@/components/GlobalRequestModal";
 
 const font = Outfit({
   variable: "--font-outfit",
@@ -16,6 +18,8 @@ export const metadata: Metadata = {
   title: "Karacho Karaoke Platform",
   description: "Modern, playful karaoke platform for web, TV, and mobile.",
 };
+
+import { ToastProvider } from "@/context/ToastContext";
 
 export default async function RootLayout({
   children,
@@ -28,11 +32,13 @@ export default async function RootLayout({
     <html lang="cs">
       <body className={font.className} style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#000', color: '#fff' }}>
         <AuthProvider>
-          <SessionProvider>
+          <ToastProvider>
+            <SessionProvider>
             <GlobalEscape />
+            <GlobalRequestModal />
             <nav style={{ 
-              padding: '1rem clamp(1.5rem, 5vw, 4rem)', 
-              background: 'rgba(0,0,0,0.5)', 
+              padding: '1rem clamp(1rem, 3vw, 4rem)', 
+              background: 'rgba(0,0,0,0.6)', 
               backdropFilter: 'blur(30px)', 
               borderBottom: '1px solid rgba(255,255,255,0.08)', 
               display: 'flex', 
@@ -42,37 +48,40 @@ export default async function RootLayout({
               top: 0, 
               zIndex: 1000 
             }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '18px', textDecoration: 'none' }}>
-                  <img src="/icon.png" alt="Karacho Logo" style={{ width: '54px', height: '54px', borderRadius: '12px', boxShadow: '0 0 15px rgba(255,215,0,0.1)' }} />
-                  <span style={{ fontSize: '32px', fontWeight: 900, color: 'var(--color-gold)', letterSpacing: '-0.06em', textShadow: '0 0 20px rgba(255,215,0,0.2)' }}>KARACHO</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 'clamp(8px, 2vw, 18px)', textDecoration: 'none' }}>
+                  <img src="/icon.png" alt="Karacho Logo" className="header-logo-img" />
+                  <span className="header-title">KARACHO</span>
                 </a>
-                <div style={{ marginLeft: '4px' }}>
+                <div style={{ marginLeft: '4px' }} className="header-session-info-wrap">
                   <HeaderSessionInfo />
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                 
-                {session?.user ? (
-                  <>
-                    {session.user.role === 'ADMIN' && (
-                       <a href="/admin" style={{ color: '#fff', textDecoration: 'none', fontSize: '16px', fontWeight: 600, opacity: 0.85 }}>Admin</a>
-                    )}
-                    <form action={async () => { "use server"; await signOut(); }}>
-                      <button type="submit" style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '16px', fontWeight: 500, opacity: 0.85 }}>
-                        Odhlásit
-                      </button>
-                    </form>
-                  </>
-                ) : (
-                  <a href="/api/auth/signin" style={{ color: '#fff', textDecoration: 'none', fontSize: '16px', fontWeight: 600, opacity: 0.85 }}>Přihlásit</a>
-                )}
+                <TopHamburger 
+                  isAdmin={session?.user?.role === 'ADMIN'} 
+                  isAuthenticated={!!session?.user} 
+                />
               </div>
             </nav>
+
+            <style>{`
+              .header-logo-img { width: 50px; height: 50px; border-radius: 12px; transition: all 0.3s; }
+              .header-title { fontSize: 30px; fontWeight: 900; color: var(--color-gold); letterSpacing: -0.06em; textShadow: 0 0 20px rgba(255,215,0,0.2); transition: all 0.3s; }
+              
+              @media (max-width: 600px) {
+                .header-logo-img { width: 38px; height: 38px; border-radius: 10px; }
+                .header-title { fontSize: 22px; }
+                .hide-mobile { display: none; }
+                .header-session-info-wrap { transform: scale(0.85); transform-origin: left; }
+              }
+            `}</style>
             <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
               {children}
             </main>
           </SessionProvider>
+        </ToastProvider>
         </AuthProvider>
       </body>
     </html>

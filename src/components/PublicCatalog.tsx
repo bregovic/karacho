@@ -36,11 +36,6 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
   const [queueSize, setQueueSize] = useState(0);
   const [joinId, setJoinId] = useState('');
   const [showQueueMgr, setShowQueueMgr] = useState(false);
-  const [showRequestModal, setShowRequestModal] = useState(false);
-  const [reqTitle, setReqTitle] = useState('');
-  const [reqArtist, setReqArtist] = useState('');
-  const [isRequesting, setIsRequesting] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
 
   const handleRemoveFromQueue = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -108,41 +103,6 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
     refreshSession();
   };
 
-  const handleRequestSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!reqTitle || !reqArtist) return;
-    
-    // Kontrola duplicit před odesláním žádosti
-    const dup = await checkDuplicateSong(reqTitle, reqArtist);
-    if (dup) {
-      if (dup.state === 'ACTIVE') {
-        alert("🎤 Tuhle písničku už v katalogu máme! Schválně se podívej do seznamu.");
-        setShowRequestModal(false);
-        return;
-      }
-      if ((dup.state as string) === 'REQUESTED') {
-        alert("📝 O tuhle píseň už někdo požádal. Pracujeme na tom, abychom ji přidali co nejdříve!");
-        setShowRequestModal(false);
-        return;
-      }
-      alert(`⚠️ Tato píseň už v systému je (Stav: ${dup.state}). Nemusíš o ni žádat.`);
-      setShowRequestModal(false);
-      return;
-    }
-    
-    setIsRequesting(true);
-    const res = await requestSong(reqTitle, reqArtist);
-    setIsRequesting(false);
-    
-    if (res.success) {
-      alert("🎉 Žádost odeslána! Zkusíme to co nejdříve přidat.");
-      setShowRequestModal(false);
-      setReqTitle('');
-      setReqArtist('');
-    } else {
-      alert("Něco se nepovedlo: " + (res.error || 'Neznámá chyba'));
-    }
-  };
 
   const selectStyle = { 
     padding: '14px 20px', borderRadius: '14px', 
@@ -155,45 +115,6 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', paddingBottom: joinCode ? '110px' : '0' }}>
       
-      {/* 🍔 HAMBURGER MENU / TOP NAV */}
-      <div style={{ position: 'fixed', top: '25px', right: '30px', zIndex: 10000, display: 'flex', gap: '1rem', alignItems: 'center' }}>
-        <div style={{ position: 'relative' }}>
-          <button 
-            onClick={() => setShowMenu(!showMenu)}
-            style={{ width: '45px', height: '45px', borderRadius: '14px', background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', fontSize: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)', transition: 'all 0.2s' }}
-          >
-            {showMenu ? '✕' : '☰'}
-          </button>
-
-          {showMenu && (
-            <div style={{ position: 'absolute', top: '55px', right: 0, width: '220px', background: '#111', borderRadius: '20px', border: '1px solid rgba(255,215,0,0.2)', boxShadow: '0 20px 50px rgba(0,0,0,0.8)', overflow: 'hidden', animation: 'slideDownMenu 0.3s ease-out' }}>
-               <div 
-                 onClick={() => { setShowRequestModal(true); setShowMenu(false); }}
-                 style={{ padding: '16px 20px', cursor: 'pointer', transition: 'all 0.2s', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }}
-                 className="menu-item"
-               >
-                 <span>➕</span>
-                 <span style={{ fontSize: '14px', fontWeight: 700 }}>Chybějící hit?</span>
-               </div>
-               {isAdmin && (
-                 <Link href="/admin" style={{ textDecoration: 'none', color: 'inherit' }}>
-                   <div style={{ padding: '16px 20px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }} className="menu-item">
-                     <span>⚙️</span>
-                     <span style={{ fontSize: '14px', fontWeight: 700 }}>Administrace</span>
-                   </div>
-                 </Link>
-               )}
-               <Link href="/api/auth/signout" style={{ textDecoration: 'none', color: 'inherit' }}>
-                  <div style={{ padding: '16px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }} className="menu-item">
-                    <span>🚪</span>
-                    <span style={{ fontSize: '14px', fontWeight: 700 }}>Odhlásit se</span>
-                  </div>
-               </Link>
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* === HERO SEKCE === */}
       <section style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center',
@@ -258,8 +179,7 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
             <span style={{ fontSize: '20px' }}>🔍 Nic jsme nenašli pro "{search}"</span>
             <button 
               onClick={() => {
-                if (search) setReqTitle(search);
-                setShowRequestModal(true);
+                window.dispatchEvent(new CustomEvent('open-request-song-modal', { detail: { title: search } }));
               }}
               style={{ padding: '16px 32px', borderRadius: '50px', background: 'var(--color-gold)', color: '#000', border: 'none', fontWeight: 900, cursor: 'pointer', fontSize: '15px' }}
             >
@@ -438,63 +358,15 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
         </div>
       )}
 
-      {/* 📝 REQUEST MODAL */}
-      {showRequestModal && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 110000, 
-          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(20px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem'
-        }} onMouseUp={(e) => { if (e.target === e.currentTarget) setShowRequestModal(false); }}>
-          <div style={{
-            width: '100%', maxWidth: '400px', background: '#111', borderRadius: '32px', padding: '2.5rem',
-            border: '1px solid rgba(255,215,0,0.2)', boxShadow: '0 20px 60px rgba(0,0,0,1)',
-            animation: 'slideUpModal 0.3s ease-out'
-          }} onClick={e => e.stopPropagation()}>
-            <h2 style={{ fontSize: '24px', fontWeight: 900, marginBottom: '0.5rem', color: 'var(--color-gold)' }}>Chybějící hit? 🎤</h2>
-            <p style={{ opacity: 0.6, fontSize: '14px', marginBottom: '2rem' }}>Napiš nám co ti tu chybí a my to zkusíme co nejdříve připravit!</p>
-            
-            <form onSubmit={handleRequestSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{ fontSize: '11px', fontWeight: 800, opacity: 0.5, textTransform: 'uppercase' }}>Název písně</label>
-                <input 
-                  type="text" required placeholder="např. Svařák"
-                  value={reqTitle} onChange={e => setReqTitle(e.target.value)}
-                  style={{ padding: '14px 18px', borderRadius: '16px', background: '#222', border: '1px solid rgba(255,255,255,0.1)', color: 'white', outline: 'none' }}
-                />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '1rem' }}>
-                <label style={{ fontSize: '11px', fontWeight: 800, opacity: 0.5, textTransform: 'uppercase' }}>Interpret</label>
-                <input 
-                  type="text" required placeholder="např. Harlej"
-                  value={reqArtist} onChange={e => setReqArtist(e.target.value)}
-                  style={{ padding: '14px 18px', borderRadius: '16px', background: '#222', border: '1px solid rgba(255,255,255,0.1)', color: 'white', outline: 'none' }}
-                />
-              </div>
-              
-              <div style={{ display: 'flex', gap: '10px', marginTop: '1rem' }}>
-                <button 
-                  type="button" onClick={() => setShowRequestModal(false)}
-                  style={{ flex: 1, padding: '14px', borderRadius: '16px', background: 'rgba(255,255,255,0.05)', border: 'none', color: 'white', fontWeight: 800, cursor: 'pointer' }}
-                >
-                  Zrušit
-                </button>
-                <button 
-                  type="submit" disabled={isRequesting}
-                  style={{ flex: 2, padding: '14px', borderRadius: '16px', background: 'var(--color-gold)', color: 'black', border: 'none', fontWeight: 900, cursor: 'pointer' }}
-                >
-                  {isRequesting ? 'Odesílám...' : 'ODESLAT ŽÁDOST'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
       <style jsx>{`
         .corner-panel-float:hover { transform: scale(1.02); border-color: rgba(255,215,0,0.3) !important; background: rgba(0,0,0,0.95) !important; }
         .glass-panel:hover { transform: translateY(-8px); border-color: rgba(255,215,0,0.3) !important; background: rgba(255,255,255,0.06) !important; }
         .plus-btn:hover { background: rgba(255,215,0,0.4) !important; transform: scale(1.15); }
-        .hero-logo-img { height: 320px; filter: drop-shadow(0 0 80px rgba(255,215,0,0.35)) drop-shadow(0 0 30px rgba(0,0,0,1)); }
+        .hero-logo-img { height: 320px; filter: drop-shadow(0 0 80px rgba(255,215,0,0.35)) drop-shadow(0 0 30px rgba(0,0,0,1)); transition: all 0.3s; }
+        @media (max-width: 600px) {
+          .hero-logo-img { height: 180px; }
+          .hero-logo-wrap { margin-bottom: 2rem !important; }
+        }
         @keyframes slideUp { from { transform: translate(-50%, 30px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
         @keyframes slideUpModal { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
       `}</style>

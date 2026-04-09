@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { updateSongAudio, updateSongInstrumental, updateSongJson, updateSongBackground } from '@/app/admin/actions';
+import { useToast } from '@/context/ToastContext';
 
 interface AudioUploaderProps {
   songId: string;
@@ -9,6 +10,7 @@ interface AudioUploaderProps {
 }
 
 export default function AudioUploader({ songId, onUploaded, type = 'audio' }: AudioUploaderProps) {
+  const { showToast } = useToast();
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
 
@@ -47,20 +49,20 @@ export default function AudioUploader({ songId, onUploaded, type = 'audio' }: Au
           if (onUploaded) onUploaded(data.finalUrl);
           setUploading(false);
           setProgress(0);
-          alert('Uloženo! 💾');
+          showToast('Uloženo! 💾', 'success');
         } else {
           try {
             const errData = JSON.parse(xhr.responseText);
-            alert(`Chyba serveru: ${errData.error || 'Neznámá chyba'}`);
+            showToast(`Chyba serveru: ${errData.error || 'Neznámá chyba'}`, 'error');
           } catch {
-            alert('Chyba při komunikaci se serverem.');
+            showToast('Chyba při komunikaci se serverem.', 'error');
           }
           setUploading(false);
         }
       };
 
       xhr.onerror = () => {
-        alert('Nahrávání selhalo.');
+        showToast('Nahrávání selhalo.', 'error');
         setUploading(false);
       };
 
@@ -68,7 +70,7 @@ export default function AudioUploader({ songId, onUploaded, type = 'audio' }: Au
 
     } catch (err: any) {
       console.error('--- Client Upload Error ---', err);
-      alert(`Nahrávání selhalo: ${err.message || 'Neznámá chyba'}`);
+      showToast(`Nahrávání selhalo: ${err.message || 'Neznámá chyba'}`, 'error');
       setUploading(false);
     }
   };
