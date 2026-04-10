@@ -43,7 +43,7 @@ export default function AudioUploader({ songId, onUploaded, type = 'audio' }: Au
           } else if (type === 'background') {
             await updateSongBackground(songId, data.finalUrl);
           } else {
-            await updateSongAudio(songId, data.finalUrl);
+            await updateSongAudio(songId, data.finalUrl, data.hash);
           }
           
           if (onUploaded) onUploaded(data.finalUrl);

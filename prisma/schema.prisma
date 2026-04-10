@@ -114,6 +114,9 @@ model Song {
   singingHistory SingingHistory[]
   requestedByEmail String?
   createdById     String?
+  audioHash       String?   @unique // Hash obsahu MP3 pro detekci duplicitních souborů
+
+  @@unique([artist, title]) // Zamezení duplicitních názvů od stejného interpreta
 }
 
 model Track {
