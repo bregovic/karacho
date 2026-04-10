@@ -2,10 +2,14 @@
 
 import { useState } from 'react';
 import { updateProfile, changePassword } from '@/app/actions/user-actions';
+import ImageEditor from '@/components/ImageEditor';
+import { useRouter } from 'next/navigation';
 
 export default function ProfileClient({ user, stats }: { user: any, stats: any }) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [showEditor, setShowEditor] = useState(false);
+  const router = useRouter();
 
   const handleProfileSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -13,8 +17,25 @@ export default function ProfileClient({ user, stats }: { user: any, stats: any }
     const formData = new FormData(e.currentTarget);
     const res = await updateProfile(formData);
     setIsUpdating(false);
-    if (res.success) setMsg({ type: 'success', text: 'Profil byl úspěšně aktualizován' });
-    else setMsg({ type: 'error', text: 'Něco se nepovedlo' });
+    if (res.success) {
+      setMsg({ type: 'success', text: 'Profil byl úspěšně aktualizován' });
+      router.refresh();
+    } else {
+      setMsg({ type: 'error', text: 'Něco se nepovedlo' });
+    }
+  };
+
+  const handlePhotoSave = async (newUrl: string) => {
+    const formData = new FormData();
+    formData.append('image', newUrl);
+    formData.append('nickname', user.nickname || '');
+    formData.append('email', user.email || '');
+    const res = await updateProfile(formData);
+    if (res.success) {
+      setMsg({ type: 'success', text: 'Fotka byla uložena' });
+      router.refresh();
+      setShowEditor(false);
+    }
   };
 
   const handlePasswordSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -32,19 +53,45 @@ export default function ProfileClient({ user, stats }: { user: any, stats: any }
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
       
+      {showEditor && (
+        <ImageEditor 
+          currentImage={user.image} 
+          onSave={handlePhotoSave} 
+          onClose={() => setShowEditor(false)} 
+        />
+      )}
+
       <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', marginBottom: '3rem' }}>
-        <div style={{ 
-          width: '120px', height: '120px', borderRadius: '50%', 
-          background: `url(${user.image || '/logo.png'})`, backgroundSize: 'cover',
-          border: '3px solid var(--color-gold)', boxShadow: '0 0 30px rgba(255,215,0,0.3)'
-        }} />
+        <div 
+          onClick={() => setShowEditor(true)}
+          style={{ 
+            width: '120px', height: '120px', borderRadius: '50%', 
+            background: `url(${user.image || '/logo.png'})`, backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            border: '3px solid var(--color-gold)', boxShadow: '0 0 30px rgba(255,215,0,0.3)',
+            cursor: 'pointer', position: 'relative', overflow: 'hidden'
+          }}
+          className="avatar-hover"
+        >
+          <div className="avatar-overlay" style={{
+            position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', 
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            opacity: 0, transition: 'opacity 0.2s', fontSize: '12px', fontWeight: 900
+          }}>
+            ZMĚNIT
+          </div>
+        </div>
         <div>
-          <h1 style={{ fontSize: '3rem', fontWeight: 900, margin: 0, color: 'var(--color-gold)', letterSpacing: '-0.05em' }}>
+          <h1 style={{ fontSize: '3rem', fontWeight: 900, margin: 0, color: 'var(--color-gold)', letterSpacing: '-0.05em', lineHeight: 1 }}>
             {user.nickname || user.name || 'Zpěvák'}
           </h1>
-          <p style={{ opacity: 0.6, fontSize: '1.2rem' }}>{user.email}</p>
+          <p style={{ opacity: 0.6, fontSize: '1.2rem', marginTop: '10px' }}>{user.email}</p>
         </div>
       </div>
+
+      <style jsx>{`
+         .avatar-hover:hover .avatar-overlay { opacity: 1 !important; }
+      `}</style>
 
       {msg && (
         <div style={{ 

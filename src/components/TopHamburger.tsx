@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import { useSession } from '@/context/SessionContext';
+import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
+import Link from 'next/link';
 
 interface TopHamburgerProps {
   isAdmin: boolean;
@@ -11,11 +13,19 @@ interface TopHamburgerProps {
 
 export default function TopHamburger({ isAdmin, isAuthenticated }: TopHamburgerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const { leaveSession } = useSession();
+  const router = useRouter();
 
   // Funkce pro otevření globálního request modalu (pomocí custom eventu)
   const openRequestModal = () => {
     window.dispatchEvent(new CustomEvent('open-request-song-modal'));
     setIsOpen(false);
+  };
+
+  const joinSession = () => {
+    leaveSession();
+    setIsOpen(false);
+    router.push('/');
   };
 
   return (
@@ -46,6 +56,15 @@ export default function TopHamburger({ isAdmin, isAuthenticated }: TopHamburgerP
                 <span style={{ fontSize: '14px', fontWeight: 700 }}>Seznam skladeb</span>
               </div>
             </Link>
+
+            <div 
+              onClick={joinSession}
+              style={{ padding: '16px 20px', cursor: 'pointer', transition: 'all 0.2s', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }}
+              className="menu-item"
+            >
+              <span style={{ fontSize: '18px' }}>🎤</span>
+              <span style={{ fontSize: '14px', fontWeight: 700 }}>Změnit show / Připojit</span>
+            </div>
 
            <div 
              onClick={openRequestModal}

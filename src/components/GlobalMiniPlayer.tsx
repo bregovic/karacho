@@ -44,10 +44,11 @@ export default function GlobalMiniPlayer() {
       display: 'flex',
       flexDirection: 'column',
       flex: 1,
-      margin: '0 2rem',
-      maxWidth: '600px',
+      width: '100%',
       transition: 'all 0.3s',
-      position: 'relative'
+      position: 'relative',
+      alignItems: 'center',
+      justifyContent: 'center'
     }}>
       {/* Horní řada: Play + Název + Tlačítka */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -131,12 +132,13 @@ export default function GlobalMiniPlayer() {
         
         @media (max-width: 850px) {
           .mini-player-bar { 
-             position: fixed; bottom: 0; left: 0; right: 0; 
-             margin: 0; max-width: none; z-index: 9999;
-             background: rgba(10,10,10,0.98);
-             border-top: 1px solid rgba(255,255,255,0.1);
-             padding: 12px 20px 24px;
-             backdrop-filter: blur(20px);
+             margin: 0.5rem 0 0 0;
+             max-width: none;
+             width: 100%;
+             background: rgba(255,255,255,0.03);
+             padding: 8px 12px;
+             border-radius: 12px;
+             border: 1px solid rgba(255,255,255,0.05);
           }
         }
       `}</style>
@@ -145,9 +147,9 @@ export default function GlobalMiniPlayer() {
     {/* MODAL FRONTY */}
     {showQueueMgr && joinCode && (
         <div style={{
-          position: 'fixed', inset: 0, zIndex: 100000, 
-          background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(15px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem'
+          position: 'fixed', inset: 0, zIndex: 2000000, 
+          background: 'rgba(0,0,0,0.95)', backdropFilter: 'blur(20px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem'
         }} onMouseUp={(e) => { if (e.target === e.currentTarget) setShowQueueMgr(false); }}>
           
           <div style={{
