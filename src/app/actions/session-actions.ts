@@ -63,16 +63,28 @@ export async function getSessionStatus(code: string) {
 
 // 🎮 Dálkový ovladač: Zastavit / Pustit / Další
 export async function updateSessionState(code: string, data: any) {
+  const updateData: any = {
+    status: data.status,
+    currentSongId: data.currentSongId,
+    updatedAt: new Date()
+  };
+
+  if (data.status === 'PLAYING') {
+    updateData.startedAt = new Date();
+    updateData.startTimeOffset = data.currentTime || 0;
+    updateData.currentTime = data.currentTime || 0;
+  } else if (data.status === 'PAUSED') {
+    updateData.startedAt = null;
+    updateData.currentTime = data.currentTime;
+  } else if (data.currentTime !== undefined) {
+    updateData.currentTime = data.currentTime;
+  }
+
   const session = await db.karaokeSession.update({
     where: { joinCode: code.toUpperCase() },
-    data: {
-       status: data.status,
-       currentSongId: data.currentSongId,
-       currentTime: data.currentTime,
-       updatedAt: new Date()
-    }
+    data: updateData
   });
-  revalidatePath('/'); // Refresh cache
+  revalidatePath('/');
   return session;
 }
 
@@ -133,6 +145,9 @@ export async function advanceSessionQueue(code: string) {
     data: {
       currentSongId: next.songId,
       status: 'PLAYING',
+      startedAt: new Date(),
+      startTimeOffset: 0,
+      currentTime: 0,
       updatedAt: new Date()
     },
     include: { 

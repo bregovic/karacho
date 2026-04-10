@@ -58,21 +58,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             display: 'flex',
             alignItems: 'center',
             gap: '12px',
-            pointerEvents: 'auto',
-            animation: 'toastSlideIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards'
-          }}>
+            pointerEvents: 'auto'
+          }} className="toast-item">
             <span style={{ fontSize: '18px' }}>{getStatusIcon(toast.type)}</span>
             {toast.message}
           </div>
         ))}
       </div>
-
-      <style jsx global>{`
-        @keyframes toastSlideIn {
-          from { opacity: 0; transform: translateX(20px) scale(0.9); }
-          to { opacity: 1; transform: translateX(0) scale(1); }
-        }
-      `}</style>
     </ToastContext.Provider>
   );
 }

@@ -232,8 +232,7 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
           }}
           className="corner-panel-float"
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }} onClick={() => setShowQueueMgr(true)}>
                <span style={{ fontSize: '10px', opacity: 0.5, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Právě hraje 🔥</span>
                <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--color-gold)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                  {currentSong?.title || 'Ticho v baru'}
@@ -242,25 +241,26 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
             <div style={{ display: 'flex', gap: '8px' }}>
               <a 
                 href={`/player/${currentSong?.id}?mode=watch&code=${joinCode}`}
+                onClick={(e) => e.stopPropagation()}
                 style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', transition: 'all 0.2s' }}
                 title="Sledovat bez zvuku (Mirror)"
               >
                 📺
               </a>
               <button 
-                onClick={() => setShowQueueMgr(true)}
+                onClick={(e) => { e.stopPropagation(); remoteControl('NEXT'); }}
                 style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                title="Další skladba"
               >
                 ⏭️
               </button>
               <button 
-                onClick={() => remoteControl(sessionData.status === 'PLAYING' ? 'PAUSE' : 'PLAY')}
+                onClick={(e) => { e.stopPropagation(); remoteControl(sessionData.status === 'PLAYING' ? 'PAUSE' : 'PLAY'); }}
                 style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'var(--color-gold)', border: 'none', color: 'black', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 0 15px rgba(255,215,0,0.3)' }}
               >
                 {sessionData.status === 'PLAYING' ? '⏸' : '▶'}
               </button>
             </div>
-          </div>
           
           {queueItems.length > 0 && (
              <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '8px' }}>
