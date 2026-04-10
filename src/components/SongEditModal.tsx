@@ -29,6 +29,16 @@ export default function SongEditModal({
   const [blacklist, setBlacklist] = useState('');
   const [importUrl, setImportUrl] = useState('');
 
+  const autoSave = async (updatedFields: any) => {
+    try {
+      await updateSong(song.id, { ...formData, ...updatedFields });
+      setImportStatus('✅ Změny automaticky uloženy');
+      setTimeout(() => setImportStatus(null), 2000);
+    } catch (e) {
+      setImportStatus('❌ Chyba auto-save');
+    }
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     await updateSong(song.id, formData);
@@ -47,8 +57,8 @@ export default function SongEditModal({
         ...res.updated,
         tags: res.updated.tags || formData.tags 
       });
-      setImportStatus('✅ Data doplněna!');
-      setTimeout(() => setImportStatus(null), 3000);
+      setImportStatus('✨ Data automaticky doplněna a uložena!');
+      setTimeout(() => setImportStatus(null), 4000);
     } else {
       setImportStatus(`❌ ${res.error || 'Informace nenalezeny'}`);
     }
@@ -61,7 +71,7 @@ export default function SongEditModal({
     const res = await importLyricsFromUrl(song.id, importUrl);
     if (res.success) {
       setFormData({ ...formData, lyrics: res.lyrics, chords: res.chords || formData.chords });
-      setImportStatus('✅ Text úspěšně stažen!');
+      setImportStatus('✅ Text úspěšně stažen a uložen!');
       setTimeout(() => setImportStatus(null), 3000);
     } else {
       setImportStatus(`❌ ${res.error}`);
@@ -73,7 +83,7 @@ export default function SongEditModal({
     const res = await manuallyCleanLyricsAction(song.id, formData.lyrics || '', customBlacklist);
     if (res.success) {
       setFormData({ ...formData, lyrics: res.lyrics });
-      setImportStatus('✅ Text vyčištěn (akordy pryč)!');
+      setImportStatus('✅ Text vyčištěn a uložen!');
       setTimeout(() => setImportStatus(null), 3000);
     } else {
       setImportStatus(`❌ ${res.error}`);
@@ -83,10 +93,21 @@ export default function SongEditModal({
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
       <div className="glass-panel" style={{ width: '100%', maxWidth: '850px', padding: '2rem', maxHeight: '90vh', overflowY: 'auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', alignItems: 'center' }}>
           <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 900, color: 'var(--color-gold)' }}>✏️ EDITACE PÍSNĚ</h2>
           <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer' }}>✕</button>
         </div>
+
+        {importStatus && (
+           <div style={{ 
+              marginBottom: '1rem', padding: '8px 16px', borderRadius: '10px', fontSize: '12px', fontWeight: 700,
+              background: importStatus.includes('✅') || importStatus.includes('✨') ? 'rgba(74, 222, 128, 0.1)' : 'rgba(248, 113, 113, 0.1)',
+              color: importStatus.includes('✅') || importStatus.includes('✨') ? '#4ade80' : '#f87171',
+              border: '1px solid currentColor', textAlign: 'center'
+           }}>
+             {importStatus}
+           </div>
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -103,19 +124,19 @@ export default function SongEditModal({
             </div>
             
             <label style={{ fontSize: '11px', color: '#888', fontWeight: 800, letterSpacing: '0.05em', marginTop: '0.5rem' }}>NÁZEV PÍSNĚ</label>
-            <input className="input-field" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} />
+            <input className="input-field" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} onBlur={(e) => autoSave({ title: e.target.value })} />
 
             <label style={{ fontSize: '11px', color: '#888', fontWeight: 800, letterSpacing: '0.05em' }}>INTERPRET / AUTOR</label>
-            <input className="input-field" value={formData.artist || ''} onChange={e => setFormData({ ...formData, artist: e.target.value })} />
+            <input className="input-field" value={formData.artist || ''} onChange={e => setFormData({ ...formData, artist: e.target.value })} onBlur={(e) => autoSave({ artist: e.target.value })} />
 
             <label style={{ fontSize: '11px', color: '#888', fontWeight: 800, letterSpacing: '0.05em' }}>ŽÁNR</label>
-            <input className="input-field" value={formData.genre || ''} list="genres-list" onChange={e => setFormData({ ...formData, genre: e.target.value })} />
+            <input className="input-field" value={formData.genre || ''} list="genres-list" onChange={e => setFormData({ ...formData, genre: e.target.value })} onBlur={(e) => autoSave({ genre: e.target.value })} />
             <datalist id="genres-list">
               {allGenres.map(g => <option key={g} value={g} />)}
             </datalist>
 
             <label style={{ fontSize: '11px', color: '#888', fontWeight: 800, letterSpacing: '0.05em' }}>ŠTÍTKY</label>
-            <input className="input-field" value={(formData.tags || []).join(', ')} onChange={e => setFormData({ ...formData, tags: e.target.value.split(',').map((s: string) => s.trim()) })} />
+            <input className="input-field" value={(formData.tags || []).join(', ')} onChange={e => setFormData({ ...formData, tags: e.target.value.split(',').map((s: string) => s.trim()) })} onBlur={(e) => autoSave({ tags: e.target.value.split(',').map((s: string) => s.trim()) })} />
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -197,8 +218,6 @@ export default function SongEditModal({
               <button type="button" onClick={handleImportLyrics} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '11px', borderRadius: '8px' }}>🔗 IMPORT</button>
             </div>
 
-            {importStatus && <div style={{ fontSize: '11px', color: importStatus.startsWith('✅') ? '#4ade80' : '#f87171', marginTop: '-5px' }}>{importStatus}</div>}
-            
             <textarea 
               className="input-field" 
               style={{ 
@@ -206,7 +225,7 @@ export default function SongEditModal({
                 fontFamily: 'monospace', 
                 fontSize: '13px', 
                 lineHeight: '1.6',
-                color: 'white', // DEFINITIVNÍ BARVA TEXTU
+                color: 'white',
                 border: activeTextView === 'chords' ? '1px solid rgba(255,75,43,0.3)' : '1px solid rgba(255,255,255,0.1)',
                 background: activeTextView === 'chords' ? 'rgba(255,75,43,0.1)' : 'rgba(0,0,0,0.5)'
               }} 
@@ -216,19 +235,23 @@ export default function SongEditModal({
                 if (activeTextView === 'lyrics') setFormData({ ...formData, lyrics: val });
                 else setFormData({ ...formData, chords: val });
               }}
+              onBlur={(e) => {
+                if (activeTextView === 'lyrics') autoSave({ lyrics: e.target.value });
+                else autoSave({ chords: e.target.value });
+              }}
             />
           </div>
         </div>
 
         <div style={{ marginTop: '2.5rem', display: 'flex', gap: '1rem', justifyContent: 'flex-end', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '1.5rem' }}>
-          <button onClick={onClose} className="btn-secondary" style={{ padding: '12px 30px', borderRadius: '14px' }}>Zrušit</button>
+          <button onClick={onClose} className="btn-secondary" style={{ padding: '12px 30px', borderRadius: '14px' }}>ZAVŘÍT</button>
           <button 
             onClick={handleSave} 
             disabled={isSaving} 
             className="btn-primary" 
             style={{ padding: '12px 40px', background: 'var(--color-gold)', color: '#000', borderRadius: '14px', fontWeight: 900 }}
           >
-            {isSaving ? "UKLÁDÁM..." : "💾 ULOŽIT PÍSEŇ"}
+            {isSaving ? "UKLÁDÁM..." : "💾 ULOŽIT VŠE"}
           </button>
         </div>
       </div>
