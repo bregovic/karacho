@@ -105,6 +105,25 @@ export default function TopHamburger({ isAdmin, isAuthenticated }: TopHamburgerP
              </Link>
            )}
            
+           {isAdmin && useSession().joinCode && (
+             <div 
+               onClick={async () => {
+                 const currentMode = useSession().sessionData?.sessionMode || 'KARAOKE';
+                 const newMode = currentMode === 'KARAOKE' ? 'CHORDS' : 'KARAOKE';
+                 const { updateSessionMode } = await import('@/app/actions/session-actions');
+                 await updateSessionMode(useSession().joinCode!, newMode);
+                 setIsOpen(false);
+               }}
+               style={{ padding: '16px 20px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,215,0,0.05)' }} 
+               className="menu-item"
+             >
+               <span style={{ fontSize: '18px' }}>{useSession().sessionData?.sessionMode === 'CHORDS' ? '🎤' : '🎸'}</span>
+               <span style={{ fontSize: '14px', fontWeight: 700 }}>
+                 {useSession().sessionData?.sessionMode === 'CHORDS' ? 'Přepnout na Karaoke' : 'Přepnout na Akordy'}
+               </span>
+             </div>
+           )}
+           
            {isAdmin && (
              <Link href="/admin" style={{ textDecoration: 'none', color: 'inherit' }}>
                <div style={{ padding: '16px 20px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }} className="menu-item">

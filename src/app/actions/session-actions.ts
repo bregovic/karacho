@@ -88,6 +88,16 @@ export async function updateSessionState(code: string, data: any) {
   return session;
 }
 
+// 🎸 Změna režimu (Karaoke / Akordy)
+export async function updateSessionMode(code: string, mode: 'KARAOKE' | 'CHORDS') {
+  const session = await db.karaokeSession.update({
+    where: { joinCode: code.toUpperCase() },
+    data: { sessionMode: mode }
+  });
+  revalidatePath('/');
+  return session;
+}
+
 // ➕ Přidání do fronty relace přes mobil
 export async function addToSessionQueue(code: string, songId: string) {
   const s = await db.karaokeSession.findUnique({ 
