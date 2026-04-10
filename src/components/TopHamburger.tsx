@@ -105,13 +105,17 @@ export default function TopHamburger({ isAdmin, isAuthenticated }: TopHamburgerP
              </Link>
            )}
            
-           {isAdmin && useSession().joinCode && (
+           {isAdmin && (
              <div 
                onClick={async () => {
+                 let code = useSession().joinCode;
+                 if (!code) {
+                   code = await useSession().createOrJoin();
+                 }
                  const currentMode = useSession().sessionData?.sessionMode || 'KARAOKE';
                  const newMode = currentMode === 'KARAOKE' ? 'CHORDS' : 'KARAOKE';
                  const { updateSessionMode } = await import('@/app/actions/session-actions');
-                 await updateSessionMode(useSession().joinCode!, newMode);
+                 await updateSessionMode(code!, newMode);
                  setIsOpen(false);
                }}
                style={{ padding: '16px 20px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,215,0,0.05)' }} 
