@@ -1,20 +1,19 @@
 'use client';
 
 import { useSession } from '@/context/SessionContext';
+import { useToast } from '@/context/ToastContext';
 import { useState, useEffect } from 'react';
 
 export default function HeaderSessionInfo() {
   const { joinCode, isLoading, createOrJoin, leaveSession } = useSession();
+  const { showToast } = useToast();
   const [showQR, setShowQR] = useState(false);
   const [url, setUrl] = useState('');
 
   useEffect(() => {
-    if (isLoading) return; // Počkáme, až se Context probere
+    if (isLoading) return; 
 
-    if (!joinCode) {
-       // Jen pokud kód opravdu nemáme ani v paměti, založíme novou show
-       createOrJoin();
-    } else {
+    if (joinCode) {
        // Nastavíme URL pouze na klientovi, aby se předešlo hydratačním nesrovnalostem
        setUrl(`${window.location.origin}/join/${joinCode}`);
     }
@@ -22,7 +21,7 @@ export default function HeaderSessionInfo() {
 
   const handleCopy = () => {
     navigator.clipboard.writeText(url);
-    alert("Odkaz ke sdílení zkopírován! ✅");
+    showToast("Odkaz ke sdílení byl zkopírován! ✅");
   };
 
   if (!joinCode) return null;

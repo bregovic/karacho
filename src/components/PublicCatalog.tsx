@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from '@/context/SessionContext';
+import { useToast } from '@/context/ToastContext';
 import { updateSessionState, advanceSessionQueue, addToSessionQueue, removeFromSessionQueue } from '@/app/actions/session-actions';
 import { requestSong, checkDuplicateSong } from '@/app/admin/actions';
 
@@ -21,10 +22,11 @@ interface Song {
 }
 
 export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs: Song[]; isAdmin: boolean }) {
-  const { joinCode, sessionData, refreshSession } = useSession();
+  const { joinCode, sessionData, refreshSession, createOrJoin } = useSession();
+  const { showToast } = useToast();
   const router = useRouter();
 
-  // Definice dat pro frontu a rohové ovládání
+  // Definice dat pro frontu
   const currentSong = sessionData?.currentSong;
   const queueItems = sessionData?.queue || [];
   
@@ -32,10 +34,8 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
   const [genreFilter, setGenreFilter] = useState('ALL');
   const [tagFilter, setTagFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState('POPULAR');
-  const [showToast, setShowToast] = useState(false);
   const [queueSize, setQueueSize] = useState(0);
   const [joinId, setJoinId] = useState('');
-  const [showQueueMgr, setShowQueueMgr] = useState(false);
 
   const handleRemoveFromQueue = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -49,7 +49,7 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
     if (joinId.length === 5) {
       window.location.href = `/join/${joinId}`;
     } else {
-      alert("Zadejte platný 5-místný kód!");
+      showToast("Zadejte platný 5-místný kód!", "warning");
     }
   };
 
@@ -80,16 +80,14 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
     
     if (joinCode) {
       await addToSessionQueue(joinCode, id);
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 2000);
+      showToast("SKLADBA JE VE FRONTĚ ✅");
       refreshSession();
     } else {
       const q = JSON.parse(localStorage.getItem('karacho_queue') || '[]');
       q.push(id);
       localStorage.setItem('karacho_queue', JSON.stringify(q));
       setQueueSize(q.length);
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 2000);
+      showToast("SKLADBA JE VE FRONTĚ ✅");
     }
   };
 
@@ -130,21 +128,38 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
           <img src="/logo.png" alt="Karacho" className="hero-logo-img" />
         </div>
 
-        {/* JOIN BY ID BOX */}
+        {/* JOIN BY ID BOX / CREATE BOX */}
         {!joinCode && (
-          <form onSubmit={handleJoinById} style={{ 
-            position: 'relative', zIndex: 5, marginBottom: '2.5rem', 
-            display: 'flex', gap: '10px', background: 'rgba(255,255,255,0.05)', 
-            padding: '10px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)',
-            backdropFilter: 'blur(10px)', boxShadow: '0 10px 40px rgba(0,0,0,0.4)'
-          }}>
-            <input 
-              type="text" placeholder="Zadej kód (5 čísel)" maxLength={5}
-              value={joinId} onChange={e => setJoinId(e.target.value)}
-              style={{ padding: '12px 20px', borderRadius: '12px', border: 'none', background: 'rgba(0,0,0,0.3)', color: 'var(--color-gold)', width: '150px', fontSize: '16px', fontWeight: 900, textAlign: 'center', letterSpacing: '0.1em', outline: 'none' }}
-            />
-            <button type="submit" style={{ padding: '12px 24px', borderRadius: '12px', background: 'var(--color-gold)', color: '#000', border: 'none', fontWeight: 900, cursor: 'pointer', fontSize: '14px' }}>PŘIPOJIT SE</button>
-          </form>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', zIndex: 10 }}>
+            <form onSubmit={handleJoinById} style={{ 
+              position: 'relative', zIndex: 5, 
+              display: 'flex', gap: '10px', background: 'rgba(255,255,255,0.05)', 
+              padding: '10px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)',
+              backdropFilter: 'blur(10px)', boxShadow: '0 10px 40px rgba(0,0,0,0.4)'
+            }}>
+              <input 
+                type="text" placeholder="Zadej kód (5 čísel)" maxLength={5}
+                value={joinId} onChange={e => setJoinId(e.target.value)}
+                style={{ padding: '12px 20px', borderRadius: '12px', border: 'none', background: 'rgba(0,0,0,0.3)', color: 'var(--color-gold)', width: '150px', fontSize: '16px', fontWeight: 900, textAlign: 'center', letterSpacing: '0.1em', outline: 'none' }}
+              />
+              <button type="submit" style={{ padding: '12px 24px', borderRadius: '12px', background: 'var(--color-gold)', color: '#000', border: 'none', fontWeight: 900, cursor: 'pointer', fontSize: '14px' }}>PŘIPOJIT SE</button>
+            </form>
+
+            <span style={{ fontSize: '12px', opacity: 0.4, fontWeight: 700 }}>NEBO</span>
+
+            <button 
+              onClick={() => createOrJoin()}
+              style={{
+                 background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                 color: '#fff', padding: '10px 20px', borderRadius: '14px', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
+                 transition: 'all 0.2s'
+              }}
+              onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+              onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+            >
+              🚀 ZALOŽIT NOVOU VLASTNÍ SHOW
+            </button>
+          </div>
         )}
 
         <div className="hero-controls" style={{ 
@@ -219,16 +234,6 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
         )}
       </section>
 
-      {/* TOAST */}
-      {showToast && (
-        <div style={{
-          position: 'fixed', bottom: '3rem', left: '50%', transform: 'translateX(-50%)',
-          background: 'rgba(0,180,216,1)', color: 'white', padding: '12px 28px', borderRadius: '24px',
-          zIndex: 6000, fontWeight: 900, animation: 'slideUp 0.3s', boxShadow: '0 0 20px rgba(0,180,216,0.3)'
-        }}>
-          ✅ SKLADBA JE VE FRONTĚ
-        </div>
-      )}
 
       <style jsx>{`
         .glass-panel:hover { transform: translateY(-8px); border-color: rgba(255,215,0,0.3) !important; background: rgba(255,255,255,0.06) !important; }

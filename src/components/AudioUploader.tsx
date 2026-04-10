@@ -123,14 +123,16 @@ export default function AudioUploader({ songId, onUploaded, type = 'audio' }: Au
                  // Klient-side check přípony pro jistotu
                  const ext = file.name.split('.').pop()?.toLowerCase();
                  if (type === 'background' && !['jpg', 'jpeg', 'png', 'webp'].includes(ext || '')) {
-                   alert("❌ CHYBA: Sem patří obrázek (JPG, PNG, WEBP)!");
+                   showToast("❌ CHYBA: Sem patří obrázek (JPG, PNG, WEBP)!", "error");
                    e.target.value = '';
                    return;
                  }
-                 if (type === 'json' && ext !== 'json') {
-                   alert("❌ CHYBA: Sem patří pouze JSON soubor!");
-                   e.target.value = '';
-                   return;
+                 if (type === 'json') {
+                   if (!file.name.endsWith('.json')) {
+                     showToast("❌ CHYBA: Sem patří pouze JSON soubor!", "error");
+                     e.target.value = '';
+                     return;
+                   }
                  }
 
                  uploadFile(file);
