@@ -61,7 +61,7 @@ export default function TopHamburger({ isAdmin, isAuthenticated }: TopHamburgerP
               onClick={() => {
                 const code = prompt("Zadejte 5-místný kód show:");
                 if (code && code.length === 5) {
-                   window.location.href = `/join/${code}`;
+                   window.location.href = `/join/${code.toUpperCase()}`;
                 }
                 setIsOpen(false);
               }}
