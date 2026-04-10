@@ -210,7 +210,6 @@ export default function DesignerClient({ song }: { song: any }) {
       restoreState();
       forceUpdate();
     } else {
-      // POSLEDNÍ SLOVO NA ŘÁDKU DOSAŽENO
       const lineEndEv = eventsRef.current.find(e => e.type === 'lineEnd' && e.lineIdx === curLineRef.current);
       if (!lineEndEv) {
          eventsRef.current.push({ type: 'lineEnd', time: t, lineIdx: curLineRef.current });
@@ -219,11 +218,14 @@ export default function DesignerClient({ song }: { song: any }) {
          const nextL = curLineRef.current + 1;
          if (nextL < linesRef.current.length) {
             eventsRef.current.push({ type: 'line', time: t, lineIdx: nextL });
-            // ROVNOU oklíčujeme i první slovo nové řádky (wordIdx: 0)
             eventsRef.current.push({ type: 'word', time: t, lineIdx: nextL, wordIdx: 0 });
-            
             curLineRef.current = nextL;
-            curWordRef.current = 0; // Nastavíme na první slovo
+            curWordRef.current = 0;
+         } else {
+            // JSME NA KONCI CELÉ PÍSNĚ
+            // Posuneme index na "nekonečno" aby UI ukázalo HOTOVO
+            curLineRef.current = linesRef.current.length;
+            curWordRef.current = -1;
          }
 
          restoreState();
