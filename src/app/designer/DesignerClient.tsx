@@ -215,12 +215,15 @@ export default function DesignerClient({ song }: { song: any }) {
       if (!lineEndEv) {
          eventsRef.current.push({ type: 'lineEnd', time: t, lineIdx: curLineRef.current });
          
-         // AUTO-ADVANCE: Pokud existuje další řádek, hned ho aktivujeme (jako Enter)
+         // AUTO-ADVANCE: Pokud existuje další řádek, hned ho aktivujeme a oklíčujeme PRVNÍ SLOVO
          const nextL = curLineRef.current + 1;
          if (nextL < linesRef.current.length) {
             eventsRef.current.push({ type: 'line', time: t, lineIdx: nextL });
+            // ROVNOU oklíčujeme i první slovo nové řádky (wordIdx: 0)
+            eventsRef.current.push({ type: 'word', time: t, lineIdx: nextL, wordIdx: 0 });
+            
             curLineRef.current = nextL;
-            curWordRef.current = -1;
+            curWordRef.current = 0; // Nastavíme na první slovo
          }
 
          restoreState();
