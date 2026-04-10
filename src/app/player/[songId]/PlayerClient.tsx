@@ -153,10 +153,17 @@ export default function PlayerClient({ song }: { song: any }) {
        } else {
           const s = await getSessionStatus(joinCode);
           if (s) {
-             const diff = Math.abs(audioRef.current.currentTime - (s.currentTime || 0));
-             if (diff > 1.5) {
-                audioRef.current.currentTime = s.currentTime || 0;
-                if (videoElRef.current) videoElRef.current.currentTime = s.currentTime || 0;
+             let serverTime = s.currentTime || 0;
+             if (s.status === 'PLAYING' && s.startedAt) {
+                const now = Date.now();
+                const startedAt = new Date(s.startedAt).getTime();
+                serverTime = (now - startedAt) / 1000 + s.startTimeOffset;
+             }
+
+             const diff = Math.abs(audioRef.current.currentTime - serverTime);
+             if (diff > 0.8) { // Snížena tolerance pro přesnější sync
+                audioRef.current.currentTime = serverTime;
+                if (videoElRef.current) videoElRef.current.currentTime = serverTime;
              }
              if (s.status === 'PLAYING' && audioRef.current.paused) {
                 audioRef.current.play().catch(() => {});

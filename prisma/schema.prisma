@@ -133,6 +133,8 @@ model KaraokeSession {
   status        SessionStatus @default(STOPPED)
   currentSongId String?
   currentTime   Float     @default(0)
+  startedAt     DateTime? // Světový čas posledního spuštění
+  startTimeOffset Float    @default(0) // Vteřina v písni při posledním spuštění
   isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

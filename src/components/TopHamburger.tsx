@@ -40,6 +40,13 @@ export default function TopHamburger({ isAdmin, isAuthenticated }: TopHamburgerP
           boxShadow: '0 20px 50px rgba(0,0,0,0.9)', overflow: 'hidden', 
           zIndex: 2000, animation: 'slideDownMenu 0.3s ease-out' 
         }}>
+            <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }} onClick={() => setIsOpen(false)}>
+              <div style={{ padding: '16px 20px', cursor: 'pointer', transition: 'all 0.2s', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }} className="menu-item">
+                <span style={{ fontSize: '18px' }}>🎵</span>
+                <span style={{ fontSize: '14px', fontWeight: 700 }}>Seznam skladeb</span>
+              </div>
+            </Link>
+
            <div 
              onClick={openRequestModal}
              style={{ padding: '16px 20px', cursor: 'pointer', transition: 'all 0.2s', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }}
