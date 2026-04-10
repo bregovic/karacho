@@ -26,6 +26,10 @@ export default function ImageEditor({ currentImage, onSave, onClose }: ImageEdit
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (f) {
+      if (f.size > 15 * 1024 * 1024) {
+        showToast("Soubor je moc velký (max 15 MB)", "error");
+        return;
+      }
       setFile(f);
       setPreviewUrl(URL.createObjectURL(f));
       setZoom(1);

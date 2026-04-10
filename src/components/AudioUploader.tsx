@@ -120,6 +120,14 @@ export default function AudioUploader({ songId, onUploaded, type = 'audio' }: Au
                  const file = e.target.files?.[0];
                  if (!file) return;
 
+                 // Kontrola velikosti (limit 15 MB)
+                 const MAX_SIZE = 15 * 1024 * 1024;
+                 if (file.size > MAX_SIZE) {
+                   showToast("❌ CHYBA: Soubor je moc velký! (max 15 MB)", "error");
+                   e.target.value = '';
+                   return;
+                 }
+
                  // Klient-side check přípony pro jistotu
                  const ext = file.name.split('.').pop()?.toLowerCase();
                  if (type === 'background' && !['jpg', 'jpeg', 'png', 'webp'].includes(ext || '')) {
