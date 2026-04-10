@@ -8,6 +8,7 @@ import HeaderSessionInfo from "@/components/HeaderSessionInfo";
 import GlobalEscape from "@/components/GlobalEscape";
 import TopHamburger from "@/components/TopHamburger";
 import GlobalRequestModal from "@/components/GlobalRequestModal";
+import GlobalMiniPlayer from "@/components/GlobalMiniPlayer";
 
 const font = Outfit({
   variable: "--font-outfit",
@@ -57,6 +58,9 @@ export default async function RootLayout({
                   <HeaderSessionInfo />
                 </div>
               </div>
+
+              <GlobalMiniPlayer />
+
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                 
                 <TopHamburger 

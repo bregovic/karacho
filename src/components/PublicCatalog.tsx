@@ -219,134 +219,6 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
         )}
       </section>
 
-      {/* 🚀 INDIKÁTOR V PRAVÉM HORNÍM ROHU - Pouze pokud se něco děje */}
-      {joinCode && sessionData && (currentSong || queueItems.length > 0) && (
-        <div 
-          onClick={() => setShowQueueMgr(true)}
-          style={{
-            position: 'fixed', top: '130px', right: 'clamp(1rem, 4vw, 3rem)',
-            width: '320px', background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(30px)',
-            padding: '16px 20px', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.12)',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.7)', zIndex: 5000, cursor: 'pointer',
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', display: 'flex', flexDirection: 'column', gap: '10px'
-          }}
-          className="corner-panel-float"
-        >
-            <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }} onClick={() => setShowQueueMgr(true)}>
-               <span style={{ fontSize: '10px', opacity: 0.5, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Právě hraje 🔥</span>
-               <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--color-gold)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                 {currentSong?.title || 'Ticho v baru'}
-               </span>
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <a 
-                href={`/player/${currentSong?.id}?mode=watch&code=${joinCode}`}
-                onClick={(e) => e.stopPropagation()}
-                style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', transition: 'all 0.2s' }}
-                title="Sledovat bez zvuku (Mirror)"
-              >
-                📺
-              </a>
-              <button 
-                onClick={(e) => { e.stopPropagation(); remoteControl('NEXT'); }}
-                style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                title="Další skladba"
-              >
-                ⏭️
-              </button>
-              <button 
-                onClick={(e) => { e.stopPropagation(); remoteControl(sessionData.status === 'PLAYING' ? 'PAUSE' : 'PLAY'); }}
-                style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'var(--color-gold)', border: 'none', color: 'black', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 0 15px rgba(255,215,0,0.3)' }}
-              >
-                {sessionData.status === 'PLAYING' ? '⏸' : '▶'}
-              </button>
-            </div>
-          
-          {queueItems.length > 0 && (
-             <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '8px' }}>
-                <span style={{ fontSize: '9px', opacity: 0.4, textTransform: 'uppercase', fontWeight: 800 }}>Následuje...</span>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
-                   <span style={{ fontSize: '12px', fontWeight: 600, opacity: 0.8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
-                      {queueItems[0].song?.title}
-                   </span>
-                   <button onClick={(e) => { e.stopPropagation(); remoteControl('NEXT'); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', fontSize: '18px' }}>⏭️</button>
-                </div>
-             </div>
-          )}
-        </div>
-      )}
-
-      {/* 🎭 KOMPLEXNÍ SPRÁCE FRONTY (Queue Manager Modal) */}
-      {showQueueMgr && joinCode && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 100000, 
-          background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(15px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem'
-        }} onMouseUp={(e) => { if (e.target === e.currentTarget) setShowQueueMgr(false); }}>
-          
-          <div style={{
-            width: '100%', maxWidth: '600px', maxHeight: '85vh', background: '#111', 
-            borderRadius: '40px', border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden',
-            display: 'flex', flexDirection: 'column', animation: 'slideUpModal 0.4s ease-out'
-          }} onClick={e => e.stopPropagation()}>
-            
-            <div style={{ padding: '2rem 2.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 900 }}>Správa fronty</h2>
-                <button 
-                  onClick={() => {
-                    const url = `${window.location.origin}/join/${joinCode}`;
-                    navigator.clipboard.writeText(url);
-                    alert("Odkaz ke společné show zkopírován! 🎤🔗");
-                  }}
-                  style={{ background: 'rgba(255,215,0,0.15)', border: '1px solid rgba(255,215,0,0.3)', color: 'var(--color-gold)', padding: '8px 16px', borderRadius: '12px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-                >
-                  🔗 SDÍLET ODKAZ
-                </button>
-              </div>
-              <button 
-                onClick={() => setShowQueueMgr(false)}
-                style={{ background: 'rgba(255,255,255,0.05)', border: 'none', padding: '10px 18px', borderRadius: '14px', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Zavřít</button>
-            </div>
-
-            <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem 2.5rem 3rem' }}>
-               <div style={{ marginBottom: '2.5rem' }}>
-                  <span style={{ fontSize: '11px', opacity: 0.5, fontWeight: 900, textTransform: 'uppercase' }}>Právě hosté slyší:</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '1rem', background: 'rgba(255,215,0,0.05)', padding: '1.5rem', borderRadius: '24px', border: '1px solid rgba(255,215,0,0.1)' }}>
-                     <div style={{ width: '45px', height: '45px', borderRadius: '12px', background: 'var(--color-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>🎤</div>
-                     <div style={{ overflow: 'hidden' }}>
-                        <div style={{ fontWeight: 900, fontSize: '18px', color: 'var(--color-gold)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{currentSong?.title || 'Ticho'}</div>
-                        <div style={{ fontSize: '14px', opacity: 0.6 }}>{currentSong?.artist || 'Neznámý interpret'}</div>
-                     </div>
-                  </div>
-               </div>
-
-               <div>
-                  <span style={{ fontSize: '11px', opacity: 0.5, fontWeight: 900, textTransform: 'uppercase' }}>Seznam skladeb v pořadí:</span>
-                  <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                     {queueItems.length === 0 ? (
-                        <div style={{ padding: '3rem', textAlign: 'center', opacity: 0.4 }}>Fronta je prázdná, doplňte další hity!</div>
-                     ) : (
-                        queueItems.map((item: any, idx: number) => (
-                           <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'rgba(255,255,255,0.03)', padding: '1rem 1.5rem', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>{idx + 1}</div>
-                              <div style={{ flex: 1, overflow: 'hidden' }}>
-                                 <div style={{ fontWeight: 800, fontSize: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.song?.title}</div>
-                                 <div style={{ fontSize: '13px', opacity: 0.5 }}>{item.song?.artist}</div>
-                              </div>
-                              <button 
-                                onClick={(e) => handleRemoveFromQueue(item.id, e)}
-                                style={{ background: 'none', border: 'none', color: '#ff4b2b', fontSize: '18px', cursor: 'pointer', padding: '10px' }}>✕</button>
-                           </div>
-                        ))
-                     )}
-                  </div>
-               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* TOAST */}
       {showToast && (
         <div style={{
@@ -359,7 +231,6 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
       )}
 
       <style jsx>{`
-        .corner-panel-float:hover { transform: scale(1.02); border-color: rgba(255,215,0,0.3) !important; background: rgba(0,0,0,0.95) !important; }
         .glass-panel:hover { transform: translateY(-8px); border-color: rgba(255,215,0,0.3) !important; background: rgba(255,255,255,0.06) !important; }
         .plus-btn:hover { background: rgba(255,215,0,0.4) !important; transform: scale(1.15); }
         .hero-logo-img { height: 320px; filter: drop-shadow(0 0 80px rgba(255,215,0,0.35)) drop-shadow(0 0 30px rgba(0,0,0,1)); transition: all 0.3s; }
@@ -368,7 +239,6 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
           .hero-logo-wrap { margin-bottom: 2rem !important; }
         }
         @keyframes slideUp { from { transform: translate(-50%, 30px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
-        @keyframes slideUpModal { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
       `}</style>
     </div>
   );
