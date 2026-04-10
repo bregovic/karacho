@@ -128,43 +128,9 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
           pointerEvents: 'none',
         }} />
 
-        <div className="hero-logo-wrap" style={{ position: 'relative', zIndex: 1, marginBottom: 'clamp(2rem, 6vw, 4rem)' }}>
+        <div className="hero-logo-wrap" style={{ position: 'relative', zIndex: 1, marginBottom: 'clamp(2.5rem, 8vw, 6rem)' }}>
           <img src="/logo.png" alt="Karacho" className="hero-logo-img" />
         </div>
-
-        {/* JOIN BY ID BOX / CREATE BOX */}
-        {!joinCode && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', zIndex: 10 }}>
-            <form onSubmit={handleJoinById} style={{ 
-              position: 'relative', zIndex: 5, 
-              display: 'flex', gap: '10px', background: 'rgba(255,255,255,0.05)', 
-              padding: '10px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)',
-              backdropFilter: 'blur(10px)', boxShadow: '0 10px 40px rgba(0,0,0,0.4)'
-            }}>
-              <input 
-                type="text" placeholder="Zadej kód (5 čísel)" maxLength={5}
-                value={joinId} onChange={e => setJoinId(e.target.value)}
-                style={{ padding: '12px 20px', borderRadius: '12px', border: 'none', background: 'rgba(0,0,0,0.3)', color: 'var(--color-gold)', width: '150px', fontSize: '16px', fontWeight: 900, textAlign: 'center', letterSpacing: '0.1em', outline: 'none' }}
-              />
-              <button type="submit" style={{ padding: '12px 24px', borderRadius: '12px', background: 'var(--color-gold)', color: '#000', border: 'none', fontWeight: 900, cursor: 'pointer', fontSize: '14px' }}>PŘIPOJIT SE</button>
-            </form>
-
-            <span style={{ fontSize: '12px', opacity: 0.4, fontWeight: 700 }}>NEBO</span>
-
-            <button 
-              onClick={() => createOrJoin()}
-              style={{
-                 background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                 color: '#fff', padding: '10px 20px', borderRadius: '14px', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
-                 transition: 'all 0.2s'
-              }}
-              onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-              onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-            >
-              🚀 ZALOŽIT NOVOU VLASTNÍ SHOW
-            </button>
-          </div>
-        )}
 
         <div className="hero-controls" style={{ 
           display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center',
