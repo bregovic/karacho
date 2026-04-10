@@ -338,8 +338,13 @@ export async function importLyricsFromUrl(songId: string, url: string) {
       const match = html.match(/<pre[^>]*>([\s\S]*?)<\/pre>/);
       if (match) lyrics = match[1];
     } else if (isSM) {
+      // Supermusic má občas akordy v hranatých závorkách v určitém režimu, nebo prostě v textu
       const match = html.match(/<div id="songtext"[^>]*>([\s\S]*?)<\/div>/) || html.match(/<div class="song-text"[^>]*>([\s\S]*?)<\/div>/);
-      if (match) lyrics = match[1].replace(/<br\s*\/?>/gi, '\n');
+      if (match) {
+        lyrics = match[1]
+          .replace(/<span class="akord"[^>]*>([\s\S]*?)<\/span>/gi, '[$1]') // Převod modrých akordů na [Chord]
+          .replace(/<br\s*\/?>/gi, '\n');
+      }
     } else {
       const match = html.match(/<p class="text">([\s\S]*?)<\/p>/) || html.match(/<div id="text">([\s\S]*?)<\/div>/);
       if (match) lyrics = match[1].replace(/<br\s*\/?>/gi, '\n');

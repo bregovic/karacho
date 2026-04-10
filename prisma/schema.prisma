@@ -134,6 +134,7 @@ model KaraokeSession {
   id            String    @id @default(cuid())
   joinCode      String    @unique // Krátký kód pro mobil (např. ABC1)
   status        SessionStatus @default(STOPPED)
+  sessionMode   SessionMode @default(KARAOKE)
   currentSongId String?
   currentTime   Float     @default(0)
   startedAt     DateTime? // Světový čas posledního spuštění
@@ -159,6 +160,11 @@ enum SessionStatus {
   PLAYING
   PAUSED
   STOPPED
+}
+
+enum SessionMode {
+  KARAOKE
+  CHORDS
 }
 
 enum Role {

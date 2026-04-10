@@ -19,8 +19,46 @@ interface TimingData {
   dur: number;
 }
 
+function ChordsView({ chords, songTitle, artist }: { chords: string, songTitle: string, artist: string }) {
+  const lines = chords.split('\n');
+  
+  // Velmi jednoduchý ChordPro formatter (vloží akordy jako span nad text)
+  const renderLine = (line: string) => {
+    // Pokud line obsahuje akordy jako [G]
+    const parts = line.split(/(\[[^\]]+\])/);
+    return parts.map((part, i) => {
+      if (part.startsWith('[') && part.endsWith(']')) {
+        return <span key={i} style={{ color: '#ffcc00', fontWeight: 900, fontSize: '0.8em', position: 'absolute', top: '-1.2em', left: 0 }}>{part.slice(1, -1)}</span>;
+      }
+      return <span key={i} style={{ position: 'relative', display: 'inline-block', paddingTop: '1.2em', marginRight: part === ' ' ? '0.3em' : 0 }}>{part}</span>;
+    });
+  };
+
+  return (
+    <div style={{ 
+      padding: '4rem 2rem 10rem', maxWidth: '800px', margin: '0 auto', 
+      fontSize: 'clamp(18px, 3vw, 24px)', lineHeight: '2.5', color: '#eee',
+      whiteSpace: 'pre-wrap', wordBreak: 'break-word', position: 'relative', zIndex: 10
+    }}>
+      <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+        <h1 style={{ color: '#fff', fontSize: '32px', fontWeight: 900, margin: 0 }}>{songTitle}</h1>
+        <p style={{ opacity: 0.6, fontSize: '18px' }}>{artist}</p>
+      </div>
+      
+      {lines.map((line, i) => (
+        <div key={i} style={{ marginBottom: '1.5rem', minHeight: '1.5em' }}>
+          {line.includes('[') ? renderLine(line) : line}
+        </div>
+      ))}
+      
+      <div style={{ height: '30vh' }} /> {/* Spodek pro dojetí scrollu */}
+    </div>
+  );
+}
+
 export default function PlayerClient({ song }: { song: any }) {
-  const { joinCode } = useSession();
+  const { joinCode, sessionData } = useSession();
+  const isChordsMode = sessionData?.sessionMode === 'CHORDS';
   const [isPlaying, setIsPlaying] = useState(false);
   const [isInstrumental, setIsInstrumental] = useState(!!song.instrumentalUrl);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -360,7 +398,7 @@ export default function PlayerClient({ song }: { song: any }) {
       `}} />
 
       <div style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
-        {hasVideo ? (
+        {hasVideo && !isChordsMode ? (
           <video ref={videoElRef} src={song.videoUrl || ''} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
           <img 
@@ -372,31 +410,44 @@ export default function PlayerClient({ song }: { song: any }) {
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 40%, transparent 60%, rgba(0,0,0,0.8) 100%)' }} />
       </div>
 
-      <div id="stage" style={{ position: 'relative', width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', pointerEvents: 'none', zIndex: 3 }}>
-        <div ref={countEl} style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: '8px', position: 'absolute', top: '20%', left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
-          <div className="cnt-v" style={{ color: 'var(--color-gold)', fontSize: '85px', lineHeight: 1, fontWeight: 900, textShadow: '0 0 40px rgba(255,215,0,0.8)', filter: 'drop-shadow(0 4px 15px rgba(0,0,0,0.8))', marginBottom: '-5px' }} />
-          <div style={{ width: '180px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden', boxShadow: '0 0 25px rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.05)' }}>
-             <div ref={countBarEl} style={{ width: '100%', height: '100%', background: 'linear-gradient(90deg, #FFD700, #FFA500, #FFD700)', boxShadow: '0 0 15px var(--color-gold)', transition: 'width 0.1s linear' }} />
-          </div>
-        </div>
-        
-        {/* HLAS 1 (Top) */}
-        <div id="voice1" style={{ position: 'absolute', top: '15%', left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3vh', padding: '0 5vw' }}>
-          <div id="cur-line-1" ref={curLineEl1} style={{ color: 'white' }}></div>
-          <div className="ln-ctx" ref={nextLineEl1} style={{ opacity: 0.4 }}></div>
-        </div>
-
-        {/* HLAS CENTER (Standard W) */}
-        <div id="voice3" style={{ position: 'absolute', top: '50%', left: 0, right: 0, transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3vh', padding: '0 5vw' }}>
-          <div id="cur-line-C" ref={curLineElC} style={{ color: 'white' }}></div>
-          <div className="ln-ctx" ref={nextLineElC} style={{ opacity: 0.4 }}></div>
-        </div>
-
-        {/* HLAS 2 (Bottom) */}
-        <div id="voice2" style={{ position: 'absolute', bottom: '25%', left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3vh', padding: '0 5vw' }}>
-          <div id="cur-line-2" ref={curLineEl2} style={{ color: 'white' }}></div>
-          <div className="ln-ctx" ref={nextLineEl2} style={{ opacity: 0.4 }}></div>
-        </div>
+      <div id="stage" style={{ position: 'relative', width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', overflowY: isChordsMode ? 'auto' : 'hidden', pointerEvents: isChordsMode ? 'auto' : 'none', zIndex: 3 }}>
+        {isChordsMode ? (
+           song.chords ? (
+              <ChordsView chords={song.chords} songTitle={song.title} artist={song.artist} />
+           ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '2rem' }}>
+                 <p style={{ fontSize: '24px', opacity: 0.5 }}>Tato píseň zatím nemá uložené akordy.</p>
+                 <Link href="/" style={{ padding: '1rem 2rem', background: 'var(--color-gold)', color: '#000', borderRadius: '14px', textDecoration: 'none', fontWeight: 900 }}>Zpět do katalogu</Link>
+              </div>
+           )
+        ) : (
+          <>
+            <div ref={countEl} style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: '8px', position: 'absolute', top: '20%', left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
+              <div className="cnt-v" style={{ color: 'var(--color-gold)', fontSize: '85px', lineHeight: 1, fontWeight: 900, textShadow: '0 0 40px rgba(255,215,0,0.8)', filter: 'drop-shadow(0 4px 15px rgba(0,0,0,0.8))', marginBottom: '-5px' }} />
+              <div style={{ width: '180px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden', boxShadow: '0 0 25px rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                 <div ref={countBarEl} style={{ width: '100%', height: '100%', background: 'linear-gradient(90deg, #FFD700, #FFA500, #FFD700)', boxShadow: '0 0 15px var(--color-gold)', transition: 'width 0.1s linear' }} />
+              </div>
+            </div>
+            
+            {/* HLAS 1 (Top) */}
+            <div id="voice1" style={{ position: 'absolute', top: '15%', left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3vh', padding: '0 5vw' }}>
+              <div id="cur-line-1" ref={curLineEl1} style={{ color: 'white' }}></div>
+              <div className="ln-ctx" ref={nextLineEl1} style={{ opacity: 0.4 }}></div>
+            </div>
+    
+            {/* HLAS CENTER (Standard W) */}
+            <div id="voice3" style={{ position: 'absolute', top: '50%', left: 0, right: 0, transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3vh', padding: '0 5vw' }}>
+              <div id="cur-line-C" ref={curLineElC} style={{ color: 'white' }}></div>
+              <div className="ln-ctx" ref={nextLineElC} style={{ opacity: 0.4 }}></div>
+            </div>
+    
+            {/* HLAS 2 (Bottom) */}
+            <div id="voice2" style={{ position: 'absolute', bottom: '25%', left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3vh', padding: '0 5vw' }}>
+              <div id="cur-line-2" ref={curLineEl2} style={{ color: 'white' }}></div>
+              <div className="ln-ctx" ref={nextLineEl2} style={{ opacity: 0.4 }}></div>
+            </div>
+          </>
+        )}
       </div>
 
       <div id="ui-layer" style={{ position: 'absolute', inset: 0, zIndex: 10, pointerEvents: 'none', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
@@ -404,17 +455,21 @@ export default function PlayerClient({ song }: { song: any }) {
             <div className="meta-info" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>
                    <span className="footer-title-hide" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>{song.artist} – {song.title}</span>
-                   <span ref={timeEl}>0:00 / 0:00</span>
+                   {!isChordsMode && <span ref={timeEl}>0:00 / 0:00</span>}
                 </div>
-                <div onClick={handleSeek} style={{ height: '8px', background: 'rgba(255,255,255,0.15)', borderRadius: '4px', cursor: 'pointer', position: 'relative' }}>
-                   <div ref={pbarEl} style={{ height: '100%', background: 'var(--color-gold)', width: '0%', borderRadius: '4px', boxShadow: '0 0 12px var(--glow)' }} />
-                </div>
+                {!isChordsMode && (
+                   <div onClick={handleSeek} style={{ height: '8px', background: 'rgba(255,255,255,0.15)', borderRadius: '4px', cursor: 'pointer', position: 'relative' }}>
+                      <div ref={pbarEl} style={{ height: '100%', background: 'var(--color-gold)', width: '0%', borderRadius: '4px', boxShadow: '0 0 12px var(--glow)' }} />
+                   </div>
+                )}
             </div>
             <div className="btn-group" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-              <button onClick={togglePlay} style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'var(--color-gold)', border: 'none', color: '#000', fontSize: '22px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                 {isPlaying ? '⏸' : '▶'}
-              </button>
-              {song.instrumentalUrl && (
+              {!isChordsMode && (
+                <button onClick={togglePlay} style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'var(--color-gold)', border: 'none', color: '#000', fontSize: '22px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                   {isPlaying ? '⏸' : '▶'}
+                </button>
+              )}
+              {!isChordsMode && song.instrumentalUrl && (
                 <button onClick={toggleTrack} style={{ padding: '12px 16px', borderRadius: '12px', background: isInstrumental ? 'rgba(0,177,64,0.2)' : 'rgba(255,255,255,0.05)', border: isInstrumental ? '1px solid #00B140' : '1px solid rgba(255,255,255,0.1)', color: isInstrumental ? '#00B140' : 'white', cursor: 'pointer', fontWeight: 600, fontSize: '12px', display: 'flex', gap: '8px', alignItems: 'center', whiteSpace: 'nowrap' }}>
                   {isInstrumental ? <span>🎻 KARAOKE</span> : <span>👤 ORIGINÁL</span>}
                 </button>
