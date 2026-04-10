@@ -1,0 +1,6 @@
+[phases.setup]
+nixPkgs = ["nodejs", "python3", "ffmpeg"]
+
+[phases.build]
+dependsOn = ["setup"]
+cmds = ["prisma generate", "next build"]
