@@ -190,6 +190,33 @@ export default function DesignerClient({ song }: { song: any }) {
     renderUI();
   };
 
+  const forceLineEndAndAdvanceToNext = () => {
+    if (!audioRef.current) return;
+    const t = audioRef.current.currentTime;
+    
+    // 1. Ukončíme aktuální řádek (pokud ještě není ukončen)
+    const lineEndEv = eventsRef.current.find(e => e.type === 'lineEnd' && e.lineIdx === curLineRef.current);
+    if (!lineEndEv) {
+       eventsRef.current.push({ type: 'lineEnd', time: t, lineIdx: curLineRef.current });
+    }
+    
+    // 2. Aktivujeme další řádek (pokud existuje) a oklíčujeme hned první slovo
+    const nextL = curLineRef.current + 1;
+    if (nextL < linesRef.current.length) {
+       eventsRef.current.push({ type: 'line', time: t, lineIdx: nextL });
+       eventsRef.current.push({ type: 'word', time: t, lineIdx: nextL, wordIdx: 0 });
+       curLineRef.current = nextL;
+       curWordRef.current = 0;
+    } else {
+       // KONEC PÍSNĚ
+       curLineRef.current = linesRef.current.length;
+       curWordRef.current = -1;
+    }
+    
+    restoreState();
+    forceUpdate();
+  };
+
   const handleWordTiming = (v?: number) => {
     if (!audioRef.current) return;
     const t = audioRef.current.currentTime;
@@ -210,27 +237,7 @@ export default function DesignerClient({ song }: { song: any }) {
       restoreState();
       forceUpdate();
     } else {
-      const lineEndEv = eventsRef.current.find(e => e.type === 'lineEnd' && e.lineIdx === curLineRef.current);
-      if (!lineEndEv) {
-         eventsRef.current.push({ type: 'lineEnd', time: t, lineIdx: curLineRef.current });
-         
-         // AUTO-ADVANCE: Pokud existuje další řádek, hned ho aktivujeme a oklíčujeme PRVNÍ SLOVO
-         const nextL = curLineRef.current + 1;
-         if (nextL < linesRef.current.length) {
-            eventsRef.current.push({ type: 'line', time: t, lineIdx: nextL });
-            eventsRef.current.push({ type: 'word', time: t, lineIdx: nextL, wordIdx: 0 });
-            curLineRef.current = nextL;
-            curWordRef.current = 0;
-         } else {
-            // JSME NA KONCI CELÉ PÍSNĚ
-            // Posuneme index na "nekonečno" aby UI ukázalo HOTOVO
-            curLineRef.current = linesRef.current.length;
-            curWordRef.current = -1;
-         }
-
-         restoreState();
-         forceUpdate();
-      }
+      forceLineEndAndAdvanceToNext();
     }
   };
 
@@ -286,15 +293,7 @@ export default function DesignerClient({ song }: { song: any }) {
 
     if (e.code === 'Enter') {
       e.preventDefault();
-      const nextL = curLineRef.current + 1;
-      if (nextL < linesRef.current.length) {
-        // Pokud do této linky ještě nebylo vstoupeno, označíme její začátek
-        eventsRef.current.push({ type: 'line', time: t, lineIdx: nextL });
-        curLineRef.current = nextL;
-        curWordRef.current = -1;
-        restoreState();
-        forceUpdate();
-      }
+      forceLineEndAndAdvanceToNext();
       return;
     }
 
@@ -563,9 +562,8 @@ export default function DesignerClient({ song }: { song: any }) {
              </div>
           </div>
 
-          {/* MOBILNÍ OVLÁDÁNÍ */}
           <div className="mobile-main-controls" style={{ position: 'absolute', bottom: '120px', left: 0, right: 0, justifyContent: 'center', alignItems: 'center', gap: '25px', zIndex: 100, pointerEvents: 'auto' }}>
-              <button onClick={(e) => { e.stopPropagation(); handleKeyDown({ code: 'Enter', preventDefault: () => {} } as any); }} style={{ width: '65px', height: '65px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '2px solid rgba(255,255,255,0.2)', color: 'white', fontSize: '24px', backdropFilter: 'blur(10px)' }}>📏</button>
+              <button onClick={(e) => { e.stopPropagation(); forceLineEndAndAdvanceToNext(); }} style={{ width: '65px', height: '65px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '2px solid rgba(255,255,255,0.2)', color: 'white', fontSize: '24px', backdropFilter: 'blur(10px)' }}>📏</button>
               <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                  {!isPlaying && (
                     <div style={{ position: 'absolute', bottom: '90px', display: 'flex', background: 'rgba(0,0,0,0.8)', padding: '10px', borderRadius: '15px', gap: '15px', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)' }}>
