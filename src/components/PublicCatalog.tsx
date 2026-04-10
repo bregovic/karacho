@@ -79,15 +79,19 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
     e.stopPropagation();
     
     if (joinCode) {
-      await addToSessionQueue(joinCode, id);
-      showToast("SKLADBA JE VE FRONTĚ ✅");
+      const res = await addToSessionQueue(joinCode, id);
+      if (res && res.position > 0) {
+        showToast(`SKLADBA JE VE FRONTĚ ✅ (Pořadí: ${res.position}. v pořadí)`, "success");
+      } else {
+        showToast("SKLADBA JE DALŠÍ NA ŘADĚ! 🎤", "success");
+      }
       refreshSession();
     } else {
       const q = JSON.parse(localStorage.getItem('karacho_queue') || '[]');
       q.push(id);
       localStorage.setItem('karacho_queue', JSON.stringify(q));
       setQueueSize(q.length);
-      showToast("SKLADBA JE VE FRONTĚ ✅");
+      showToast(`SKLADBA JE VE FRONTĚ ✅ (Pořadí: ${q.length}. v pořadí)`, "success");
     }
   };
 

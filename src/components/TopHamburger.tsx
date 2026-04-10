@@ -58,13 +58,34 @@ export default function TopHamburger({ isAdmin, isAuthenticated }: TopHamburgerP
             </Link>
 
             <div 
-              onClick={joinSession}
+              onClick={() => {
+                const code = prompt("Zadejte 5-místný kód show:");
+                if (code && code.length === 5) {
+                   window.location.href = `/join/${code}`;
+                }
+                setIsOpen(false);
+              }}
               style={{ padding: '16px 20px', cursor: 'pointer', transition: 'all 0.2s', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }}
               className="menu-item"
             >
-              <span style={{ fontSize: '18px' }}>🎤</span>
-              <span style={{ fontSize: '14px', fontWeight: 700 }}>Změnit show / Připojit</span>
+              <span style={{ fontSize: '18px' }}>🎫</span>
+              <span style={{ fontSize: '14px', fontWeight: 700 }}>Zadat kód show</span>
             </div>
+
+            {useSession().joinCode && (
+              <div 
+                onClick={() => {
+                  leaveSession();
+                  setIsOpen(false);
+                  router.push('/');
+                }}
+                style={{ padding: '16px 20px', cursor: 'pointer', transition: 'all 0.2s', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px', color: '#ff4b2b' }}
+                className="menu-item"
+              >
+                <span style={{ fontSize: '18px' }}>🚫</span>
+                <span style={{ fontSize: '14px', fontWeight: 700 }}>Odejít ze show</span>
+              </div>
+            )}
 
            <div 
              onClick={openRequestModal}

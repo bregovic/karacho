@@ -90,8 +90,11 @@ export async function updateSessionState(code: string, data: any) {
 
 // ➕ Přidání do fronty relace přes mobil
 export async function addToSessionQueue(code: string, songId: string) {
-  const s = await db.karaokeSession.findUnique({ where: { joinCode: code } });
-  if (!s) return;
+  const s = await db.karaokeSession.findUnique({ 
+    where: { joinCode: code },
+    include: { queue: true }
+  });
+  if (!s) return null;
 
   // Pokud nic nehraje (první song), nastavíme ho jako aktuální v režimu pauzy
   if (!s.currentSongId) {
@@ -102,18 +105,16 @@ export async function addToSessionQueue(code: string, songId: string) {
         status: 'PAUSED'
       }
     });
+    return { position: 0 }; // Je to aktuálně hrající pisen
   } else {
     // Jinak klasicky do fronty
-    const last = await db.karaokeSessionQueue.findFirst({
-      where: { sessionId: s.id },
-      orderBy: { order: 'desc' }
-    });
+    const last = s.queue.sort((a,b) => b.order - a.order)[0];
     const nextOrder = (last?.order || 0) + 1;
     await db.karaokeSessionQueue.create({
       data: { sessionId: s.id, songId, order: nextOrder }
     });
+    return { position: s.queue.length + 1 }; // +1 protože hraje jeden a zbytek ve frontě (+ tenhle novej)
   }
-  revalidatePath('/');
 }
 
 // ❌ Smazání songu z fronty relace
