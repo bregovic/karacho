@@ -323,7 +323,17 @@ export async function importLyricsFromUrl(songId: string, url: string) {
 
     if (!isKA && !isKT && !isSM) return { error: 'Nepodporovaný web.' };
 
-    const res = await fetch(url, {
+    let targetUrl = url;
+    
+    // EXPORT REŽIM PRO SUPERMUSIC (Závorky v textu)
+    if (isSM) {
+      const idMatch = url.match(/idpiesne=(\d+)/);
+      if (idMatch) {
+         targetUrl = `https://www.supermusic.cz/export.php?idpiesne=${idMatch[1]}&typ=TXT&modulacia=0`;
+      }
+    }
+
+    const res = await fetch(targetUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36'
       }
@@ -331,40 +341,42 @@ export async function importLyricsFromUrl(songId: string, url: string) {
     
     if (!res.ok) return { error: 'Stránka je nedostupná.' };
     
-    const html = await res.text();
-    let lyrics = '';
+    const content = await res.text();
+    let textWithChords = '';
 
-    if (isKA) {
-      const match = html.match(/<pre[^>]*>([\s\S]*?)<\/pre>/);
-      if (match) lyrics = match[1];
+    if (isSM && targetUrl.includes('export.php')) {
+      // Export.php vrací čistý text, kde jsou akordy už v hranatých závorkách
+      textWithChords = content.trim();
+    } else if (isKA) {
+      const match = content.match(/<pre[^>]*>([\s\S]*?)<\/pre>/);
+      if (match) textWithChords = match[1];
     } else if (isSM) {
-      // Supermusic má občas akordy v hranatých závorkách v určitém režimu, nebo prostě v textu
-      const match = html.match(/<div id="songtext"[^>]*>([\s\S]*?)<\/div>/) || html.match(/<div class="song-text"[^>]*>([\s\S]*?)<\/div>/);
+      const match = content.match(/<div id="songtext"[^>]*>([\s\S]*?)<\/div>/) || content.match(/<div class="song-text"[^>]*>([\s\S]*?)<\/div>/);
       if (match) {
-        lyrics = match[1]
-          .replace(/<span class="akord"[^>]*>([\s\S]*?)<\/span>/gi, '[$1]') // Převod modrých akordů na [Chord]
+        textWithChords = match[1]
+          .replace(/<(span|a)[^>]*class="(akord|chord)"[^>]*>([\s\S]*?)<\/\1>/gi, ' [$3] ')
           .replace(/<br\s*\/?>/gi, '\n');
       }
     } else {
-      const match = html.match(/<p class="text">([\s\S]*?)<\/p>/) || html.match(/<div id="text">([\s\S]*?)<\/div>/);
-      if (match) lyrics = match[1].replace(/<br\s*\/?>/gi, '\n');
+      const match = content.match(/<p class="text">([\s\S]*?)<\/p>/) || content.match(/<div id="text">([\s\S]*?)<\/div>/);
+      if (match) textWithChords = match[1].replace(/<br\s*\/?>/gi, '\n');
     }
     
-    if (!lyrics) return { error: 'Text nenalezen.' };
+    if (!textWithChords) return { error: 'Text nenalezen.' };
 
-    const textWithChords = lyrics.replace(/<[^>]*>?/gm, '').trim();
-    const finalLyrics = cleanLyrics(textWithChords);
+    const finalWithChords = textWithChords.replace(/<[^>]*>?/gm, '').trim();
+    const finalLyrics = cleanLyrics(finalWithChords);
 
     if (finalLyrics.length > 0) {
       await db.song.update({ 
         where: { id: songId }, 
         data: { 
           lyrics: finalLyrics,
-          chords: textWithChords !== finalLyrics ? textWithChords : null
+          chords: finalWithChords !== finalLyrics ? finalWithChords : null
         } 
       });
       revalidatePath('/admin');
-      return { success: true, lyrics: finalLyrics, chords: textWithChords };
+      return { success: true, lyrics: finalLyrics, chords: finalWithChords };
     }
     
     return { error: 'Výsledný text je prázdný.' };
