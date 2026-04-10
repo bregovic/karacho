@@ -78,20 +78,27 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
     e.preventDefault();
     e.stopPropagation();
     
-    if (joinCode) {
-      const res = await addToSessionQueue(joinCode, id);
+    let currentCode = joinCode;
+    
+    // AUTO-CREATE SESSION: Pokud nejsme v relaci, založíme ji za letu
+    if (!currentCode) {
+      try {
+        currentCode = await createOrJoin();
+        // Malá prodleva aby se context stihl chytit není nutná díky local loadu v createOrJoin
+      } catch (err) {
+        showToast("Nepodařilo se založit show. Zkuste to prosím z menu.", "error");
+        return;
+      }
+    }
+    
+    if (currentCode) {
+      const res = await addToSessionQueue(currentCode, id);
       if (res && res.position > 0) {
         showToast(`SKLADBA JE VE FRONTĚ ✅ (Pořadí: ${res.position}. v pořadí)`, "success");
       } else {
         showToast("SKLADBA JE DALŠÍ NA ŘADĚ! 🎤", "success");
       }
       refreshSession();
-    } else {
-      const q = JSON.parse(localStorage.getItem('karacho_queue') || '[]');
-      q.push(id);
-      localStorage.setItem('karacho_queue', JSON.stringify(q));
-      setQueueSize(q.length);
-      showToast(`SKLADBA JE VE FRONTĚ ✅ (Pořadí: ${q.length}. v pořadí)`, "success");
     }
   };
 
