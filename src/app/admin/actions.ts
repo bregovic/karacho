@@ -315,6 +315,152 @@ function cleanLyrics(text: string, customBlacklist: string[] = []): string {
   return finalLines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+export async function importLyricsFromUrl(songId: string, url: string) {
+  try {
+    const isKA = url.includes('pisnicky-akordy.cz');
+    const isKT = url.includes('karaoketexty.cz');
+    const isSM = url.includes('supermusic.cz') || url.includes('supermusic.sk');
+
+    if (!isKA && !isKT && !isSM) return { error: 'Nepodporovaný web.' };
+
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36'
+      }
+    });
+    
+    if (!res.ok) return { error: 'Stránka je nedostupná.' };
+    
+    const html = await res.text();
+    let lyrics = '';
+
+    if (isKA) {
+      const match = html.match(/<pre[^>]*>([\s\S]*?)<\/pre>/);
+      if (match) lyrics = match[1];
+    } else if (isSM) {
+      const match = html.match(/<div id="songtext"[^>]*>([\s\S]*?)<\/div>/) || html.match(/<div class="song-text"[^>]*>([\s\S]*?)<\/div>/);
+      if (match) lyrics = match[1].replace(/<br\s*\/?>/gi, '\n');
+    } else {
+      const match = html.match(/<p class="text">([\s\S]*?)<\/p>/) || html.match(/<div id="text">([\s\S]*?)<\/div>/);
+      if (match) lyrics = match[1].replace(/<br\s*\/?>/gi, '\n');
+    }
+    
+    if (!lyrics) return { error: 'Text nenalezen.' };
+
+    const textWithChords = lyrics.replace(/<[^>]*>?/gm, '').trim();
+    const finalLyrics = cleanLyrics(textWithChords);
+
+    if (finalLyrics.length > 0) {
+      await db.song.update({ 
+        where: { id: songId }, 
+        data: { 
+          lyrics: finalLyrics,
+          chords: textWithChords !== finalLyrics ? textWithChords : null
+        } 
+      });
+      revalidatePath('/admin');
+      return { success: true, lyrics: finalLyrics, chords: textWithChords };
+    }
+    
+    return { error: 'Výsledný text je prázdný.' };
+  } catch (err) {
+    return { error: 'Chyba stahování.' };
+  }
+}
+
+export async function bulkFetchMissingLyrics() {
+  await ensureAdmin();
+  const songsWithoutLyrics = await db.song.findMany({
+    where: { 
+      OR: [{ lyrics: null }, { lyrics: '' }],
+      artist: { not: null },
+      title: { not: '' }
+    }
+  });
+
+  const results = { count: 0, failed: 0 };
+  for (const s of songsWithoutLyrics) {
+    const res = await fetchLyricsAction(s.id);
+    if (res.success) results.count++;
+    else results.failed++;
+  }
+  revalidatePath('/admin');
+  return results;
+}
+
+export async function researchSongDataAction(songId: string) {
+  const song = await db.song.findUnique({ where: { id: songId } });
+  if (!song || !song.artist || !song.title) return { error: 'Chybí interpret nebo název' };
+
+  const artist = song.artist;
+  const title = song.title;
+  const results: any = {};
+
+  try {
+    // 1. VAGALUME RESEARCH
+    const vRes = await fetch(`https://api.vagalume.com.br/search.php?art=${encodeURIComponent(artist)}&mus=${encodeURIComponent(title)}&apikey=666a658e7948d9d20233d31c36006c9a`);
+    if (vRes.ok) {
+      const vData = await vRes.json();
+      if (vData.mus && vData.mus[0]) {
+        const track = vData.mus[0];
+        if (track.text && (!song.lyrics || song.lyrics.length < 50)) {
+           if (!track.text.includes('?')) {
+              results.lyrics = track.text.trim();
+           }
+        }
+        if (vData.art && vData.art.genre && vData.art.genre[0]) {
+           results.genre = vData.art.genre[0].name;
+        }
+      }
+    }
+
+    // 2. LAST.FM RESEARCH
+    const lfApiKey = '4d75f2b8f847ff7638d2ef1c13d33f3b';
+    const lfRes = await fetch(`https://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key=${lfApiKey}&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}&format=json`);
+    if (lfRes.ok) {
+      const lfData = await lfRes.json();
+      if (lfData.track) {
+        if (lfData.track.toptags && lfData.track.toptags.tag) {
+          const tags = lfData.track.toptags.tag
+            .slice(0, 5)
+            .map((t: any) => t.name.toLowerCase())
+            .filter((t: string) => !['seen live', 'favorites'].includes(t));
+          results.tags = Array.from(new Set([...(song.tags || []), ...tags]));
+        }
+      }
+    }
+
+    // 3. SUPERMUSIC & PISNICKY-AKORDY RESEARCH
+    const currentLyrics = results.lyrics || song.lyrics || '';
+    const needsBetterLyrics = !currentLyrics || currentLyrics.length < 100 || currentLyrics.includes('[') || (currentLyrics.match(/,/g) || []).length > 2;
+
+    if (needsBetterLyrics) {
+       const smUrl = `https://supermusic.cz/skupina.php?action=song&idinterpret=${toSlug(artist)}&idpisen=${toSlug(title)}`;
+       const smRes = await importLyricsFromUrl(songId, smUrl);
+       if (smRes.success) {
+          results.lyrics = smRes.lyrics;
+       } else {
+          const paUrl = `https://pisnicky-akordy.cz/${toSlug(artist)}/${toSlug(title)}`;
+          const paRes = await importLyricsFromUrl(songId, paUrl);
+          if (paRes.success) results.lyrics = paRes.lyrics;
+       }
+    }
+
+    if (results.lyrics) results.lyrics = cleanLyrics(results.lyrics);
+
+    if (Object.keys(results).length > 0) {
+      await db.song.update({ where: { id: songId }, data: results });
+      revalidatePath('/admin');
+      return { success: true, updated: results };
+    }
+
+    return { error: 'Nepodařilo se najít žádná nová metadata.' };
+  } catch (err) {
+    console.error('Research Error:', err);
+    return { error: 'Chyba při researchu dat.' };
+  }
+}
+
 export async function bulkUpdateState(songIds: string[], newState: string) {
   await db.song.updateMany({
     where: { id: { in: songIds } },

@@ -210,11 +210,19 @@ export default function DesignerClient({ song }: { song: any }) {
       restoreState();
       forceUpdate();
     } else {
-      // POSLEDNÍ SLOVO NA ŘÁDKU BYLO DOSAŽENO
-      // Pokud stiskneme W znovu, označíme KONEC ŘÁDKU (End of Block)
+      // POSLEDNÍ SLOVO NA ŘÁDKU DOSAŽENO
       const lineEndEv = eventsRef.current.find(e => e.type === 'lineEnd' && e.lineIdx === curLineRef.current);
       if (!lineEndEv) {
          eventsRef.current.push({ type: 'lineEnd', time: t, lineIdx: curLineRef.current });
+         
+         // AUTO-ADVANCE: Pokud existuje další řádek, hned ho aktivujeme (jako Enter)
+         const nextL = curLineRef.current + 1;
+         if (nextL < linesRef.current.length) {
+            eventsRef.current.push({ type: 'line', time: t, lineIdx: nextL });
+            curLineRef.current = nextL;
+            curWordRef.current = -1;
+         }
+
          restoreState();
          forceUpdate();
       }
