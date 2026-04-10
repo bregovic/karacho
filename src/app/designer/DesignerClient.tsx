@@ -6,7 +6,8 @@ import { autoAlignSong } from '@/app/admin/auto-align';
 type TimingEvent = 
   | { type: 'line'; time: number; lineIdx: number }
   | { type: 'word'; time: number; lineIdx: number; wordIdx: number }
-  | { type: 'countdown'; time: number };
+  | { type: 'countdown'; time: number }
+  | { type: 'lineEnd'; time: number; lineIdx: number };
 
 export default function DesignerClient({ song }: { song: any }) {
   const [view, setView] = useState<'setup' | 'editor'>('setup');
@@ -209,15 +210,13 @@ export default function DesignerClient({ song }: { song: any }) {
       restoreState();
       forceUpdate();
     } else {
-      const nextL = curLineRef.current + 1;
-      if (nextL < linesRef.current.length) {
-        curLineRef.current = nextL;
-        curWordRef.current = 0;
-        setVoiceMap(prev => ({ ...prev, [nextL]: targetVoice }));
-        eventsRef.current.push({ type: 'line', time: t, lineIdx: nextL });
-        eventsRef.current.push({ type: 'word', time: t, lineIdx: nextL, wordIdx: 0 });
-        restoreState();
-        forceUpdate();
+      // POSLEDNÍ SLOVO NA ŘÁDKU BYLO DOSAŽENO
+      // Pokud stiskneme W znovu, označíme KONEC ŘÁDKU (End of Block)
+      const lineEndEv = eventsRef.current.find(e => e.type === 'lineEnd' && e.lineIdx === curLineRef.current);
+      if (!lineEndEv) {
+         eventsRef.current.push({ type: 'lineEnd', time: t, lineIdx: curLineRef.current });
+         restoreState();
+         forceUpdate();
       }
     }
   };
@@ -392,14 +391,20 @@ export default function DesignerClient({ song }: { song: any }) {
     for (let li = 0; li < linesRef.current.length; li++) {
        const lineEvents = eventsRef.current.filter(e => e.type === 'line' && e.lineIdx === li);
        const wordEvs = eventsRef.current.filter(e => e.type === 'word' && e.lineIdx === li).sort((a: any, b: any) => a.wordIdx - b.wordIdx);
+       const lineEndEv = eventsRef.current.find(e => e.type === 'lineEnd' && e.lineIdx === li);
+       
        if (lineEvents.length === 0 && wordEvs.length === 0) continue;
+       
        const lw = linesRef.current[li];
        const blockStart = lineEvents.length ? lineEvents[0].time : (wordEvs.length ? wordEvs[0].time : 0);
        let blockEnd = dur;
-       if (li < linesRef.current.length - 1) {
+       if (lineEndEv) {
+          blockEnd = lineEndEv.time;
+       } else if (li < linesRef.current.length - 1) {
           const nextLE = eventsRef.current.filter(e => e.type === 'line' && e.lineIdx === li + 1);
-          if (nextLE.length) blockEnd = (nextLE[0] as any).time;
+          if (nextLE.length) blockEnd = nextLE[0].time;
        }
+       
        blocks.push({
          li, lw, bs: blockStart, be: blockEnd, v: voiceMap[li] || 3, w: wordEvs.map((w: any) => ({ t: (w as any).time, i: (w as any).wordIdx }))
        });
@@ -621,23 +626,24 @@ export default function DesignerClient({ song }: { song: any }) {
          <div style={{ flex: 1, overflowY: 'auto', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
             {eventsRef.current.map((ev, idx) => {
                const isLine = ev.type === 'line';
+               const isLineEnd = ev.type === 'lineEnd';
                const isCountdown = ev.type === 'countdown';
                let text = '';
                if (isLine) {
                  const v = voiceMap[ev.lineIdx] || 1;
-                 text = `[Line ${ev.lineIdx+1}] ${v === 1 ? 'G' : 'R'}`;
+                 text = `[Blok Start ${ev.lineIdx+1}] ${v === 1 ? 'G' : (v === 2 ? 'R' : 'W')}`;
+               } else if (isLineEnd) {
+                 text = `[Blok Koniec ${ev.lineIdx+1}] 🏁`;
+               } else if (isCountdown) {
+                 text = `🚦 ODPOČET`;
+               } else {
+                 text = linesRef.current[ev.lineIdx]?.[ev.wordIdx] || '???';
                }
-               else if (isCountdown) text = `🚦 ODPOČET (3, 2, 1)`;
-               else text = linesRef.current[ev.lineIdx]?.[ev.wordIdx] || '???';
 
                return (
-                 <div key={idx} style={{ background: isLine ? 'rgba(255,215,0,0.05)' : (isCountdown ? 'rgba(255,75,43,0.1)' : 'rgba(255,255,255,0.02)'), padding: '6px 10px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                 <div key={idx} style={{ background: isLine || isLineEnd ? 'rgba(255,215,0,0.05)' : (isCountdown ? 'rgba(255,75,43,0.1)' : 'rgba(255,255,255,0.02)'), padding: '6px 10px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid rgba(255,255,255,0.03)' }}>
                     <input type="number" step="0.01" defaultValue={ev.time.toFixed(3)} onBlur={e => updateEvTime(idx, e.target.value)} style={{ width:'60px', background:'transparent', border:'none', color: isCountdown ? '#ff4b2b' : 'var(--color-teal)', fontSize:'11px', fontFamily:'monospace' }} />
-                    {!isLine && !isCountdown ? (
-                      <input type="text" defaultValue={text} onBlur={e => updateWordText(ev.lineIdx, (ev as any).wordIdx, e.target.value)} style={{ flex:1, background:'transparent', border:'none', color:'rgba(255,255,255,0.7)', fontSize:'12px' }} />
-                    ) : (
-                      <span style={{ fontSize:'12px', color: isCountdown ? '#ff4b2b' : 'var(--color-gold)', flex:1, fontWeight: isCountdown ? 800 : 400 }}>{text}</span>
-                    )}
+                    <span style={{ fontSize:'12px', color: (isLine || isLineEnd) ? 'var(--color-gold)' : (isCountdown ? '#ff4b2b' : 'rgba(255,255,255,0.7)'), flex:1 }}>{text}</span>
                     <button onClick={() => deleteEv(idx)} style={{ background:'transparent', border:'none', color:'rgba(255,255,255,0.2)', cursor:'pointer', fontSize:'12px' }}>✕</button>
                  </div>
                );
