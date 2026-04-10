@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { r2, BUCKET_NAME, PUBLIC_URL } from "@/lib/r2";
 import { auth } from '@/auth';
+import { db } from "@/lib/db";
+import crypto from 'crypto';
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,6 +26,28 @@ export async function POST(req: NextRequest) {
     let buffer: any = Buffer.from(await file.arrayBuffer());
     let filename = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
     let contentType = file.type || 'audio/mpeg';
+    
+    // VÝPOČET HASH (MD5) pro detekci duplicit
+    const hash = crypto.createHash('md5').update(buffer).digest('hex');
+
+    // 🎙️ KONTROLA DUPLICITY MP3 (jen u audia)
+    if (contentType.includes('audio')) {
+       const existing = await db.song.findFirst({
+          where: { 
+             OR: [
+               { audioHash: hash },
+               { audioUrl: { contains: hash } } // Pro jistotu, kdyby tam hash byl v názvu
+             ]
+          }
+       });
+       if (existing) {
+          return NextResponse.json({ 
+             error: "Tato MP3 už byla nahrána! (Duplicita v katalogu)",
+             existingSongId: existing.id,
+             url: existing.audioUrl 
+          }, { status: 409 }); // 409 Conflict
+       }
+    }
 
     // 🚀 OPTIMALIZACE OBRÁZKŮ (Backgrounds / Posters)
     if (contentType.startsWith('image/')) {
@@ -94,7 +118,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ 
       success: true,
       finalUrl,
-      key: filename
+      key: filename,
+      hash
     });
 
   } catch (error: any) {
