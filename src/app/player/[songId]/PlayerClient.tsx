@@ -151,13 +151,14 @@ export default function PlayerClient({ song }: { song: any }) {
             }
           }
        } else {
-          const s = await getSessionStatus(joinCode);
-          if (s) {
+          const session = await getSessionStatus(joinCode);
+          if (session) {
+             const s = session as any;
              let serverTime = s.currentTime || 0;
              if (s.status === 'PLAYING' && s.startedAt) {
                 const now = Date.now();
                 const startedAt = new Date(s.startedAt).getTime();
-                serverTime = (now - startedAt) / 1000 + s.startTimeOffset;
+                serverTime = (now - startedAt) / 1000 + (s.startTimeOffset || 0);
              }
 
              const diff = Math.abs(audioRef.current.currentTime - serverTime);

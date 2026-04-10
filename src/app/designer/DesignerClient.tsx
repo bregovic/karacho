@@ -189,6 +189,39 @@ export default function DesignerClient({ song }: { song: any }) {
     renderUI();
   };
 
+  const handleWordTiming = (v?: number) => {
+    if (!audioRef.current) return;
+    const t = audioRef.current.currentTime;
+    
+    if (curLineRef.current < 0) {
+      curLineRef.current = 0;
+      eventsRef.current.push({ type: 'line', time: t, lineIdx: 0 });
+    }
+
+    const targetVoice = v !== undefined ? v : 3;
+    setVoiceMap(prev => ({ ...prev, [curLineRef.current]: targetVoice }));
+
+    const nextW = curWordRef.current + 1;
+    const lineLen = linesRef.current[curLineRef.current]?.length || 0;
+
+    if (nextW < lineLen) {
+      eventsRef.current.push({ type: 'word', time: t, lineIdx: curLineRef.current, wordIdx: nextW });
+      restoreState();
+      forceUpdate();
+    } else {
+      const nextL = curLineRef.current + 1;
+      if (nextL < linesRef.current.length) {
+        curLineRef.current = nextL;
+        curWordRef.current = 0;
+        setVoiceMap(prev => ({ ...prev, [nextL]: targetVoice }));
+        eventsRef.current.push({ type: 'line', time: t, lineIdx: nextL });
+        eventsRef.current.push({ type: 'word', time: t, lineIdx: nextL, wordIdx: 0 });
+        restoreState();
+        forceUpdate();
+      }
+    }
+  };
+
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     // Esc pro návrat domů/zpět
     if (e.code === 'Escape') {
@@ -202,39 +235,6 @@ export default function DesignerClient({ song }: { song: any }) {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
        return;
     }
-
-    const handleWordTiming = (v?: number) => {
-      if (!audioRef.current) return;
-      const t = audioRef.current.currentTime;
-      
-      if (curLineRef.current < 0) {
-        curLineRef.current = 0;
-        eventsRef.current.push({ type: 'line', time: t, lineIdx: 0 });
-      }
-
-      const targetVoice = v !== undefined ? v : 3;
-      setVoiceMap(prev => ({ ...prev, [curLineRef.current]: targetVoice }));
-
-      const nextW = curWordRef.current + 1;
-      const lineLen = linesRef.current[curLineRef.current]?.length || 0;
-
-      if (nextW < lineLen) {
-        eventsRef.current.push({ type: 'word', time: t, lineIdx: curLineRef.current, wordIdx: nextW });
-        restoreState();
-        forceUpdate();
-      } else {
-        const nextL = curLineRef.current + 1;
-        if (nextL < linesRef.current.length) {
-          curLineRef.current = nextL;
-          curWordRef.current = 0;
-          setVoiceMap(prev => ({ ...prev, [nextL]: targetVoice }));
-          eventsRef.current.push({ type: 'line', time: t, lineIdx: nextL });
-          eventsRef.current.push({ type: 'word', time: t, lineIdx: nextL, wordIdx: 0 });
-          restoreState();
-          forceUpdate();
-        }
-      }
-    };
 
     if (e.key.toLowerCase() === 'a') {
       handleWordTiming(1);
@@ -510,11 +510,29 @@ export default function DesignerClient({ song }: { song: any }) {
                 {/* Následující řádek */}
                 <div ref={nextLineEl} style={{ minHeight: '60px', color: 'rgba(255,255,255,0.15)', fontSize: 'clamp(20px, 4vw, 40px)', fontWeight: 500, letterSpacing: '2px', transition: 'all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)' }} />
              </div>
+
+             {/* MOBILNÍ DOTYKOVÁ PLOCHA (ŤUKAT SEM) */}
+             <div 
+               onClick={(e) => { e.stopPropagation(); if(isPlaying) handleWordTiming(); }}
+               style={{ 
+                 position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'auto',
+                 display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: '20vh'
+               }}
+             >
+                <div className="mobile-tap-hint" style={{ padding: '20px 40px', background: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '50px', color: 'var(--color-gold)', fontWeight: 900, fontSize: '14px', letterSpacing: '0.1em', backdropFilter: 'blur(10px)', opacity: isPlaying ? 0.3 : 0 }}>
+                   ŤUKEJ SEM DO RYTMA
+                </div>
+             </div>
           </div>
 
           <style dangerouslySetInnerHTML={{ __html: `
-             @media (max-width: 768px) { .desktop-legend { display: none !important; } .mobile-main-controls { display: flex !important; } }
+             @media (max-width: 768px) { 
+               .desktop-legend { display: none !important; } 
+               .mobile-main-controls { display: flex !important; } 
+               .mobile-tap-hint { display: block !important; }
+             }
              .mobile-main-controls { display: none; }
+             .mobile-tap-hint { display: none; }
           `}} />
           
           <div className="desktop-legend" style={{ textAlign: 'center', width: '100%', pointerEvents: 'none', marginBottom: '80px' }}>
@@ -540,7 +558,7 @@ export default function DesignerClient({ song }: { song: any }) {
                  )}
                  <button onClick={(e) => { e.stopPropagation(); togglePlay(); }} style={{ width: '85px', height: '85px', borderRadius: '50%', background: isPlaying ? 'var(--color-gold)' : 'rgba(255,255,255,0.15)', border: 'none', fontSize: '32px', boxShadow: isPlaying ? '0 0 30px rgba(255,215,0,0.3)' : 'none' }}>{isPlaying ? '⏸' : '▶'}</button>
               </div>
-              <button onClick={(e) => { e.stopPropagation(); handleKeyDown({ code: 'KeyW', preventDefault: () => {} } as any); }} style={{ width: '65px', height: '65px', borderRadius: '50%', background: 'rgba(0,255,180,0.15)', border: '2px solid rgba(0,255,180,0.3)', color: 'white', fontSize: '24px', backdropFilter: 'blur(10px)' }}>✨</button>
+              <button onClick={(e) => { e.stopPropagation(); handleWordTiming(); }} style={{ width: '65px', height: '65px', borderRadius: '50%', background: 'rgba(0,255,180,0.15)', border: '2px solid rgba(0,255,180,0.3)', color: 'white', fontSize: '24px', backdropFilter: 'blur(10px)' }}>✨</button>
           </div>
 
           <div style={{ height: '80px', background: 'rgba(0,0,0,0.95)', borderTop: '2px solid rgba(255,255,255,0.1)', zIndex: 10, display: 'flex', flexDirection: 'column', padding: '0 3rem', boxShadow: '0 -10px 40px rgba(0,0,0,0.8)' }} onClick={e => e.stopPropagation()}>

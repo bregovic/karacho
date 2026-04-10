@@ -43,12 +43,14 @@ export default async function RootLayout({
               backdropFilter: 'blur(30px)', 
               borderBottom: '1px solid rgba(255,255,255,0.08)', 
               display: 'flex', 
+              flexWrap: 'wrap',
               justifyContent: 'space-between', 
               alignItems: 'center', 
               position: 'sticky', 
               top: 0, 
               zIndex: 1000 
             }}>
+              {/* VLEVO: Logo + ID */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 'clamp(8px, 2vw, 18px)', textDecoration: 'none' }}>
                   <img src="/icon.png" alt="Karacho Logo" className="header-logo-img" />
@@ -59,10 +61,13 @@ export default async function RootLayout({
                 </div>
               </div>
 
-              <GlobalMiniPlayer />
+              {/* STŘED: Přehrávač (na mobilu se zalomí pod) */}
+              <div className="header-player-wrapper" style={{ flex: 1, display: 'flex', justifyContent: 'center', minWidth: 'min(100%, 300px)' }}>
+                <GlobalMiniPlayer />
+              </div>
 
-              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                
+              {/* VPRAVO: Hamburger */}
+              <div style={{ display: 'flex', alignItems: 'center' }}>
                 <TopHamburger 
                   isAdmin={session?.user?.role === 'ADMIN'} 
                   isAuthenticated={!!session?.user} 

@@ -92,48 +92,54 @@ export default function AdminCatalog({
     <div style={{ padding: 'clamp(1rem, 4vw, 2.5rem)', maxWidth: '1400px', margin: '0 auto' }}>
       
       {/* NAVIGATION TABS */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '2rem' }}>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '2rem', flexWrap: 'wrap' }}>
         <button 
           onClick={() => setActiveTab('SONGS')}
           style={{ 
-            padding: '12px 24px', 
+            padding: '12px 20px', 
             borderRadius: '14px', 
             border: 'none', 
             background: activeTab === 'SONGS' ? 'var(--color-teal)' : 'rgba(255,255,255,0.05)', 
             color: activeTab === 'SONGS' ? 'black' : 'white',
             fontWeight: 800,
-            cursor: 'pointer'
+            cursor: 'pointer',
+            flex: '1 1 auto',
+            fontSize: '13px'
           }}
         >
-          🎵 KATALOG PÍSNÍ
+          🎵 KATALOG
         </button>
         <button 
           onClick={() => setActiveTab('TEAM')}
           style={{ 
-            padding: '12px 24px', 
+            padding: '12px 20px', 
             borderRadius: '14px', 
             border: 'none', 
             background: activeTab === 'TEAM' ? 'var(--color-teal)' : 'rgba(255,255,255,0.05)', 
             color: activeTab === 'TEAM' ? 'black' : 'white',
             fontWeight: 800,
-            cursor: 'pointer'
+            cursor: 'pointer',
+            flex: '1 1 auto',
+            fontSize: '13px'
           }}
         >
-          👥 TÝM & ADMINI
+          👥 TÝM
         </button>
-        <Link href="/admin/tech" style={{ textDecoration: 'none' }}>
+        <Link href="/admin/tech" style={{ textDecoration: 'none', flex: '1 1 auto' }}>
           <button 
             style={{ 
-              padding: '12px 24px', 
+              width: '100%',
+              padding: '12px 20px', 
               borderRadius: '14px', 
               border: '1px solid rgba(255,215,0,0.2)', 
               background: 'rgba(255,215,0,0.1)', 
               color: 'var(--color-gold)',
               fontWeight: 800,
-              cursor: 'pointer'
+              cursor: 'pointer',
+              fontSize: '13px'
             }}
           >
-            ⚙️ TECHNICKÉ PARAMETRY
+            ⚙️ TECH
           </button>
         </Link>
       </div>
@@ -142,34 +148,43 @@ export default function AdminCatalog({
         <AdminTeam adminEmails={adminEmails} />
       ) : (
         <>
-          {/* FILTRAČNÍ PANEL S TLAČÍTKEM + NOVÁ PÍSEŇ */}
-          <div style={{ display: 'flex', gap: '1rem', marginBottom: '2.5rem', background: 'rgba(255,255,255,0.04)', padding: '1.2rem', borderRadius: '24px', flexWrap: 'wrap', alignItems: 'center', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 10px 40px rgba(0,0,0,0.3)' }}>
-        <input 
-           type="text" 
-           placeholder={t('search_placeholder')}
-           value={search} onChange={e => setSearch(e.target.value)}
-           style={{ padding: '14px 20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.4)', color: '#fff', flex: 1, minWidth: '220px', fontSize: '15px' }}
-        />
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ padding: '14px 20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', background: '#111', color: '#fff', fontWeight: 600 }}>
-            <option value="ALL">🔍 VŠECHNY STAVY</option>
-            <option value="MISSING_LYRICS">✍️ CHYBÍ TEXT</option>
-            <option value="MISSING_AUDIO">🎵 CHYBÍ HUDBA</option>
-            <option value="MISSING_INSTR">🎻 CHYBÍ INSTRUM.</option>
-            <option value="MISSING_TIMING">⏱️ CHYBÍ ČASOVÁNÍ</option>
-            <option value="REVIEW">🚦 KONTROLA</option>
-            <option value="ACTIVE">🟢 PUBLIKOVÁNO</option>
-        </select>
-        <button onClick={selectAllFiltered} className="btn-secondary" style={{ padding: '10px' }}>Vybrat vše</button>
-        <button onClick={async () => { if(confirm('Zkusit automaticky najít texty pro všechny písně, kde chybí?')) await bulkFetchMissingLyrics(); }} className="btn-primary" style={{ padding: '14px 20px', background: 'var(--color-teal)', color: 'white', borderRadius: '16px', fontWeight: 700 }}>⚡ AUTOMATICKY DOPLNIT TEXTY</button>
-        <button 
-          className={showForm ? "btn-secondary" : "btn-primary"} 
-          onClick={() => setShowForm(!showForm)}
-          style={{ padding: '14px 28px', fontWeight: 900, borderRadius: '16px', letterSpacing: '0.05em' }}
-        >
-          {showForm ? 'ZAVŘÍT' : `➕ PŘIDAT HUDBU`}
-        </button>
-        <BulkUploader initialSongs={initialSongs} />
-      </div>
+          {/* FILTRAČNÍ PANEL */}
+          <div className="admin-filters" style={{ 
+            display: 'flex', gap: '0.75rem', marginBottom: '2.5rem', 
+            background: 'rgba(255,255,255,0.04)', padding: '1rem', 
+            borderRadius: '24px', flexWrap: 'wrap', alignItems: 'center', 
+            border: '1px solid rgba(255,255,255,0.08)' 
+          }}>
+            <input 
+              type="text" 
+              placeholder={t('search_placeholder')}
+              value={search} onChange={e => setSearch(e.target.value)}
+              style={{ padding: '14px 20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.4)', color: '#fff', flex: '1 1 300px', fontSize: '15px' }}
+            />
+            <div style={{ display: 'flex', gap: '0.5rem', width: '100%', flexWrap: 'wrap' }}>
+                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ flex: 1, padding: '12px', borderRadius: '14px', background: '#111', color: '#fff', fontSize: '12px', fontWeight: 700 }}>
+                    <option value="ALL">🔍 VŠECHNY STAVY</option>
+                    <option value="MISSING_LYRICS">✍️ TEXT</option>
+                    <option value="MISSING_AUDIO">🎵 AUDIO</option>
+                    <option value="MISSING_INSTR">🎻 INSTR.</option>
+                    <option value="MISSING_TIMING">⏱️ STUDIO</option>
+                    <option value="REVIEW">🚦 KONTROLA</option>
+                    <option value="ACTIVE">🟢 LIVE</option>
+                </select>
+                <button onClick={selectAllFiltered} className="btn-secondary" style={{ padding: '12px', fontSize: '12px' }}>Vše</button>
+                <button 
+                  className={showForm ? "btn-secondary" : "btn-primary"} 
+                  onClick={() => setShowForm(!showForm)}
+                  style={{ flex: 1.5, padding: '12px', fontWeight: 900, borderRadius: '14px', fontSize: '12px' }}
+                >
+                  {showForm ? 'ZAVŘÍT' : `➕ PŘIDAT HUDBU`}
+                </button>
+            </div>
+            <div style={{ width: '100%', display: 'flex', gap: '0.5rem' }}>
+               <button onClick={async () => { if(confirm('Automaticky najít texty?')) await bulkFetchMissingLyrics(); }} className="btn-primary" style={{ flex: 1, padding: '12px', background: 'var(--color-teal)', fontSize: '12px' }}>⚡ AI TEXTY</button>
+               <BulkUploader initialSongs={initialSongs} />
+            </div>
+          </div>
  
       {/* FORMULÁŘ PRO NOVOU PÍSEŇ */}
       {showForm && (
