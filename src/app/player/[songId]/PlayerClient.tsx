@@ -58,20 +58,41 @@ function ChordsView({ chords, songTitle, artist }: { chords: string, songTitle: 
         <p style={{ opacity: 0.6, fontSize: '18px' }}>{artist}</p>
       </div>
       
-      {lines.map((line, i) => (
-        <div key={i} style={{ marginBottom: '1.5rem', minHeight: '1.5em' }}>
-          {line.includes('[') ? renderLine(line) : line}
-        </div>
-      ))}
+      <div 
+        onClick={() => window.scrollBy({ top: 150, behavior: 'smooth' })}
+        style={{ cursor: 'pointer' }}
+      >
+        {lines.map((line, i) => (
+          <div key={i} style={{ marginBottom: '1.5rem', minHeight: '1.5em' }}>
+            {line.includes('[') ? renderLine(line) : line}
+          </div>
+        ))}
+      </div>
       
-      <div style={{ height: '30vh' }} /> {/* Spodek pro dojetí scrollu */}
+      <div style={{ height: '30vh' }} />
+
+      {/* PLOVOUCÍ OVLÁDÁNÍ */}
+      <div style={{ position: 'fixed', bottom: '30px', right: '30px', zIndex: 1000, display: 'flex', gap: '10px' }}>
+         <button 
+           onClick={(e) => { e.stopPropagation(); toggleScroll(); }}
+           style={{ 
+             padding: '16px 24px', borderRadius: '50px', 
+             background: scrollSpeed > 0 ? '#00ffa0' : 'rgba(255,255,255,0.08)', 
+             color: scrollSpeed > 0 ? '#000' : '#fff', border: '1px solid rgba(255,255,255,0.1)', 
+             fontWeight: 900, cursor: 'pointer', boxShadow: '0 15px 40px rgba(0,0,0,0.4)',
+             backdropFilter: 'blur(15px)', transition: 'all 0.3s', fontSize: '14px'
+           }}
+         >
+           {scrollSpeed > 0 ? `📜 RYCHLOST: ${scrollSpeed}` : '📜 AUTOSCROLL OFF'}
+         </button>
+      </div>
     </div>
   );
 }
 
 export default function PlayerClient({ song }: { song: any }) {
-  const { joinCode, sessionData } = useSession();
-  const isChordsMode = sessionData?.sessionMode === 'CHORDS';
+  const { joinCode, sessionData, localMode } = useSession();
+  const isChordsMode = localMode === 'CHORDS' || sessionData?.sessionMode === 'CHORDS';
   const [isPlaying, setIsPlaying] = useState(false);
   const [isInstrumental, setIsInstrumental] = useState(!!song.instrumentalUrl);
   const [imgLoaded, setImgLoaded] = useState(false);
