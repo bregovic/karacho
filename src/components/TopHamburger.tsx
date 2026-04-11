@@ -13,19 +13,12 @@ interface TopHamburgerProps {
 
 export default function TopHamburger({ isAdmin, isAuthenticated }: TopHamburgerProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const { leaveSession } = useSession();
+  const { leaveSession, localMode, toggleLocalMode, joinCode, sessionData } = useSession();
   const router = useRouter();
 
-  // Funkce pro otevření globálního request modalu (pomocí custom eventu)
   const openRequestModal = () => {
     window.dispatchEvent(new CustomEvent('open-request-song-modal'));
     setIsOpen(false);
-  };
-
-  const joinSession = () => {
-    leaveSession();
-    setIsOpen(false);
-    router.push('/');
   };
 
   return (
@@ -72,7 +65,28 @@ export default function TopHamburger({ isAdmin, isAuthenticated }: TopHamburgerP
               <span style={{ fontSize: '14px', fontWeight: 700 }}>Zadat kód show</span>
             </div>
 
-            {useSession().joinCode && (
+            {/* GLOBÁLNÍ PŘEPÍNAČ REŽIMU (ZPĚVNÍK / KARAOKE) */}
+            <div 
+              onClick={() => { toggleLocalMode(); setIsOpen(false); }}
+              style={{ 
+                padding: '16px 20px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)', 
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                background: localMode === 'CHORDS' ? 'rgba(0, 255, 170, 0.08)' : 'rgba(255,255,255,0.02)' 
+              }} 
+              className="menu-item"
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                 <span style={{ fontSize: '18px' }}>{localMode === 'CHORDS' ? '📖' : '🎤'}</span>
+                 <span style={{ fontSize: '14px', fontWeight: 700 }}>
+                   {localMode === 'CHORDS' ? 'Režim: ZPĚVNÍK 🎸' : 'Režim: KARAOKE 🎤'}
+                 </span>
+              </div>
+              <div style={{ width: '36px', height: '20px', background: localMode === 'CHORDS' ? '#00ffaa' : 'rgba(255,255,255,0.1)', borderRadius: '10px', position: 'relative', transition: 'all 0.3s' }}>
+                 <div style={{ position: 'absolute', top: '2px', left: localMode === 'CHORDS' ? '18px' : '2px', width: '16px', height: '16px', background: '#fff', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', transition: 'all 0.3s' }}></div>
+              </div>
+            </div>
+
+            {joinCode && (
               <div 
                 onClick={() => {
                   leaveSession();
@@ -87,87 +101,78 @@ export default function TopHamburger({ isAdmin, isAuthenticated }: TopHamburgerP
               </div>
             )}
 
-           <div 
-             onClick={openRequestModal}
-             style={{ padding: '16px 20px', cursor: 'pointer', transition: 'all 0.2s', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }}
-             className="menu-item"
-           >
-             <span style={{ fontSize: '18px' }}>➕</span>
-             <span style={{ fontSize: '14px', fontWeight: 700 }}>Chybějící hit?</span>
-           </div>
+            <div 
+              onClick={openRequestModal}
+              style={{ padding: '16px 20px', cursor: 'pointer', transition: 'all 0.2s', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }}
+              className="menu-item"
+            >
+              <span style={{ fontSize: '18px' }}>➕</span>
+              <span style={{ fontSize: '14px', fontWeight: 700 }}>Chybějící hit?</span>
+            </div>
 
-           {isAuthenticated && (
-             <Link href="/profile" style={{ textDecoration: 'none', color: 'inherit' }} onClick={() => setIsOpen(false)}>
-               <div style={{ padding: '16px 20px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }} className="menu-item">
-                 <span style={{ fontSize: '18px' }}>👤</span>
-                 <span style={{ fontSize: '14px', fontWeight: 700 }}>Můj profil</span>
-               </div>
-             </Link>
-           )}
-           
-           {useSession().joinCode && (
-             <div style={{ padding: '8px 20px', fontSize: '11px', color: 'rgba(255,255,255,0.4)', background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid rgba(255,255,255,0.05)', letterSpacing: '0.05em', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-               <span>SHOW: <span style={{ color: 'var(--color-gold)', fontWeight: 800 }}>{useSession().joinCode}</span></span>
-               <span style={{ color: useSession().sessionData?.sessionMode === 'CHORDS' ? '#ffcc00' : 'var(--color-teal)', fontWeight: 800 }}>
-                 {useSession().sessionData?.sessionMode === 'CHORDS' ? '🎸 AKORDY' : '🎤 KARAOKE'}
-               </span>
-             </div>
-           )}
+            {isAuthenticated && (
+              <Link href="/profile" style={{ textDecoration: 'none', color: 'inherit' }} onClick={() => setIsOpen(false)}>
+                <div style={{ padding: '16px 20px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }} className="menu-item">
+                  <span style={{ fontSize: '18px' }}>👤</span>
+                  <span style={{ fontSize: '14px', fontWeight: 700 }}>Můj profil</span>
+                </div>
+              </Link>
+            )}
 
-           {useSession().joinCode && (
-             <div 
-               onClick={async () => {
-                 let code = useSession().joinCode;
-                 if (!code) {
-                   code = await useSession().createOrJoin();
-                 }
-                 const currentMode = useSession().sessionData?.sessionMode || 'KARAOKE';
-                 const newMode = currentMode === 'KARAOKE' ? 'CHORDS' : 'KARAOKE';
-                 const { updateSessionMode } = await import('@/app/actions/session-actions');
-                 await updateSessionMode(code!, newMode);
-                 setIsOpen(false);
-               }}
-               style={{ padding: '16px 20px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: useSession().sessionData?.sessionMode === 'CHORDS' ? 'rgba(255,204,0,0.08)' : 'rgba(255,255,255,0.02)' }} 
-               className="menu-item"
-             >
-               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '18px' }}>{useSession().sessionData?.sessionMode === 'CHORDS' ? '🎸' : '🎤'}</span>
-                  <span style={{ fontSize: '14px', fontWeight: 700 }}>
-                    {useSession().sessionData?.sessionMode === 'CHORDS' ? 'Režim Akordy (aktivní)' : 'Aktivovat Akordy'}
-                  </span>
-               </div>
-               <div style={{ width: '36px', height: '20px', background: useSession().sessionData?.sessionMode === 'CHORDS' ? 'var(--color-gold)' : 'rgba(255,255,255,0.1)', borderRadius: '10px', position: 'relative', transition: 'all 0.3s' }}>
-                  <div style={{ position: 'absolute', top: '2px', left: useSession().sessionData?.sessionMode === 'CHORDS' ? '18px' : '2px', width: '16px', height: '16px', background: '#fff', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', transition: 'all 0.3s' }}></div>
-               </div>
-             </div>
-           )}
-           
-           {isAdmin && (
-             <Link href="/admin" style={{ textDecoration: 'none', color: 'inherit' }}>
-               <div style={{ padding: '16px 20px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }} className="menu-item">
-                 <span style={{ fontSize: '18px' }}>⚙️</span>
-                 <span style={{ fontSize: '14px', fontWeight: 700 }}>Administrace</span>
-               </div>
-             </Link>
-           )}
+            {joinCode && (
+              <div style={{ padding: '8px 20px', fontSize: '11px', color: 'rgba(255,255,255,0.4)', background: 'rgba(0,0,0,0.5)', borderBottom: '1px solid rgba(255,255,255,0.05)', letterSpacing: '0.05em', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>SHOW: <span style={{ color: '#00ffaa', fontWeight: 800 }}>{joinCode}</span></span>
+                <span style={{ color: sessionData?.sessionMode === 'CHORDS' ? '#ffcc00' : 'var(--color-teal)', fontWeight: 800 }}>
+                  {sessionData?.sessionMode === 'CHORDS' ? '🎸 REŽIM AKORDY' : '🎤 REŽIM KARAOKE'}
+                </span>
+              </div>
+            )}
 
-           {isAuthenticated ? (
-             <div 
-               onClick={() => signOut({ callbackUrl: '/' })}
-               style={{ padding: '16px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }} 
-               className="menu-item"
-             >
-               <span style={{ fontSize: '18px' }}>🚪</span>
-               <span style={{ fontSize: '14px', fontWeight: 700 }}>Odhlásit se</span>
-             </div>
-           ) : (
-             <Link href="/api/auth/signin" style={{ textDecoration: 'none', color: 'inherit' }}>
-               <div style={{ padding: '16px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }} className="menu-item">
-                 <span style={{ fontSize: '18px' }}>👤</span>
-                 <span style={{ fontSize: '14px', fontWeight: 700 }}>Přihlásit se</span>
-               </div>
-             </Link>
-           )}
+            {isAdmin && joinCode && (
+              <div 
+                onClick={async () => {
+                  const currentMode = sessionData?.sessionMode || 'KARAOKE';
+                  const newMode = currentMode === 'KARAOKE' ? 'CHORDS' : 'KARAOKE';
+                  const { updateSessionMode } = await import('@/app/actions/session-actions');
+                  await updateSessionMode(joinCode, newMode);
+                  setIsOpen(false);
+                }}
+                style={{ padding: '16px 20px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.01)' }} 
+                className="menu-item"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                   <span style={{ fontSize: '18px' }}>🔄</span>
+                   <span style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.5)' }}>Přepnout režim celé relace</span>
+                </div>
+              </div>
+            )}
+            
+            {isAdmin && (
+              <Link href="/admin" style={{ textDecoration: 'none', color: 'inherit' }}>
+                <div style={{ padding: '16px 20px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }} className="menu-item">
+                  <span style={{ fontSize: '18px' }}>⚙️</span>
+                  <span style={{ fontSize: '14px', fontWeight: 700 }}>Administrace</span>
+                </div>
+              </Link>
+            )}
+
+            {isAuthenticated ? (
+              <div 
+                onClick={() => signOut({ callbackUrl: '/' })}
+                style={{ padding: '16px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }} 
+                className="menu-item"
+              >
+                <span style={{ fontSize: '18px' }}>🚪</span>
+                <span style={{ fontSize: '14px', fontWeight: 700 }}>Odhlásit se</span>
+              </div>
+            ) : (
+              <Link href="/api/auth/signin" style={{ textDecoration: 'none', color: 'inherit' }}>
+                <div style={{ padding: '16px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }} className="menu-item">
+                  <span style={{ fontSize: '18px' }}>👤</span>
+                  <span style={{ fontSize: '14px', fontWeight: 700 }}>Přihlásit se</span>
+                </div>
+              </Link>
+            )}
         </div>
       )}
 

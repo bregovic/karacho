@@ -22,7 +22,7 @@ interface Song {
 }
 
 export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs: Song[]; isAdmin: boolean }) {
-  const { joinCode, sessionData, refreshSession, createOrJoin } = useSession();
+  const { joinCode, sessionData, localMode, refreshSession, createOrJoin } = useSession();
   const { showToast } = useToast();
   const router = useRouter();
 
@@ -61,7 +61,8 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
                          (song.artist?.toLowerCase() || '').includes(search.toLowerCase());
     const matchesGenre = genreFilter === 'ALL' || song.genre === genreFilter;
     const matchesTag = tagFilter === 'ALL' || (song.tags && song.tags.includes(tagFilter));
-    return matchesSearch && matchesGenre && matchesTag;
+    const matchesLocalMode = localMode !== 'CHORDS' || !!(song as any).chords;
+    return matchesSearch && matchesGenre && matchesTag && matchesLocalMode;
   });
 
   const sortedSongs = [...filteredSongs].sort((a, b) => {

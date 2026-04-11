@@ -12,6 +12,18 @@ export default async function Home() {
   // Ale adminovi ukážeme všechny i rozpracované.
   const songs = await db.song.findMany({
     where: isAdmin ? undefined : { state: 'ACTIVE' },
+    select: {
+      id: true,
+      title: true,
+      artist: true,
+      genre: true,
+      tags: true,
+      playCount: true,
+      createdAt: true,
+      videoUrl: true,
+      timingData: true,
+      chords: true,
+    },
     orderBy: { createdAt: 'desc' }
   });
 

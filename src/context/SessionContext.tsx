@@ -6,7 +6,9 @@ import { getSessionStatus, joinOrCreateSession } from '@/app/actions/session-act
 interface SessionContextType {
   joinCode: string | null;
   sessionData: any | null;
+  localMode: 'KARAOKE' | 'CHORDS';
   isLoading: boolean;
+  toggleLocalMode: () => void;
   createOrJoin: (code?: string) => Promise<string>;
   leaveSession: () => void;
   refreshSession: () => Promise<void>;
@@ -17,13 +19,17 @@ const SessionContext = createContext<SessionContextType | undefined>(undefined);
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [joinCode, setJoinCode] = useState<string | null>(null);
   const [sessionData, setSessionData] = useState<any | null>(null);
+  const [localMode, setLocalMode] = useState<'KARAOKE' | 'CHORDS'>('KARAOKE');
   const [isLoading, setIsLoading] = useState(true);
 
-  // Načtení relace při startu (URL param -> localStorage -> default)
+  // Načtení relace a režimu při startu
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const urlCode = params.get('code');
     const saved = localStorage.getItem('karacho_session_code');
+    const savedMode = localStorage.getItem('karacho_local_mode');
+
+    if (savedMode === 'CHORDS') setLocalMode('CHORDS');
 
     if (urlCode) {
       setJoinCode(urlCode);
@@ -36,6 +42,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
     }
   }, []);
+
+  const toggleLocalMode = () => {
+    setLocalMode(prev => {
+      const next = prev === 'KARAOKE' ? 'CHORDS' : 'KARAOKE';
+      localStorage.setItem('karacho_local_mode', next);
+      return next;
+    });
+  };
 
   // Automatická synchronizace (polling) pro udržení fronty v reálném čase
   useEffect(() => {
@@ -93,7 +107,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <SessionContext.Provider value={{ joinCode, sessionData, isLoading, createOrJoin, leaveSession, refreshSession }}>
+    <SessionContext.Provider value={{ joinCode, sessionData, localMode, isLoading, toggleLocalMode, createOrJoin, leaveSession, refreshSession }}>
       {children}
     </SessionContext.Provider>
   );
