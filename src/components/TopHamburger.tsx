@@ -114,7 +114,7 @@ export default function TopHamburger({ isAdmin, isAuthenticated }: TopHamburgerP
              </div>
            )}
 
-           {isAdmin && (
+           {useSession().joinCode && (
              <div 
                onClick={async () => {
                  let code = useSession().joinCode;

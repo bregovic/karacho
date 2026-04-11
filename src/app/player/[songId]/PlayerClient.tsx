@@ -361,7 +361,7 @@ export default function PlayerClient({ song }: { song: any }) {
         let p = 0;
         if (t >= wordStart && t < wordEnd) p = (t - wordStart) / (wordEnd - wordStart);
         else if (t >= wordEnd) p = 1;
-        on.style.width = `${p * 100}%`;
+        on.style.clipPath = `inset(0 ${100 - (p * 100)}% 0 0)`;
       });
     }
   };
@@ -386,8 +386,8 @@ export default function PlayerClient({ song }: { song: any }) {
       
       <style dangerouslySetInnerHTML={{ __html: `
         .player-root { --glow: rgba(255, 215, 0, 0.55); }
-        .w-wrap { position: relative; display: inline-block; padding: 0.1em 0; margin: 0 0.1em; }
-        .w-on { position: absolute; left: 0; top: -0.1em; height: 1.2em; width: 0%; overflow: hidden; white-space: nowrap; text-shadow: 1px 1px 3px rgba(0,0,0,0.9); }
+        .w-wrap { position: relative; display: inline-block; padding: 0; margin: 0 0.1em; }
+        .w-on { position: absolute; left: 0; top: 0; height: 100%; width: 100%; clip-path: inset(0 100% 0 0); overflow: visible; white-space: nowrap; text-shadow: 1px 1px 3px rgba(0,0,0,0.9); }
         .ln-ctx { font-size: clamp(14px, 1.8vw, 22px); color: rgba(255,255,255,0.4); font-weight: 700; text-align: center; min-height: 1.4em; transition: opacity 0.3s; }
         #cur-line-1, #cur-line-2, #cur-line-C { font-size: clamp(24px, 5.5vw, 70px); font-weight: 900; text-align: center; min-height: 1.2em; line-height: 1.1; letter-spacing: -0.01em; }
         @keyframes blockIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
