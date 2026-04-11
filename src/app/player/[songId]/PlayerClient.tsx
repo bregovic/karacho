@@ -20,6 +20,19 @@ interface TimingData {
 }
 
 function ChordsView({ chords, songTitle, artist }: { chords: string, songTitle: string, artist: string }) {
+  const [scrollSpeed, setScrollSpeed] = useState(0); 
+  
+  useEffect(() => {
+    if (scrollSpeed === 0) return;
+    const scrollInterval = setInterval(() => {
+      window.scrollBy({ top: scrollSpeed, behavior: 'auto' });
+    }, 50);
+    return () => clearInterval(scrollInterval);
+  }, [scrollSpeed]);
+
+  const toggleScroll = () => {
+    setScrollSpeed(prev => (prev === 0 ? 1 : (prev === 1 ? 2 : (prev === 2 ? 3 : 0))));
+  };
   const lines = chords.split('\n');
   
   // Velmi jednoduchý ChordPro formatter (vloží akordy jako span nad text)
@@ -136,7 +149,7 @@ export default function PlayerClient({ song }: { song: any }) {
     const isWatchMode = window.location.search.includes('mode=watch');
     const a = new Audio();
     a.crossOrigin = "anonymous";
-    a.muted = isWatchMode;
+    a.muted = isWatchMode || isChordsMode;
     const initialSrc = (!!song.instrumentalUrl) ? song.instrumentalUrl : song.audioUrl;
     a.src = initialSrc;
     a.preload = "auto";
