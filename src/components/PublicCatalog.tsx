@@ -61,7 +61,8 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
                          (song.artist?.toLowerCase() || '').includes(search.toLowerCase());
     const matchesGenre = genreFilter === 'ALL' || song.genre === genreFilter;
     const matchesTag = tagFilter === 'ALL' || (song.tags && song.tags.includes(tagFilter));
-    const matchesLocalMode = localMode !== 'CHORDS' || !!(song as any).chords;
+    const hasRealChords = !!(song as any).chords && (song as any).chords.includes('[');
+    const matchesLocalMode = localMode !== 'CHORDS' || hasRealChords;
     return matchesSearch && matchesGenre && matchesTag && matchesLocalMode;
   });
 
