@@ -80,10 +80,18 @@ export default function SongEditModal({
 
   const handleCleanLyrics = async (customBlacklist: string[] = []) => {
     setImportStatus('⌛ Čistím...');
-    const res = await manuallyCleanLyricsAction(song.id, formData.lyrics || '', customBlacklist);
-    if (res.success) {
-      setFormData({ ...formData, lyrics: res.lyrics });
-      setImportStatus('✅ Text vyčištěn a uložen!');
+    
+    // Čistíme vždy z aktuální hodnoty v okruhu AKORDY (zdroj pravdy)
+    const sourceContent = formData.chords || formData.lyrics || '';
+    
+    const res = await manuallyCleanLyricsAction(song.id, sourceContent, customBlacklist);
+    if (res.success && res.lyrics) {
+      setFormData({ 
+        ...formData, 
+        lyrics: res.lyrics, 
+        chords: res.chords || formData.chords 
+      });
+      setImportStatus('✅ Text vyčištěn a synchronizován!');
       setTimeout(() => setImportStatus(null), 3000);
     } else {
       setImportStatus(`❌ ${res.error}`);
