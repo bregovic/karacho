@@ -479,6 +479,25 @@ export default function DesignerClient({ song }: { song: any }) {
     }
   };
 
+  const handlePublish = async () => {
+    if (!song?.id) return;
+    setSaving(true);
+    try {
+      const data = generateBlocksJSON();
+      await fetch(`/api/songs/${song.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timingData: data, lyrics: rawText, state: 'ACTIVE' }),
+      });
+      window.location.href = '/admin';
+    } catch (e) {
+      console.error(e);
+      alert("Chyba při publikaci.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (view === 'setup') {
     return (
       <div style={{ padding: '2rem', minHeight: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column' }}>
@@ -648,14 +667,22 @@ export default function DesignerClient({ song }: { song: any }) {
              </div>
          </div>
 
-         {saveDone && (
+          {saveDone && (
              <div style={{ padding: '1rem', background: 'rgba(74, 222, 128, 0.1)', borderBottom: '1px solid rgba(74, 222, 128, 0.2)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <a href={`/player/${song.id}`} style={{ textDecoration: 'none' }}>
                   <button className="btn-primary" style={{ width: '100%', background: 'linear-gradient(45deg, #FFD700, #FFA500)', border: 'none', color: '#000', fontWeight: 'bold', padding: '12px' }}>
                     🎤 JÍT ZPÍVAT HNED!
                   </button>
                 </a>
-                <div style={{ fontSize: '11px', color: '#4ade80', textAlign: 'center' }}>Vše uloženo. Přehrávač si text vykreslí live.</div>
+                <button 
+                  className="btn-primary" 
+                  onClick={handlePublish}
+                  disabled={saving}
+                  style={{ width: '100%', background: 'linear-gradient(45deg, #4ade80, #22c55e)', border: 'none', color: '#000', fontWeight: 'bold', padding: '12px' }}
+                >
+                  🚀 PUBLIKOVAT DO SVĚTA
+                </button>
+                <div style={{ fontSize: '11px', color: '#4ade80', textAlign: 'center' }}>Vše uloženo. Kliknutím výše píseň zveřejníte v katalogu.</div>
              </div>
           )}
 
