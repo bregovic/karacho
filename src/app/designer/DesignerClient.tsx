@@ -401,9 +401,9 @@ export default function DesignerClient({ song }: { song: any }) {
           const v = wordEv?.v || voiceMap[cl] || 3;
           let color = 'rgba(255,255,255,0.82)';
           if (isOn) {
-             if (v === 1) color = '#ffd700'; // H1 - Gold
-             else if (v === 2) color = '#00d2ff'; // H2 - Blue/Cyan
-             else color = '#ffffff'; // H3 - Both/White
+             if (v === 1) color = '#ff4b2b'; // H1 - Red
+             else if (v === 2) color = '#00d2ff'; // H2 - Blue
+             else color = '#ffd700'; // H3 - Gold
           }
           const shadow = isOn ? `0 2px 6px rgba(0,0,0,0.95), 0 0 24px ${color}88` : '0 2px 6px rgba(0,0,0,0.95)';
           // PŘIDÁNA MEZERA ZA SLOVO (znak &nbsp; nebo mezera)
