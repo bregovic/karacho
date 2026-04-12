@@ -44,37 +44,60 @@ function ChordsView({ chords, songTitle, artist }: { chords: string, songTitle: 
     );
 
     if (looksLikeChords && !line.includes('[')) {
-      return words.map((w, j) => <span key={j} style={{ color: '#ffcc00', fontWeight: 900, marginRight: '1.2em', fontSize: '1.1em' }}>{w}</span>);
+      return (
+        <div style={{ color: '#ffcc00', fontWeight: 900, marginBottom: '-0.5em', fontSize: '1.2em' }}>
+          {line}
+        </div>
+      );
     }
 
-    // Klasický ChordPro [G]
+    // Klasický ChordPro [G] nebo detekce s [
     const parts = line.split(/(\[[^\]]+\])/);
-    return parts.map((part, i) => {
-      if (part.startsWith('[') && part.endsWith(']')) {
-        return <span key={i} style={{ color: '#ffcc00', fontWeight: 900, fontSize: '0.85em', position: 'absolute', top: '-1.3em', left: 0, whiteSpace: 'nowrap' }}>{part.slice(1, -1)}</span>;
-      }
-      return <span key={i} style={{ position: 'relative', display: 'inline-block', paddingTop: '1.3em', marginRight: part === ' ' ? '0.3em' : 0 }}>{part}</span>;
-    });
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', minHeight: '1.5em' }}>
+        {parts.map((part, i) => {
+          if (part.startsWith('[') && part.endsWith(']')) {
+            const chordName = part.slice(1, -1);
+            return (
+              <span key={i} style={{ width: 0, overflow: 'visible', pointerEvents: 'none', position: 'relative' }}>
+                <span style={{ 
+                  color: '#ffcc00', fontWeight: 900, fontSize: '0.7em', 
+                  position: 'absolute', bottom: '1.4em', left: 0, 
+                  whiteSpace: 'nowrap', textShadow: '2px 2px 4px rgba(0,0,0,0.8)'
+                }}>
+                  {chordName}
+                </span>
+              </span>
+            );
+          }
+          return (
+            <span key={i} style={{ whiteSpace: 'pre' }}>
+              {part}
+            </span>
+          );
+        })}
+      </div>
+    );
   };
 
   return (
     <div style={{ 
       padding: '5rem 5% 15rem', maxWidth: '100%', width: '100%', boxSizing: 'border-box',
-      fontSize: 'clamp(20px, 4vw, 32px)', lineHeight: '3', color: '#eee',
+      fontSize: 'clamp(18px, 3.5vw, 28px)', lineHeight: '2.5', color: '#eee',
       whiteSpace: 'pre-wrap', wordBreak: 'break-word', position: 'relative', zIndex: 10
     }}>
-      <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
-        <h1 style={{ color: '#fff', fontSize: '32px', fontWeight: 900, margin: 0 }}>{songTitle}</h1>
-        <p style={{ opacity: 0.6, fontSize: '18px' }}>{artist}</p>
+      <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+        <h1 style={{ color: '#fff', fontSize: '36px', fontWeight: 900, margin: 0, textShadow: '0 0 20px rgba(255,215,0,0.2)' }}>{songTitle}</h1>
+        <p style={{ opacity: 0.6, fontSize: '20px', marginTop: '10px' }}>{artist}</p>
       </div>
       
       <div 
-        onClick={() => window.scrollBy({ top: 150, behavior: 'smooth' })}
-        style={{ cursor: 'pointer' }}
+        onClick={() => { if(scrollSpeed === 0) toggleScroll(); else window.scrollBy({ top: 150, behavior: 'smooth' }); }}
+        style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}
       >
         {lines.map((line, i) => (
-          <div key={i} style={{ marginBottom: '1.5rem', minHeight: '1.5em' }}>
-            {line.includes('[') ? renderLine(line) : line}
+          <div key={i} style={{ width: '100%' }}>
+            {renderLine(line)}
           </div>
         ))}
       </div>
