@@ -84,6 +84,8 @@ export default async function RootLayout({
                 .header-title { fontSize: 22px; }
                 .hide-mobile { display: none; }
                 .header-session-info-wrap { transform: scale(0.85); transform-origin: left; }
+                .header-player-wrapper { display: none !important; }
+                nav { flex-wrap: nowrap !important; }
               }
             `}</style>
             <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
