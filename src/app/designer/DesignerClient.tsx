@@ -24,6 +24,12 @@ export default function DesignerClient({ song }: { song: any }) {
   const [voiceMap, setVoiceMap] = useState<Record<number, number>>({});
 
   const [rawText, setRawText] = useState((song?.lyrics || '') as string);
+  const [chordsText, setChordsText] = useState((song?.chords || '') as string);
+
+  const [chordCharsPerLine, setChordCharsPerLine] = useState(40);
+  const [songbookPage, setSongbookPage] = useState(0);
+  const [showSongbookPreview, setShowSongbookPreview] = useState(false);
+  const [viewMode, setViewMode] = useState<'lyrics' | 'chords'>('lyrics');
 
   // --- AUTO-LOAD AUDIO Z CLOUDU ---
   useEffect(() => {
@@ -468,7 +474,7 @@ export default function DesignerClient({ song }: { song: any }) {
       await fetch(`/api/songs/${song.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ timingData: data, lyrics: rawText }),
+        body: JSON.stringify({ timingData: data, lyrics: rawText, chords: chordsText }),
       });
       setSaveDone(true);
       // alert("Uloženo do databáze! ✅");
@@ -488,7 +494,7 @@ export default function DesignerClient({ song }: { song: any }) {
       await fetch(`/api/songs/${song.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ timingData: data, lyrics: rawText, state: 'ACTIVE' }),
+        body: JSON.stringify({ timingData: data, lyrics: rawText, chords: chordsText, state: 'ACTIVE' }),
       });
       window.location.href = '/admin';
     } catch (e) {
@@ -503,45 +509,69 @@ export default function DesignerClient({ song }: { song: any }) {
     return (
       <div style={{ padding: '2rem', minHeight: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column' }}>
         <div className="glass-panel" style={{ padding: '4rem 2rem', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2rem', maxWidth: '800px', margin: '0 auto', width: '100%' }}>
+          
           <div style={{ textAlign: 'center', width: '100%' }}>
+            
+            {/* PŘEPÍNAČ EDITORŮ */}
+            <div style={{ display: 'flex', gap: '4px', marginBottom: '1rem', background: 'rgba(0,0,0,0.3)', padding: '4px', borderRadius: '8px', width: 'fit-content' }}>
+               <button onClick={() => setViewMode('lyrics')} style={{ padding: '6px 16px', borderRadius: '6px', border: 'none', fontSize: '12px', fontWeight: 800, cursor: 'pointer', background: viewMode === 'lyrics' ? 'var(--color-gold)' : 'transparent', color: viewMode === 'lyrics' ? '#000' : 'rgba(255,255,255,0.4)' }}>🎤 TEXT (Karaoke)</button>
+               <button onClick={() => setViewMode('chords')} style={{ padding: '6px 16px', borderRadius: '6px', border: 'none', fontSize: '12px', fontWeight: 800, cursor: 'pointer', background: viewMode === 'chords' ? 'var(--color-gold)' : 'transparent', color: viewMode === 'chords' ? '#000' : 'rgba(255,255,255,0.4)' }}>🎸 AKORDY (Zpěvník)</button>
+            </div>
+
             <div style={{ textAlign: 'left', width: '100%', marginBottom: '1rem' }}>
-              <label style={{ fontSize: '11px', fontWeight: 800, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', marginBottom: '0.5rem', display: 'block' }}>Editor textu & Progress:</label>
-              <div 
-                contentEditable
-                suppressContentEditableWarning
-                onBlur={(e) => setRawText(e.currentTarget.innerText)}
-                style={{
-                  width: '100%', minHeight: '250px', maxHeight: '400px', overflowY: 'auto',
-                  background: 'rgba(0,0,0,0.3)', color: 'white', border: '1px solid rgba(255,180,0,0.3)', 
-                  padding: '1.5rem', borderRadius: '12px', fontFamily: 'monospace', fontSize: '15px', 
-                  lineHeight: '1.8', outline: 'none', whiteSpace: 'pre-wrap'
-                }}
-              >
-                {rawText.split('\n').map((lineText, li) => {
-                  const words = lineText.trim().split(/\s+/).filter(w => w);
-                  if (words.length === 0) return <div key={li}><br/></div>;
-                  
-                  return (
-                    <div key={li} style={{ marginBottom: '0.2rem' }}>
-                      {words.map((word, wi) => {
-                        const hasTiming = eventsRef.current.some(e => e.type === 'word' && e.lineIdx === li && e.wordIdx === wi);
-                        return (
-                          <span key={wi}>
-                            <span style={{ 
-                              color: hasTiming ? 'var(--color-gold)' : 'rgba(255,255,255,0.4)',
-                              fontWeight: hasTiming ? 900 : 400,
-                              textShadow: hasTiming ? '0 0 10px rgba(255,215,0,0.2)' : 'none'
-                            }}>
-                              {word}
+              <label style={{ fontSize: '11px', fontWeight: 800, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', marginBottom: '0.5rem', display: 'block' }}>
+                 {viewMode === 'lyrics' ? 'Editor textu & Progress:' : 'Editor akordů (Zdroj pro zpěvník):'}
+              </label>
+              {viewMode === 'lyrics' ? (
+                <div 
+                  contentEditable
+                  suppressContentEditableWarning
+                  onBlur={(e) => setRawText(e.currentTarget.innerText)}
+                  style={{
+                    width: '100%', minHeight: '250px', maxHeight: '400px', overflowY: 'auto',
+                    background: 'rgba(0,0,0,0.3)', color: 'white', border: '1px solid rgba(255,180,0,0.3)', 
+                    padding: '1.5rem', borderRadius: '12px', fontFamily: 'monospace', fontSize: '15px', 
+                    lineHeight: '1.8', outline: 'none', whiteSpace: 'pre-wrap'
+                  }}
+                >
+                  {rawText.split('\n').map((lineText, li) => {
+                    const words = lineText.trim().split(/\s+/).filter(w => w);
+                    if (words.length === 0) return <div key={li}><br/></div>;
+                    
+                    return (
+                      <div key={li} style={{ marginBottom: '0.2rem' }}>
+                        {words.map((word, wi) => {
+                          const hasTiming = eventsRef.current.some(e => e.type === 'word' && e.lineIdx === li && e.wordIdx === wi);
+                          return (
+                            <span key={wi}>
+                              <span style={{ 
+                                color: hasTiming ? 'var(--color-gold)' : 'rgba(255,255,255,0.4)',
+                                fontWeight: hasTiming ? 900 : 400,
+                                textShadow: hasTiming ? '0 0 10px rgba(255,215,0,0.2)' : 'none'
+                              }}>
+                                {word}
+                              </span>
+                              {' '}
                             </span>
-                            {' '}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
-              </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <textarea 
+                   value={chordsText}
+                   onChange={(e) => setChordsText(e.target.value)}
+                   spellCheck={false}
+                   style={{
+                      width: '100%', minHeight: '250px', maxHeight: '400px',
+                      background: 'rgba(0,0,0,0.3)', color: 'var(--color-gold)', border: '1px solid rgba(255,180,0,0.3)', 
+                      padding: '1.5rem', borderRadius: '12px', fontFamily: 'monospace', fontSize: '14px', 
+                      lineHeight: '1.4', outline: 'none', whiteSpace: 'pre', resize: 'vertical'
+                   }}
+                />
+              )}
             </div>
           </div>
           <label className="btn-secondary" style={{ width: '100%', textAlign: 'left', position: 'relative', overflow: 'hidden', display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -555,6 +585,87 @@ export default function DesignerClient({ song }: { song: any }) {
           <button onClick={handleStart} disabled={rawText.trim() === ''} className={rawText.trim() === '' ? 'btn-secondary' : 'btn-primary'} style={{ width: '100%' }}>
             ▶ Vstoupit do Studia
           </button>
+
+          {/* SONGBOOK PREVIEW SECTION */}
+          <div style={{ width: '100%', marginTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '2rem' }}>
+             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h3 style={{ fontSize: '14px', color: 'var(--color-gold)', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>📖 Náhled Zpěvníku (Akordy)</h3>
+                <button 
+                  onClick={() => setShowSongbookPreview(!showSongbookPreview)} 
+                  className="btn-secondary" 
+                  style={{ padding: '4px 12px', fontSize: '11px' }}
+                >
+                  {showSongbookPreview ? 'Skrýt' : 'Zobrazit náhled'}
+                </button>
+             </div>
+
+             {showSongbookPreview && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                   {/* Nastavení šířky */}
+                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '8px' }}>
+                      <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>Znaků na řádek:</span>
+                      <input 
+                        type="range" min="20" max="80" value={chordCharsPerLine} 
+                        onChange={(e) => setChordCharsPerLine(parseInt(e.target.value))} 
+                        style={{ flex: 1, accentColor: 'var(--color-gold)' }}
+                      />
+                      <span style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-gold)', width: '30px' }}>{chordCharsPerLine}</span>
+                   </div>
+
+                   {/* Simulátor Stránky */}
+                   <div 
+                      onClick={() => setSongbookPage(p => p + 1)}
+                      style={{ 
+                        aspectRatio: '1/1.4', width: '100%', background: '#fff', color: '#000', 
+                        borderRadius: '4px', padding: '2rem', position: 'relative', cursor: 'pointer',
+                        boxShadow: '0 20px 50px rgba(0,0,0,0.5)', overflow: 'hidden', display: 'flex', flexDirection: 'column'
+                      }}
+                   >
+                      {songbookPage === 0 ? (
+                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+                            <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem', fontWeight: 900, textTransform: 'uppercase' }}>{song.title}</h1>
+                            <h2 style={{ fontSize: '1.5rem', color: '#666', fontWeight: 400 }}>{song.artist}</h2>
+                            <div style={{ position: 'absolute', bottom: '2rem', fontSize: '12px', color: '#999', textTransform: 'uppercase', letterSpacing: '2px' }}>Karacho Songbook • Strana 1</div>
+                         </div>
+                      ) : (
+                         <div style={{ flex: 1, fontFamily: 'monospace', fontSize: '14px', lineHeight: '1.6', overflow: 'hidden' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #eee', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
+                               <span style={{ fontWeight: 800 }}>{song.title}</span>
+                               <span style={{ color: '#999' }}>{songbookPage + 1}</span>
+                            </div>
+                            <pre style={{ 
+                               whiteSpace: 'pre-wrap', 
+                               wordBreak: 'break-word',
+                               fontSize: 'clamp(10px, 2vw, 14px)',
+                               width: `${chordCharsPerLine}ch`,
+                               maxWidth: '100%',
+                               margin: '0 auto'
+                            }}>
+                               {/* Logika rozdělení do stránek */}
+                               {chordsText.split('\n').slice((songbookPage - 1) * 30, songbookPage * 30).join('\n')}
+                            </pre>
+                            {chordsText.split('\n').length <= songbookPage * 30 && (
+                               <div style={{ textAlign: 'center', color: '#ccc', marginTop: '1rem', fontStyle: 'italic', fontSize: '12px' }}>— Konec písně —</div>
+                            )}
+                         </div>
+                      )}
+                      
+                      {/* Navigační tečky */}
+                      <div style={{ position: 'absolute', bottom: '10px', left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: '5px' }}>
+                         {[...Array(Math.ceil(chordsText.split('\n').length / 25) + 1)].map((_, i) => (
+                            <div key={i} style={{ width: '6px', height: '6px', borderRadius: '50%', background: i === songbookPage ? 'var(--color-gold)' : '#ddd' }} />
+                         ))}
+                      </div>
+                   </div>
+                   
+                   <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
+                      <button onClick={(e) => { e.stopPropagation(); setSongbookPage(p => Math.max(0, p - 1)); }} className="btn-secondary" style={{ padding: '6px 20px' }}>Předchozí</button>
+                      <button onClick={(e) => { e.stopPropagation(); setSongbookPage(p => p + 1); }} className="btn-secondary" style={{ padding: '6px 20px' }}>Další</button>
+                      <button onClick={(e) => { e.stopPropagation(); setSongbookPage(0); }} className="btn-secondary" style={{ padding: '6px 12px' }}>Re-start</button>
+                   </div>
+                </div>
+             )}
+          </div>
         </div>
       </div>
     );
