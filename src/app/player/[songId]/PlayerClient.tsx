@@ -460,11 +460,19 @@ export default function PlayerClient({ song }: { song: any }) {
     
     if (ci !== lastBlkRef.current) {
       if (cur) {
-        let fillColor = '#ffd700'; // Center (W)
-        if (voice === 1) fillColor = '#ff4b2b'; // Voice 1 (A) - Červená
-        if (voice === 2) fillColor = '#00d2ff'; // Voice 2 (D) - Modrá
+        cur.innerHTML = cb.lw.map((w: string, i: number) => {
+          // Zjistíme hlas konkrétního slova (pokud je v datech)
+          const wordV = cb.w && cb.w[i] ? (cb.w[i] as any).v : null;
+          const targetV = wordV || voice || cb.v || 3;
+          
+          let fillColor = '#ffffff'; // Default White (Both)
+          if (targetV === 1) fillColor = '#ffd700'; // Voice 1 - Gold (A)
+          if (targetV === 2) fillColor = '#00d2ff'; // Voice 2 - Blue (D)
+          if (targetV === 3) fillColor = '#ffffff'; // Both
 
-        cur.innerHTML = cb.lw.map((w: string, i: number) => `<span class="w-wrap"><span class="w-off">${w}</span><span class="w-on" style="color: ${fillColor}">${w}</span></span>`).join(' ');
+          return `<span class="w-wrap"><span class="w-off">${w}</span><span class="w-on" style="color: ${fillColor}; text-shadow: 0 0 15px ${fillColor}66">${w}</span></span>`;
+        }).join(' ');
+        
         cur.classList.remove('block-new');
         void cur.offsetWidth; 
         cur.classList.add('block-new');
