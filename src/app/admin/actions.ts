@@ -66,14 +66,35 @@ export async function createSong(formData: FormData) {
 }
 
 export async function manuallyCleanLyricsAction(songId: string, currentLyrics: string, customBlacklist: string[] = []) {
-  await ensureAdmin();
-  const cleaned = cleanLyrics(currentLyrics, customBlacklist);
-  if (cleaned) {
-    await db.song.update({ where: { id: songId }, data: { lyrics: cleaned } });
-    revalidatePath('/admin');
-    return { success: true, lyrics: cleaned };
+  try {
+    await ensureAdmin();
+    
+    // PRVNÍ KROK: Převedeme akordy nad textem [G]
+    const bracketed = convertAboveTextChordsToBracketed(currentLyrics);
+    // DRUHÝ KROK: Vyčistíme plevel a akordy v závorkách
+    const cleaned = cleanLyrics(bracketed, customBlacklist);
+
+    if (cleaned) {
+      const updateData: any = { lyrics: cleaned };
+      
+      // Zapíšeme akordy jen pokud jsme nějaké našli (aby Prisma neblbnula s nullem)
+      if (bracketed !== cleaned) {
+        updateData.chords = bracketed;
+      }
+
+      await db.song.update({ 
+        where: { id: songId }, 
+        data: updateData 
+      });
+      
+      revalidatePath('/admin');
+      return { success: true, lyrics: cleaned };
+    }
+    return { error: 'Nepodařilo se vyčistit text - výsledek je prázdný.' };
+  } catch (err: any) {
+    console.error('CRITICAL CLEAN ERROR:', err);
+    return { error: 'Chyba serveru při čištění: ' + (err.message || '500') };
   }
-  return { error: 'Nepodařilo se vyčistit text' };
 }
 
 export async function updateSongAudio(songId: string, audioUrl: string, audioHash?: string) {
@@ -274,13 +295,13 @@ function convertAboveTextChordsToBracketed(text: string): string {
     const currentLine = lines[i];
     const nextLine = lines[i+1] || "";
     
-    // Zjistíme, jestli aktuální řádek vypadá jako čistě akordový
+    // Zjistíme, jestli aktuální řádek vypadá jako čistě akordový (podpora pro A-G i české H)
     const words = currentLine.trim().split(/\s+/);
     const isChordLine = words.length > 0 && words.every(w => 
-      /^[A-G](maj|min|dim|aug|sus|mi|m|#|b|7|9|11|13)*(\/[A-G][#b]*)?$/i.test(w) || /^[\/|,\(\)\+\-]+$/.test(w)
+      /^[A-GH](maj|min|dim|aug|sus|mi|m|#|b|7|9|11|13)*(\/[A-GH][#b]*)?$/i.test(w) || /^[\/|,\(\)\+\-]+$/.test(w)
     );
 
-    if (isChordLine && nextLine.trim() && !nextLine.match(/^[A-G](maj|min|dim|aug|sus|mi|m|#|b|7|9|11|13)*/)) {
+    if (isChordLine && nextLine.trim() && !nextLine.match(/^[A-GH](maj|min|dim|aug|sus|mi|m|#|b|7|9|11|13)*/)) {
       // Máme akordy a pod nimi text - zkusíme je sloučit
       let combined = "";
       let lastPos = 0;
