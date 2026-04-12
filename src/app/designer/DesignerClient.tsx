@@ -200,13 +200,12 @@ export default function DesignerClient({ song }: { song: any }) {
        eventsRef.current.push({ type: 'lineEnd', time: t, lineIdx: curLineRef.current });
     }
     
-    // 2. Aktivujeme další řádek (pokud existuje) a oklíčujeme hned první slovo
+    // 2. Aktivujeme další řádek (pokud existuje)
     const nextL = curLineRef.current + 1;
     if (nextL < linesRef.current.length) {
        eventsRef.current.push({ type: 'line', time: t, lineIdx: nextL });
-       eventsRef.current.push({ type: 'word', time: t, lineIdx: nextL, wordIdx: 0 });
        curLineRef.current = nextL;
-       curWordRef.current = 0;
+       curWordRef.current = -1; // Připraveno na první slovo, ale ještě neozačeno
     } else {
        // KONEC PÍSNĚ
        curLineRef.current = linesRef.current.length;
