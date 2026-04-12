@@ -262,9 +262,58 @@ export async function fetchLyricsAction(songId: string) {
   }
 }
 
+/**
+ * Převede klasický formát (akordy nad textem) na formát v závorkách [Chord]
+ */
+function convertAboveTextChordsToBracketed(text: string): string {
+  if (!text) return '';
+  const lines = text.split('\n');
+  const result = [];
+  
+  for (let i = 0; i < lines.length; i++) {
+    const currentLine = lines[i];
+    const nextLine = lines[i+1] || "";
+    
+    // Zjistíme, jestli aktuální řádek vypadá jako čistě akordový
+    const words = currentLine.trim().split(/\s+/);
+    const isChordLine = words.length > 0 && words.every(w => 
+      /^[A-G](maj|min|dim|aug|sus|mi|m|#|b|7|9|11|13)*(\/[A-G][#b]*)?$/i.test(w) || /^[\/|,\(\)\+\-]+$/.test(w)
+    );
+
+    if (isChordLine && nextLine.trim() && !nextLine.match(/^[A-G](maj|min|dim|aug|sus|mi|m|#|b|7|9|11|13)*/)) {
+      // Máme akordy a pod nimi text - zkusíme je sloučit
+      let combined = "";
+      let lastPos = 0;
+      
+      // Projdeme akordy a jejich pozice na řádku
+      const chordRegex = /\S+/g;
+      let match;
+      while ((match = chordRegex.exec(currentLine)) !== null) {
+        const chord = match[0];
+        const pos = match.index;
+        
+        // Přidáme text před akordem
+        combined += nextLine.substring(lastPos, pos);
+        // Přidáme akord v závorkách
+        combined += `[${chord}]`;
+        lastPos = pos;
+      }
+      combined += nextLine.substring(lastPos);
+      result.push(combined);
+      i++; // Přeskočíme další řádek, protože jsme ho už zpracovali
+    } else {
+      result.push(currentLine);
+    }
+  }
+  return result.join('\n');
+}
+
 function cleanLyrics(text: string, customBlacklist: string[] = []): string {
   if (!text) return '';
+  
+  // 1. Odstraníme vše v hranatých závorkách (akordy)
   let clean = text.replace(/\[[^\]]*\]/g, ''); 
+  
   const lines = clean.split('\n');
   const finalLines = [];
 
@@ -274,9 +323,11 @@ function cleanLyrics(text: string, customBlacklist: string[] = []): string {
       finalLines.push('');
       continue;
     }
-    trimmed = trimmed.replace(/\(\d+x\)/gi, '').replace(/x\d+/gi, '').trim();
-    if (!trimmed) continue;
 
+    // 2. Odstraníme plevelné značky na začátku řádku (R:, 1., Refrény...)
+    trimmed = trimmed.replace(/^(Capo|Intro|Outro|Solo|Sólo|Soloing|Predehra|Předehra|Mezihra|Interlude|R:|Ref:|Refren|Refrén|Bridge|Sloka|Vazba|Chorus|Verse|Instrumental|Zpěv|Skladba|\d+[:.)]|\(\d+x\))/gi, '').trim();
+
+    // 3. Odstraníme zbytky akordů, které nebyly v závorkách (pro jistotu)
     const noSpaces = trimmed.replace(/\s/g, '');
     if (!noSpaces) continue;
 
@@ -286,19 +337,13 @@ function cleanLyrics(text: string, customBlacklist: string[] = []): string {
     const ratio = chordCharsCount / noSpaces.length;
     const vowelRatio = vowelCount / noSpaces.length;
 
-    if ((ratio > 0.75 && vowelRatio < 0.15) || (noSpaces.length <= 4 && ratio > 0.8)) {
+    // Pokud řádek tvoří z 70% akordové znaky a nemá samohlásky, je to plevel
+    if ((ratio > 0.7 && vowelRatio < 0.1) || (noSpaces.length <= 4 && ratio > 0.8)) {
        continue;
     }
 
-    const words = trimmed.split(/\s+/);
-    if (words.length >= 1) {
-       const isAllChords = words.every(w => /^[A-G](maj|min|dim|aug|sus|mi|m|#|b|7|9|11|13)*$/i.test(w) || /^[\/|,\(\)\+\-]+$/.test(w));
-       if (isAllChords) continue;
-    }
-
-    if (/^(Capo|Intro|Outro|Solo|Sólo|Soloing|Predehra|Předehra|Mezihra|Interlude|R:|Ref:|Refren|Refrén|Bridge|Sloka|Vazba|Chorus|Verse|Instrumental|Zpěv|Skladba|\d+\.)/i.test(trimmed)) {
-       if (trimmed.length < 25) continue;
-    }
+    // 4. Pokud po čištění nezůstalo skoro nic, ignorujeme
+    if (trimmed.length < 2 && !trimmed.match(/[A-Za-z0-9]/)) continue;
 
     if (customBlacklist.length > 0) {
       customBlacklist.forEach(word => {
@@ -312,6 +357,7 @@ function cleanLyrics(text: string, customBlacklist: string[] = []): string {
     finalLines.push(trimmed);
   }
 
+  // 5. Finalizace: Smazat vícenásobné prázdné řádky
   return finalLines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
@@ -375,19 +421,19 @@ export async function importLyricsFromUrl(songId: string, url: string) {
     
     if (!textWithChords) return { error: 'Text nenalezen.' };
 
-    const finalWithChords = textWithChords.replace(/<[^>]*>?/gm, '').trim();
-    const finalLyrics = cleanLyrics(finalWithChords);
+    const convertedWithBrackets = convertAboveTextChordsToBracketed(textWithChords.replace(/<[^>]*>?/gm, '').trim());
+    const finalLyrics = cleanLyrics(convertedWithBrackets);
 
     if (finalLyrics.length > 0) {
       await db.song.update({ 
         where: { id: songId }, 
         data: { 
           lyrics: finalLyrics,
-          chords: finalWithChords !== finalLyrics ? finalWithChords : null
+          chords: convertedWithBrackets !== finalLyrics ? convertedWithBrackets : null
         } 
       });
       revalidatePath('/admin');
-      return { success: true, lyrics: finalLyrics, chords: finalWithChords };
+      return { success: true, lyrics: finalLyrics, chords: convertedWithBrackets };
     }
     
     return { error: 'Výsledný text je prázdný.' };
