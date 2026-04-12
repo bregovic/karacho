@@ -465,10 +465,10 @@ export default function PlayerClient({ song }: { song: any }) {
           const wordV = cb.w && cb.w[i] ? (cb.w[i] as any).v : null;
           const targetV = wordV || voice || cb.v || 3;
           
-          let fillColor = '#ffffff'; // Default White (Both)
-          if (targetV === 1) fillColor = '#ffd700'; // Voice 1 - Gold (A)
+          let fillColor = '#ffd700'; // Default Gold/Both (S)
+          if (targetV === 1) fillColor = '#ff4b2b'; // Voice 1 - Red (A)
           if (targetV === 2) fillColor = '#00d2ff'; // Voice 2 - Blue (D)
-          if (targetV === 3) fillColor = '#ffffff'; // Both
+          if (targetV === 3) fillColor = '#ffd700'; // Both - Gold (S)
 
           return `<span class="w-wrap"><span class="w-off">${w}</span><span class="w-on" style="color: ${fillColor}; text-shadow: 0 0 15px ${fillColor}66">${w}</span></span>`;
         }).join(' ');
