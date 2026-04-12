@@ -65,22 +65,22 @@ export async function createSong(formData: FormData) {
   return song;
 }
 
-export async function manuallyCleanLyricsAction(songId: string, currentLyrics: string, customBlacklist: string[] = []) {
+export async function manuallyCleanLyricsAction(songId: string, currentContent: string, customBlacklist: string[] = []) {
   try {
     await ensureAdmin();
     
-    // PRVNÍ KROK: Převedeme akordy nad textem [G]
-    const bracketed = convertAboveTextChordsToBracketed(currentLyrics);
-    // DRUHÝ KROK: Vyčistíme plevel a akordy v závorkách
-    const cleaned = cleanLyrics(bracketed, customBlacklist);
+    // PRVNÍ KROK: Převedeme volné akordy na formát se závorkami [G] (pokud tam už nejsou)
+    // Tím zajistíme že i ručně vložený text nad sebe se zprocesuje správně
+    const chordsWithBrackets = convertAboveTextChordsToBracketed(currentContent);
+    
+    // DRUHÝ KROK: Vyčistíme všechno (akordy v závorkách, R:, 1. atd.) a získáme čistý text
+    const cleanedLyrics = cleanLyrics(chordsWithBrackets, customBlacklist);
 
-    if (cleaned) {
-      const updateData: any = { lyrics: cleaned };
-      
-      // Zapíšeme akordy jen pokud jsme nějaké našli (aby Prisma neblbnula s nullem)
-      if (bracketed !== cleaned) {
-        updateData.chords = bracketed;
-      }
+    if (cleanedLyrics) {
+      const updateData: any = { 
+        lyrics: cleanedLyrics,
+        chords: chordsWithBrackets 
+      };
 
       await db.song.update({ 
         where: { id: songId }, 
@@ -88,9 +88,13 @@ export async function manuallyCleanLyricsAction(songId: string, currentLyrics: s
       });
       
       revalidatePath('/admin');
-      return { success: true, lyrics: cleaned };
+      return { 
+        success: true, 
+        lyrics: cleanedLyrics, 
+        chords: chordsWithBrackets 
+      };
     }
-    return { error: 'Nepodařilo se vyčistit text - výsledek je prázdný.' };
+    return { error: 'Nepodařilo se vygenerovat čistý text.' };
   } catch (err: any) {
     console.error('CRITICAL CLEAN ERROR:', err);
     return { error: 'Chyba serveru při čištění: ' + (err.message || '500') };
@@ -442,19 +446,21 @@ export async function importLyricsFromUrl(songId: string, url: string) {
     
     if (!textWithChords) return { error: 'Text nenalezen.' };
 
-    const convertedWithBrackets = convertAboveTextChordsToBracketed(textWithChords.replace(/<[^>]*>?/gm, '').trim());
-    const finalLyrics = cleanLyrics(convertedWithBrackets);
+    const chordsWithBrackets = convertAboveTextChordsToBracketed(textWithChords.replace(/<[^>]*>?/gm, '').trim());
+    const finalLyrics = cleanLyrics(chordsWithBrackets);
 
     if (finalLyrics.length > 0) {
+      const updateData: any = { 
+        lyrics: finalLyrics,
+        chords: chordsWithBrackets
+      };
+
       await db.song.update({ 
         where: { id: songId }, 
-        data: { 
-          lyrics: finalLyrics,
-          chords: convertedWithBrackets !== finalLyrics ? convertedWithBrackets : null
-        } 
+        data: updateData 
       });
       revalidatePath('/admin');
-      return { success: true, lyrics: finalLyrics, chords: convertedWithBrackets };
+      return { success: true, lyrics: finalLyrics, chords: chordsWithBrackets };
     }
     
     return { error: 'Výsledný text je prázdný.' };
