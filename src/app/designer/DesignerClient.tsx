@@ -532,51 +532,48 @@ export default function DesignerClient({ song }: { song: any }) {
                  {viewMode === 'lyrics' ? 'Editor textu & Progress:' : 'Editor akordů (Zdroj pro zpěvník):'}
               </label>
               {viewMode === 'lyrics' ? (
-                <div 
-                  contentEditable
-                  suppressContentEditableWarning
-                  onBlur={(e) => setRawText(e.currentTarget.innerText)}
-                  style={{
-                    width: '100%', minHeight: '250px', maxHeight: '400px', overflowY: 'auto',
-                    background: 'rgba(0,0,0,0.3)', color: 'white', border: '1px solid rgba(255,180,0,0.3)', 
-                    padding: '1.5rem', borderRadius: '12px', fontFamily: 'monospace', fontSize: '15px', 
-                    lineHeight: '1.8', outline: 'none', whiteSpace: 'pre-wrap'
-                  }}
-                >
-                  {rawText.split('\n').map((lineText, li) => {
-                    const words = lineText.trim().split(/\s+/).filter(w => w);
-                    if (words.length === 0) return <div key={li}><br/></div>;
-                    
-                    return (
-                      <div key={li} style={{ marginBottom: '0.2rem' }}>
-                        {words.map((word, wi) => {
-                          const wordEv = eventsRef.current.find(e => e.type === 'word' && e.lineIdx === li && e.wordIdx === wi) as any;
-                          const hasTiming = !!wordEv;
-                          const v = wordEv?.v || voiceMap[li] || 3;
-                          
-                          let color = 'rgba(255,255,255,0.4)';
-                          if (hasTiming) {
-                             if (v === 1) color = '#ff4b2b';
-                             else if (v === 2) color = '#00d2ff';
-                             else color = 'var(--color-gold)';
-                          }
-
-                          return (
-                            <span key={wi}>
-                              <span style={{ 
-                                color: color,
-                                fontWeight: hasTiming ? 900 : 400,
-                                textShadow: hasTiming ? `0 0 10px ${color}33` : 'none'
-                              }}>
-                                {word}
-                              </span>
-                              {' '}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <textarea 
+                    value={rawText}
+                    onChange={(e) => setRawText(e.target.value)}
+                    placeholder="Vložte text písně..."
+                    spellCheck={false}
+                    style={{
+                      width: '100%', minHeight: '200px', maxHeight: '300px',
+                      background: 'rgba(0,0,0,0.4)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,180,0,0.3)', 
+                      padding: '1rem', borderRadius: '12px', fontFamily: 'monospace', fontSize: '15px', 
+                      lineHeight: '1.6', outline: 'none', resize: 'vertical'
+                    }}
+                  />
+                  {/* BAREVNÝ NÁHLED (Pouze pro čtení, aby to nepadalo) */}
+                  <div style={{
+                    width: '100%', maxHeight: '200px', overflowY: 'auto',
+                    background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '12px',
+                    fontFamily: 'monospace', fontSize: '14px', lineHeight: '1.8', border: '1px dashed rgba(255,255,255,0.1)'
+                  }}>
+                    {rawText.split('\n').map((lineText, li) => {
+                      const words = lineText.trim().split(/\s+/).filter(w => w);
+                      if (words.length === 0) return <div key={li}><br/></div>;
+                      return (
+                        <div key={li} style={{ marginBottom: '0.2rem' }}>
+                          {words.map((word, wi) => {
+                            const wordEv = eventsRef.current.find(e => e.type === 'word' && e.lineIdx === li && e.wordIdx === wi) as any;
+                            const hasTiming = !!wordEv;
+                            const v = wordEv?.v || voiceMap[li] || 3;
+                            let color = 'rgba(255,255,255,0.3)';
+                            if (hasTiming) {
+                               if (v === 1) color = '#ff4b2b';
+                               else if (v === 2) color = '#00d2ff';
+                               else color = 'var(--color-gold)';
+                            }
+                            return (
+                              <span key={wi} style={{ color, fontWeight: hasTiming ? 900 : 400 }}>{word} </span>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               ) : (
                 <textarea 
