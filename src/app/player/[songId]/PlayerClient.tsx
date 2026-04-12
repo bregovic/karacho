@@ -199,13 +199,14 @@ export default function PlayerClient({ song }: { song: any }) {
     return () => clearInterval(interval);
   }, [joinCode, song.id]);
 
+  const isWatchMode = typeof window !== 'undefined' && window.location.search.includes('mode=watch');
+
   useEffect(() => {
-    const isWatchMode = typeof window !== 'undefined' && window.location.search.includes('mode=watch');
     const a = new Audio();
     a.crossOrigin = "anonymous";
     
     // AGRESIVNÍ STOPKA PRO AKORDY A PASIVNÍ REŽIM
-    if (isChordsMode || isWatchMode) {
+    if (isChordsMode || isMuted) {
       a.muted = true;
       a.volume = 0;
     }
@@ -327,17 +328,53 @@ export default function PlayerClient({ song }: { song: any }) {
     setIsInstrumental(nextMode);
   };
 
+  const [isMuted, setIsMuted] = useState(isWatchMode);
+  
+  // Načtení/Uložení mute preferencí
+  useEffect(() => {
+    const savedMute = localStorage.getItem('karacho_mute');
+    if (savedMute !== null) {
+      setIsMuted(savedMute === 'true' || isWatchMode);
+    }
+  }, [isWatchMode]);
+
+  useEffect(() => {
+    localStorage.setItem('karacho_mute', isMuted.toString());
+    if (audioRef.current) {
+      audioRef.current.muted = isMuted;
+      audioRef.current.volume = isMuted ? 0 : 1;
+    }
+  }, [isMuted]);
+
+  const toggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsMuted(!isMuted);
+  };
+
   const togglePlay = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (!audioRef.current) return;
     toggleFullScreen();
-    if (audioRef.current.paused) {
+    
+    // Lokální akce
+    const isCurrentlyPaused = audioRef.current.paused;
+    const newStatus = isCurrentlyPaused ? 'PLAYING' : 'PAUSED';
+
+    if (isCurrentlyPaused) {
       audioRef.current.play();
       if (videoElRef.current) videoElRef.current.play();
       startTick();
     } else {
       audioRef.current.pause();
       if (videoElRef.current) videoElRef.current.pause();
+    }
+
+    // Synchronizace do relace
+    if (joinCode) {
+      updateSessionState(joinCode, { 
+        status: newStatus, 
+        currentTime: audioRef.current.currentTime 
+      });
     }
   };
 
@@ -548,6 +585,19 @@ export default function PlayerClient({ song }: { song: any }) {
                 )}
             </div>
             <div className="btn-group" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+              {!isChordsMode && (
+                <button 
+                  onClick={toggleMute} 
+                  style={{ 
+                    width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', 
+                    border: '1px solid rgba(255,255,255,0.1)', color: isMuted ? '#ff4b2b' : 'white', 
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' 
+                  }}
+                  title={isMuted ? "Zapnout zvuk" : "Vypnout zvuk"}
+                >
+                  {isMuted ? '🔇' : '🔊'}
+                </button>
+              )}
               {!isChordsMode && (
                 <button onClick={togglePlay} style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'var(--color-gold)', border: 'none', color: '#000', fontSize: '22px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                    {isPlaying ? '⏸' : '▶'}
