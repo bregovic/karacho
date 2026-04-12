@@ -531,31 +531,40 @@ export async function researchSongDataAction(songId: string) {
       }
     }
 
-    // 3. SUPERMUSIC & PISNICKY-AKORDY RESEARCH
-    const currentLyrics = results.lyrics || song.lyrics || '';
-    const needsBetterLyrics = !currentLyrics || currentLyrics.length < 100 || currentLyrics.includes('[') || (currentLyrics.match(/,/g) || []).length > 2;
+    // 3. AKORDY & TEXTY (SUPERMUSIC / PISNICKY-AKORDY)
+    // Pokud nám chybí akordy NEBO text, zkusíme lokální zdroje
+    if (!(song as any).chords || !song.lyrics || song.lyrics.length < 100) {
+       // Zkusíme několik variant URL
+       const combinations = [
+         `https://supermusic.cz/skupina.php?idpisen=${toSlug(title)}&idinterpret=${toSlug(artist)}`,
+         `https://pisnicky-akordy.cz/${toSlug(artist)}/${toSlug(title)}`,
+         `https://supermusic.sk/skupina.php?idpisen=${toSlug(title)}&idinterpret=${toSlug(artist)}`,
+       ];
 
-    if (needsBetterLyrics) {
-       const smUrl = `https://supermusic.cz/skupina.php?action=song&idinterpret=${toSlug(artist)}&idpisen=${toSlug(title)}`;
-       const smRes = await importLyricsFromUrl(songId, smUrl);
-       if (smRes.success) {
-          results.lyrics = smRes.lyrics;
-       } else {
-          const paUrl = `https://pisnicky-akordy.cz/${toSlug(artist)}/${toSlug(title)}`;
-          const paRes = await importLyricsFromUrl(songId, paUrl);
-          if (paRes.success) results.lyrics = paRes.lyrics;
+       for (const url of combinations) {
+          const scrapeRes = await importLyricsFromUrl(songId, url);
+          if (scrapeRes.success) {
+             if (scrapeRes.lyrics) results.lyrics = scrapeRes.lyrics;
+             if (scrapeRes.chords) results.chords = scrapeRes.chords;
+             break; // Našli jsme, končíme kolečko
+          }
        }
     }
 
     if (results.lyrics) results.lyrics = cleanLyrics(results.lyrics);
 
     if (Object.keys(results).length > 0) {
+      // Sloučení tagů místo přepsání (pokud chceme být opatrní)
+      if (results.tags && song.tags) {
+         results.tags = Array.from(new Set([...song.tags, ...results.tags]));
+      }
+
       await db.song.update({ where: { id: songId }, data: results });
       revalidatePath('/admin');
       return { success: true, updated: results };
     }
 
-    return { error: 'Nepodařilo se najít žádná nová metadata.' };
+    return { error: 'Nepodařilo se najít žádná nová metadata ani akordy.' };
   } catch (err) {
     console.error('Research Error:', err);
     return { error: 'Chyba při researchu dat.' };
