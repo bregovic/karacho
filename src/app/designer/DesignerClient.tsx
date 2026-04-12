@@ -621,8 +621,8 @@ export default function DesignerClient({ song }: { song: any }) {
              </div>
           </div>
 
-          <div className="mobile-main-controls mobile-only" style={{ position: 'absolute', bottom: '100px', left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', zIndex: 100, pointerEvents: 'none' }}>
-              {/* PROGRESS BAR - FULL WIDTH OVER CONTROLS */}
+          <div className="mobile-main-controls" style={{ position: 'absolute', bottom: '100px', left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', zIndex: 100, pointerEvents: 'none' }}>
+              {/* PROGRESS BAR - Ponecháme viditelný pro všechny (na PC pro klikání myší) */}
               <div style={{ width: '100vw', padding: '0 20px', boxSizing: 'border-box', pointerEvents: 'auto' }}>
                   <div 
                     onClick={(e) => { if (audioRef.current?.duration) { const r = e.currentTarget.getBoundingClientRect(); audioRef.current.currentTime = (e.clientX - r.left) / r.width * audioRef.current.duration; } }} 
@@ -638,6 +638,7 @@ export default function DesignerClient({ song }: { song: any }) {
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '25px', pointerEvents: 'auto' }}>
                 <button 
+                  className="mobile-only"
                   onClick={(e) => { 
                     e.stopPropagation(); 
                     if (eventsRef.current.length > 0) { 
@@ -662,7 +663,7 @@ export default function DesignerClient({ song }: { song: any }) {
                   </button>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                <div className="mobile-only" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                   <button 
                     onClick={(e) => { e.stopPropagation(); if(isPlaying) handleWordTiming(); }} 
                     style={{ width: '85px', height: '85px', borderRadius: '50%', background: 'rgba(0,255,180,0.2)', border: '3px solid rgba(0,255,180,0.5)', color: 'white', fontSize: '32px', backdropFilter: 'blur(10px)', boxShadow: '0 0 30px rgba(0,255,180,0.2)' }}
