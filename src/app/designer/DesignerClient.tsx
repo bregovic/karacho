@@ -5,7 +5,7 @@ import { autoAlignSong } from '@/app/admin/auto-align';
 
 type TimingEvent = 
   | { type: 'line'; time: number; lineIdx: number }
-  | { type: 'word'; time: number; lineIdx: number; wordIdx: number }
+  | { type: 'word'; time: number; lineIdx: number; wordIdx: number; v?: number }
   | { type: 'countdown'; time: number }
   | { type: 'lineEnd'; time: number; lineIdx: number };
 
@@ -212,7 +212,7 @@ export default function DesignerClient({ song }: { song: any }) {
        eventsRef.current.push({ type: 'line', time: t, lineIdx: nextL });
        
        if (autoKeyFirstWord && nextL < linesRef.current.length) {
-          eventsRef.current.push({ type: 'word', time: t, lineIdx: nextL, wordIdx: 0 });
+          eventsRef.current.push({ type: 'word', time: t, lineIdx: nextL, wordIdx: 0, v: voiceMap[nextL] || 3 });
           curLineRef.current = nextL;
           curWordRef.current = 0;
        } else {
@@ -241,7 +241,7 @@ export default function DesignerClient({ song }: { song: any }) {
     const lineLen = linesRef.current[curLineRef.current]?.length || 0;
 
     if (nextW < lineLen) {
-      eventsRef.current.push({ type: 'word', time: t, lineIdx: curLineRef.current, wordIdx: nextW });
+      eventsRef.current.push({ type: 'word', time: t, lineIdx: curLineRef.current, wordIdx: nextW, v: targetVoice });
       restoreState();
       forceUpdate();
     } else {
@@ -357,7 +357,8 @@ export default function DesignerClient({ song }: { song: any }) {
         const lastEv = activeEvs[activeEvs.length - 1];
         if (lastEv.type === 'line' || lastEv.type === 'word') {
           curLineRef.current = lastEv.lineIdx;
-          curWordRef.current = lastEv.type === 'word' ? lastEv.wordIdx : -1;
+          const wIdx = lastEv.type === 'word' ? lastEv.wordIdx : -1;
+          curWordRef.current = wIdx;
         }
       } else {
         curLineRef.current = -1;
@@ -395,8 +396,16 @@ export default function DesignerClient({ song }: { song: any }) {
       if (curr) {
         curLineEl.current.innerHTML = curr.map((w: string, i: number) => {
           const isOn = i <= cw;
-          const color = isOn ? '#ffd700' : 'rgba(255,255,255,0.82)';
-          const shadow = isOn ? '0 2px 6px rgba(0,0,0,0.95), 0 0 24px rgba(255,215,0,0.55)' : '0 2px 6px rgba(0,0,0,0.95)';
+          // Dynamická barva podle hlasu slova
+          const wordEv = eventsRef.current.find(e => e.type === 'word' && e.lineIdx === cl && e.wordIdx === i) as any;
+          const v = wordEv?.v || voiceMap[cl] || 3;
+          let color = 'rgba(255,255,255,0.82)';
+          if (isOn) {
+             if (v === 1) color = '#ffd700'; // H1 - Gold
+             else if (v === 2) color = '#00d2ff'; // H2 - Blue/Cyan
+             else color = '#ffffff'; // H3 - Both/White
+          }
+          const shadow = isOn ? `0 2px 6px rgba(0,0,0,0.95), 0 0 24px ${color}88` : '0 2px 6px rgba(0,0,0,0.95)';
           // PŘIDÁNA MEZERA ZA SLOVO (znak &nbsp; nebo mezera)
           return `<span style="transition: color 0.07s ease, text-shadow 0.07s ease; display: inline-block; color: ${color}; text-shadow: ${shadow}">${w}</span>&nbsp;`;
         }).join('');
@@ -431,7 +440,7 @@ export default function DesignerClient({ song }: { song: any }) {
        }
        
        blocks.push({
-          li, lw, bs: blockStart, be: blockEnd, v: voiceMap[li] || 3, w: wordEvs.map((w: any) => ({ t: (w as any).time, i: (w as any).wordIdx }))
+          li, lw, bs: blockStart, be: blockEnd, v: voiceMap[li] || 3, w: wordEvs.map((w: any) => ({ t: (w as any).time, i: (w as any).wordIdx, v: (w as any).v }))
        });
     }
 
