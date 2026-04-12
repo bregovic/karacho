@@ -68,10 +68,25 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
   });
 
   const sortedSongs = [...filteredSongs].sort((a, b) => {
-    if (sortBy === 'POPULAR') return (b.playCount || 0) - (a.playCount || 0);
-    if (sortBy === 'TITLE_ASC') return a.title.localeCompare(b.title, 'cs');
-    if (sortBy === 'ARTIST_ASC') return (a.artist || '').localeCompare(b.artist || '', 'cs');
-    if (sortBy === 'NEWEST') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    const titleA = (a.title || '').trim();
+    const titleB = (b.title || '').trim();
+
+    if (sortBy === 'POPULAR') {
+      const diff = (b.playCount || 0) - (a.playCount || 0);
+      if (diff !== 0) return diff;
+      return titleA.localeCompare(titleB, 'cs', { sensitivity: 'base' });
+    }
+    if (sortBy === 'TITLE_ASC') {
+      return titleA.localeCompare(titleB, 'cs', { sensitivity: 'base' });
+    }
+    if (sortBy === 'ARTIST_ASC') {
+      const artA = (a.artist || '').trim() || titleA;
+      const artB = (b.artist || '').trim() || titleB;
+      return artA.localeCompare(artB, 'cs', { sensitivity: 'base' });
+    }
+    if (sortBy === 'NEWEST') {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    }
     return 0;
   });
 
