@@ -200,21 +200,19 @@ export default function PlayerClient({ song }: { song: any }) {
   }, [joinCode, song.id]);
 
   useEffect(() => {
-    const isWatchMode = window.location.search.includes('mode=watch');
+    const isWatchMode = typeof window !== 'undefined' && window.location.search.includes('mode=watch');
     const a = new Audio();
     a.crossOrigin = "anonymous";
     
-    // AGRESIVNÍ STOPKA PRO AKORDY
-    if (isChordsMode) {
+    // AGRESIVNÍ STOPKA PRO AKORDY A PASIVNÍ REŽIM
+    if (isChordsMode || isWatchMode) {
       a.muted = true;
       a.volume = 0;
-    } else {
-      a.muted = isWatchMode;
     }
 
     const initialSrc = (!!song.instrumentalUrl) ? song.instrumentalUrl : song.audioUrl;
     a.src = initialSrc;
-    a.preload = isChordsMode ? "none" : "auto";
+    a.preload = (isChordsMode || isWatchMode) ? "none" : "auto";
     
     a.onplay = () => { 
       if (isChordsMode) {
@@ -223,12 +221,21 @@ export default function PlayerClient({ song }: { song: any }) {
       }
       setIsPlaying(true); 
       requestWakeLock(); 
-      if (joinCode && !isWatchMode) updateSessionState(joinCode, { status: 'PLAYING', currentSongId: song.id });
+      if (joinCode && !isWatchMode) {
+          updateSessionState(joinCode, { 
+              status: 'PLAYING', 
+              currentSongId: song.id,
+              startedAt: new Date().toISOString(),
+              startTimeOffset: a.currentTime
+          });
+      }
     };
     a.onpause = () => { 
       setIsPlaying(false); 
       releaseWakeLock(); 
-      if (joinCode && !isWatchMode) updateSessionState(joinCode, { status: 'PAUSED' });
+      if (joinCode && !isWatchMode) {
+          updateSessionState(joinCode, { status: 'PAUSED', currentTime: a.currentTime });
+      }
     };
     a.onplaying = () => {
       incrementPlayCount(song.id);
@@ -256,19 +263,14 @@ export default function PlayerClient({ song }: { song: any }) {
 
     const syncInterval = setInterval(async () => {
        if (!joinCode || !audioRef.current) return;
+       
        if (!isWatchMode) {
-          const s = await getSessionStatus(joinCode);
-          if (s) {
-            if (s.status === 'PAUSED' && !audioRef.current.paused) {
-               audioRef.current.pause();
-            } else if (s.status === 'PLAYING' && audioRef.current.paused && userInteracted) {
-               audioRef.current.play().catch(() => {});
-            }
-            if (!audioRef.current.paused) {
-               updateSessionState(joinCode, { currentTime: audioRef.current.currentTime, status: 'PLAYING' });
-            }
+          // Master logic (Spreading updates)
+          if (!audioRef.current.paused) {
+             updateSessionState(joinCode, { currentTime: audioRef.current.currentTime, status: 'PLAYING' });
           }
        } else {
+          // Slave logic (Following Master)
           const session = await getSessionStatus(joinCode);
           if (session) {
              const s = session as any;
@@ -280,10 +282,12 @@ export default function PlayerClient({ song }: { song: any }) {
              }
 
              const diff = Math.abs(audioRef.current.currentTime - serverTime);
-             if (diff > 0.8) { // Snížena tolerance pro přesnější sync
+             // Zmenšená tolerance pro extrémní přesnost (0.4s)
+             if (diff > 0.4) { 
                 audioRef.current.currentTime = serverTime;
                 if (videoElRef.current) videoElRef.current.currentTime = serverTime;
              }
+
              if (s.status === 'PLAYING' && audioRef.current.paused) {
                 audioRef.current.play().catch(() => {});
              } else if (s.status === 'PAUSED' && !audioRef.current.paused) {
@@ -291,7 +295,7 @@ export default function PlayerClient({ song }: { song: any }) {
              }
           }
        }
-    }, isWatchMode ? 1500 : 2000);
+    }, isWatchMode ? 500 : 1000); // Rychlejší tep synchronizace
 
     const playAttempt = a.play();
     if (playAttempt !== undefined) {
