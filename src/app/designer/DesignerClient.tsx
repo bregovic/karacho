@@ -391,8 +391,9 @@ export default function DesignerClient({ song }: { song: any }) {
           const isOn = i <= cw;
           const color = isOn ? '#ffd700' : 'rgba(255,255,255,0.82)';
           const shadow = isOn ? '0 2px 6px rgba(0,0,0,0.95), 0 0 24px rgba(255,215,0,0.55)' : '0 2px 6px rgba(0,0,0,0.95)';
-          return `<span style="margin: 0 0.1em; transition: color 0.07s ease, text-shadow 0.07s ease; display: inline-block; color: ${color}; text-shadow: ${shadow}">${w}</span>`;
-        }).join(' ');
+          // PŘIDÁNA MEZERA ZA SLOVO (znak &nbsp; nebo mezera)
+          return `<span style="transition: color 0.07s ease, text-shadow 0.07s ease; display: inline-block; color: ${color}; text-shadow: ${shadow}">${w}</span>&nbsp;`;
+        }).join('');
       } else {
         curLineEl.current.innerHTML = cl >= linesRef.current.length 
           ? '<span style="color:var(--color-gold)">🎉 HOTOVO! Klikni Export.</span>' 
@@ -525,13 +526,15 @@ export default function DesignerClient({ song }: { song: any }) {
                       {words.map((word, wi) => {
                         const hasTiming = eventsRef.current.some(e => e.type === 'word' && e.lineIdx === li && e.wordIdx === wi);
                         return (
-                          <span key={wi} style={{ 
-                            marginRight: '0.4em',
-                            color: hasTiming ? 'var(--color-gold)' : 'rgba(255,255,255,0.4)',
-                            fontWeight: hasTiming ? 900 : 400,
-                            textShadow: hasTiming ? '0 0 10px rgba(255,215,0,0.2)' : 'none'
-                          }}>
-                            {word}
+                          <span key={wi}>
+                            <span style={{ 
+                              color: hasTiming ? 'var(--color-gold)' : 'rgba(255,255,255,0.4)',
+                              fontWeight: hasTiming ? 900 : 400,
+                              textShadow: hasTiming ? '0 0 10px rgba(255,215,0,0.2)' : 'none'
+                            }}>
+                              {word}
+                            </span>
+                            {' '}
                           </span>
                         );
                       })}
