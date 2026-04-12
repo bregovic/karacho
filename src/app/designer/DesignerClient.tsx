@@ -202,10 +202,10 @@ export default function DesignerClient({ song }: { song: any }) {
     
     // 2. Aktivujeme další řádek (pokud existuje)
     const nextL = curLineRef.current + 1;
-    if (nextL < linesRef.current.length) {
+    if (nextL <= linesRef.current.length) { // Změna < na <= pro umožnění ukončení
        eventsRef.current.push({ type: 'line', time: t, lineIdx: nextL });
        
-       if (autoKeyFirstWord) {
+       if (autoKeyFirstWord && nextL < linesRef.current.length) {
           eventsRef.current.push({ type: 'word', time: t, lineIdx: nextL, wordIdx: 0 });
           curLineRef.current = nextL;
           curWordRef.current = 0;
@@ -213,11 +213,7 @@ export default function DesignerClient({ song }: { song: any }) {
           curLineRef.current = nextL;
           curWordRef.current = -1; 
        }
-    } else {
-       // KONEC PÍSNĚ
-       curLineRef.current = linesRef.current.length;
-       curWordRef.current = -1;
-    }
+    } 
     
     restoreState();
     forceUpdate();
@@ -398,7 +394,9 @@ export default function DesignerClient({ song }: { song: any }) {
           return `<span style="margin: 0 0.1em; transition: color 0.07s ease, text-shadow 0.07s ease; display: inline-block; color: ${color}; text-shadow: ${shadow}">${w}</span>`;
         }).join(' ');
       } else {
-        curLineEl.current.innerHTML = cl >= linesRef.current.length ? '<span style="color:var(--color-gold)">🎉 HOTOVO! Klikni Export.</span>' : '<span style="color:rgba(255,255,255,0.4); font-size: 0.5em;">Stiskněte MEZERNÍK...</span>';
+        curLineEl.current.innerHTML = cl >= linesRef.current.length 
+          ? '<span style="color:var(--color-gold)">🎉 HOTOVO! Klikni Export.</span>' 
+          : '<span style="color:rgba(255,255,255,0.4); font-size: 0.5em;">Stiskněte MEZERNÍK...</span>';
       }
     }
   };
@@ -406,25 +404,27 @@ export default function DesignerClient({ song }: { song: any }) {
   const generateBlocksJSON = () => {
     const blocks = [];
     const dur = audioRef.current?.duration || 0;
-    for (let li = 0; li < linesRef.current.length; li++) {
+    
+    // Procházíme o jeden index více, abychom podchytili i ten finální prázdný blok
+    for (let li = 0; li <= linesRef.current.length; li++) {
        const lineEvents = eventsRef.current.filter(e => e.type === 'line' && e.lineIdx === li);
        const wordEvs = eventsRef.current.filter(e => e.type === 'word' && e.lineIdx === li).sort((a: any, b: any) => a.wordIdx - b.wordIdx);
        const lineEndEv = eventsRef.current.find(e => e.type === 'lineEnd' && e.lineIdx === li);
        
        if (lineEvents.length === 0 && wordEvs.length === 0) continue;
        
-       const lw = linesRef.current[li];
+       const lw = linesRef.current[li] || [];
        const blockStart = lineEvents.length ? lineEvents[0].time : (wordEvs.length ? wordEvs[0].time : 0);
        let blockEnd = dur;
        if (lineEndEv) {
           blockEnd = lineEndEv.time;
-       } else if (li < linesRef.current.length - 1) {
+       } else if (li < linesRef.current.length) {
           const nextLE = eventsRef.current.filter(e => e.type === 'line' && e.lineIdx === li + 1);
           if (nextLE.length) blockEnd = nextLE[0].time;
        }
        
        blocks.push({
-         li, lw, bs: blockStart, be: blockEnd, v: voiceMap[li] || 3, w: wordEvs.map((w: any) => ({ t: (w as any).time, i: (w as any).wordIdx }))
+          li, lw, bs: blockStart, be: blockEnd, v: voiceMap[li] || 3, w: wordEvs.map((w: any) => ({ t: (w as any).time, i: (w as any).wordIdx }))
        });
     }
 
