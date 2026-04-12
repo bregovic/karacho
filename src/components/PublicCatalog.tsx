@@ -143,15 +143,16 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
 
         <div className="hero-controls" style={{ 
           display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center',
-          width: '100%', maxWidth: '1000px', position: 'relative', zIndex: 1,
+          width: '100%', maxWidth: '1000px', position: 'relative', zIndex: 10,
         }}>
           <input 
-            type="text" placeholder="🔍  Hledat interpreta nebo název..." 
+            type="text" placeholder="🔍  Hledat..." 
             value={search} onChange={e => setSearch(e.target.value)}
             style={{ 
-              padding: '14px 20px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.15)', 
-              background: 'rgba(255,255,255,0.07)', color: '#fff', flex: 2, minWidth: '280px',
-              fontSize: '16px', backdropFilter: 'blur(12px)', outline: 'none', transition: 'all 0.2s'
+              padding: '16px 20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.15)', 
+              background: 'rgba(255,255,255,0.07)', color: '#fff', flex: 2, minWidth: '220px',
+              fontSize: '18px', backdropFilter: 'blur(12px)', outline: 'none', transition: 'all 0.2s',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
             }} 
           />
           <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={selectStyle}>

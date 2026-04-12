@@ -537,7 +537,7 @@ export default function DesignerClient({ song }: { song: any }) {
                }}
              >
                 <div className="mobile-tap-hint" style={{ padding: '20px 40px', background: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '50px', color: 'var(--color-gold)', fontWeight: 900, fontSize: '14px', letterSpacing: '0.1em', backdropFilter: 'blur(10px)', opacity: isPlaying ? 0.3 : 0 }}>
-                   ŤUKEJ SEM DO RYTMA
+                   ŤUKEJ SEM DO RYTMU
                 </div>
              </div>
           </div>
@@ -562,35 +562,54 @@ export default function DesignerClient({ song }: { song: any }) {
              </div>
           </div>
 
-          <div className="mobile-main-controls" style={{ position: 'absolute', bottom: '120px', left: 0, right: 0, justifyContent: 'center', alignItems: 'center', gap: '25px', zIndex: 100, pointerEvents: 'auto' }}>
-              <button onClick={(e) => { e.stopPropagation(); forceLineEndAndAdvanceToNext(); }} style={{ width: '65px', height: '65px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '2px solid rgba(255,255,255,0.2)', color: 'white', fontSize: '24px', backdropFilter: 'blur(10px)' }}>📏</button>
+          <div className="mobile-main-controls" style={{ position: 'absolute', bottom: '150px', left: 0, right: 0, justifyContent: 'center', alignItems: 'center', gap: '35px', zIndex: 100, pointerEvents: 'auto' }}>
+              <button 
+                onClick={(e) => { e.stopPropagation(); if (eventsRef.current.length > 0) { eventsRef.current.pop(); restoreState(); forceUpdate(); } }} 
+                style={{ width: '65px', height: '65px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', border: '2px solid rgba(239, 68, 68, 0.4)', color: '#ef4444', fontSize: '24px', backdropFilter: 'blur(10px)' }}
+                title="Smazat poslední značku"
+              >
+                ✕
+              </button>
+              
               <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                  {!isPlaying && (
-                    <div style={{ position: 'absolute', bottom: '90px', display: 'flex', background: 'rgba(0,0,0,0.8)', padding: '10px', borderRadius: '15px', gap: '15px', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                       <button onClick={(e) => { e.stopPropagation(); handleKeyDown({ code: 'Backspace', preventDefault: () => {} } as any); }} style={{ background: 'none', border: 'none', fontSize: '20px' }}>🔙</button>
-                       <button onClick={(e) => { e.stopPropagation(); handleKeyDown({ key: '[', preventDefault: () => {} } as any); }} style={{ background: 'none', border: 'none', fontSize: '20px' }}>◀</button>
-                       <button onClick={(e) => { e.stopPropagation(); handleKeyDown({ key: ']', preventDefault: () => {} } as any); }} style={{ background: 'none', border: 'none', fontSize: '20px' }}>▶</button>
+                    <div style={{ position: 'absolute', bottom: '110px', display: 'flex', background: 'rgba(0,0,0,0.85)', padding: '12px 20px', borderRadius: '25px', gap: '25px', backdropFilter: 'blur(15px)', border: '1px solid rgba(255,255,255,0.15)', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
+                       <button onClick={(e) => { e.stopPropagation(); if(audioRef.current) audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 2); }} style={{ background: 'none', border: 'none', fontSize: '24px' }}>⏪</button>
+                       <button onClick={(e) => { e.stopPropagation(); handleKeyDown({ key: '[', preventDefault: () => {} } as any); }} style={{ background: 'none', border: 'none', fontSize: '24px' }}>◀</button>
+                       <button onClick={(e) => { e.stopPropagation(); handleKeyDown({ key: ']', preventDefault: () => {} } as any); }} style={{ background: 'none', border: 'none', fontSize: '24px' }}>▶</button>
+                       <button onClick={(e) => { e.stopPropagation(); if(audioRef.current) audioRef.current.currentTime = Math.min(duration, audioRef.current.currentTime + 2); }} style={{ background: 'none', border: 'none', fontSize: '24px' }}>⏩</button>
                     </div>
                  )}
-                 <button onClick={(e) => { e.stopPropagation(); togglePlay(); }} style={{ width: '85px', height: '85px', borderRadius: '50%', background: isPlaying ? 'var(--color-gold)' : 'rgba(255,255,255,0.15)', border: 'none', fontSize: '32px', boxShadow: isPlaying ? '0 0 30px rgba(255,215,0,0.3)' : 'none' }}>{isPlaying ? '⏸' : '▶'}</button>
+                 <button onClick={(e) => { e.stopPropagation(); togglePlay(); }} style={{ width: '95px', height: '95px', borderRadius: '50%', background: isPlaying ? 'var(--color-gold)' : 'rgba(255,255,255,0.15)', border: 'none', fontSize: '38px', boxShadow: isPlaying ? '0 0 40px rgba(255,215,0,0.4)' : 'none', transition: 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>{isPlaying ? '⏸' : '▶'}</button>
               </div>
-              <button onClick={(e) => { e.stopPropagation(); handleWordTiming(); }} style={{ width: '65px', height: '65px', borderRadius: '50%', background: 'rgba(0,255,180,0.15)', border: '2px solid rgba(0,255,180,0.3)', color: 'white', fontSize: '24px', backdropFilter: 'blur(10px)' }}>✨</button>
+              <button 
+                onClick={(e) => { e.stopPropagation(); handleWordTiming(); }} 
+                style={{ width: '85px', height: '85px', borderRadius: '50%', background: 'rgba(0,255,180,0.2)', border: '3px solid rgba(0,255,180,0.5)', color: 'white', fontSize: '32px', backdropFilter: 'blur(10px)', boxShadow: '0 0 30px rgba(0,255,180,0.2)' }}
+              >
+                ✨
+              </button>
           </div>
 
-          <div style={{ height: '80px', background: 'rgba(0,0,0,0.95)', borderTop: '2px solid rgba(255,255,255,0.1)', zIndex: 10, display: 'flex', flexDirection: 'column', padding: '0 3rem', boxShadow: '0 -10px 40px rgba(0,0,0,0.8)' }} onClick={e => e.stopPropagation()}>
-             <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                 <button 
-                    style={{ width: '56px', height: '56px', borderRadius: '50%', background: isPlaying ? 'white' : 'var(--color-gold)', border: 'none', color: '#000', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', transition: 'all 0.2s', transform: isPlaying ? 'scale(0.95)' : 'scale(1)', boxShadow: '0 0 20px rgba(255,215,0,0.4)' }} 
+          <div style={{ height: '100px', background: 'rgba(0,0,0,0.98)', borderTop: '2px solid rgba(255,255,255,0.1)', zIndex: 10, display: 'flex', flexDirection: 'column', padding: '0 2rem', boxShadow: '0 -15px 50px rgba(0,0,0,0.9)' }} onClick={e => e.stopPropagation()}>
+             <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '2rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: '80px' }}>
+                    <span style={{ fontSize: '16px', color: 'white', fontWeight: 900, fontFamily: 'monospace' }}>{fmtTime(currentTime)}</span>
+                    <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>/ {fmtTime(duration)}</span>
+                  </div>
+                  
+                  <div 
+                    onClick={(e) => { if (audioRef.current?.duration) { const r = e.currentTarget.getBoundingClientRect(); audioRef.current.currentTime = (e.clientX - r.left) / r.width * audioRef.current.duration; } }} 
+                    style={{ flex: 1, height: '32px', background: 'rgba(255,255,255,0.03)', borderRadius: '16px', cursor: 'pointer', position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}
+                  >
+                    <div style={{ height: '100%', background: 'linear-gradient(90deg, var(--color-gold), #fff)', width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`, transition: 'width 0.1s linear', boxShadow: '0 0 20px rgba(255,215,0,0.5)' }} />
+                  </div>
+                  
+                  <button 
+                    style={{ width: '50px', height: '50px', borderRadius: '15px', background: isPlaying ? 'white' : 'var(--color-gold)', border: 'none', color: '#000', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }} 
                     onClick={togglePlay}
-                 >
+                  >
                     {isPlaying ? '⏸' : '▶'}
-                 </button>
-                 <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.7)', fontFamily: 'monospace', minWidth: '100px', fontWeight: 'bold' }}>
-                   {fmtTime(currentTime)} / {fmtTime(duration)}
-                 </span>
-                 <div onClick={(e) => { if (audioRef.current?.duration) { const r = e.currentTarget.getBoundingClientRect(); audioRef.current.currentTime = (e.clientX - r.left) / r.width * audioRef.current.duration; } }} style={{ flex: 1, height: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', cursor: 'pointer', position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
-                    <div style={{ height: '100%', background: 'linear-gradient(90deg, var(--color-gold), #fff)', width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`, borderRadius: '6px', boxShadow: '0 0 15px rgba(255,215,0,0.6)' }} />
-                 </div>
+                  </button>
              </div>
           </div>
       </div>
