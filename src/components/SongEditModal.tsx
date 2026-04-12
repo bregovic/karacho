@@ -119,7 +119,7 @@ export default function SongEditModal({
                 className="btn-secondary" 
                 style={{ padding: '4px 12px', fontSize: '10px', borderRadius: '8px', border: '1px solid var(--color-teal)', color: 'var(--color-teal)' }}
               >
-                {researching ? "⌛ HLEDÁM..." : "🪄 RESEARCH DATA"}
+                {researching ? "⌛ HLEDÁM..." : "🔍 RESEARCH DATA"}
               </button>
             </div>
             
