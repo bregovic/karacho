@@ -509,9 +509,42 @@ export default function DesignerClient({ song }: { song: any }) {
               onChange={(e) => setRawText(e.target.value)}
               placeholder="Vložte sem text písně..."
               style={{
-                width: '100%', height: '250px', background: 'rgba(0,0,0,0.3)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '1rem', borderRadius: '8px', fontFamily: 'monospace', fontSize: '14px', lineHeight: '1.5'
+                width: '100%', height: '200px', background: 'rgba(0,0,0,0.3)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '1rem', borderRadius: '8px', fontFamily: 'monospace', fontSize: '14px', lineHeight: '1.5'
               }}
             />
+            
+            {/* PROGRESS HIGHLIGHTER */}
+            {(eventsRef.current.length > 0) && (
+              <div style={{ marginTop: '1.5rem', width: '100%', textAlign: 'left' }}>
+                <h4 style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginBottom: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Progress časování:</h4>
+                <div style={{ 
+                  maxHeight: '150px', overflowY: 'auto', background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', fontSize: '15px', lineHeight: '1.8'
+                }}>
+                  {rawText.split('\n').map((lineText, li) => {
+                    const words = lineText.trim().split(/\s+/).filter(w => w);
+                    if (words.length === 0) return <br key={li} />;
+                    
+                    return (
+                      <div key={li} style={{ marginBottom: '0.4rem' }}>
+                        {words.map((word, wi) => {
+                          const hasTiming = eventsRef.current.some(e => e.type === 'word' && e.lineIdx === li && e.wordIdx === wi);
+                          return (
+                            <span key={wi} style={{ 
+                              marginRight: '0.4em',
+                              color: hasTiming ? 'var(--color-gold)' : 'rgba(255,255,255,0.2)',
+                              fontWeight: hasTiming ? 900 : 400,
+                              textShadow: hasTiming ? '0 0 10px rgba(255,215,0,0.2)' : 'none'
+                            }}>
+                              {word}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
           <label className="btn-secondary" style={{ width: '100%', textAlign: 'left', position: 'relative', overflow: 'hidden', display: 'flex', gap: '1rem', alignItems: 'center' }}>
             <span style={{ fontSize: '20px' }}>🎵</span>
