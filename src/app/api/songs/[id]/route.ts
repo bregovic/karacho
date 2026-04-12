@@ -10,13 +10,14 @@ export async function PUT(req: Request, context: any) {
 
   try {
     const body = await req.json();
-    const { timingData, lyrics } = body;
+    const { timingData, lyrics, state } = body;
 
     const updated = await prisma.song.update({
       where: { id },
       data: {
         timingData: timingData || undefined,
         lyrics: lyrics || undefined,
+        state: state || undefined,
       },
     });
 
