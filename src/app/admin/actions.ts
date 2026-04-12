@@ -352,18 +352,26 @@ function cleanLyrics(text: string, customBlacklist: string[] = []): string {
     // 2. Odstraníme plevelné značky na začátku řádku (R:, 1., Refrény...)
     trimmed = trimmed.replace(/^(Capo|Intro|Outro|Solo|Sólo|Soloing|Predehra|Předehra|Mezihra|Interlude|R:|Ref:|Refren|Refrén|Bridge|Sloka|Vazba|Chorus|Verse|Instrumental|Zpěv|Skladba|\d+[:.)]|\(\d+x\))/gi, '').trim();
 
-    // 3. Odstraníme zbytky akordů, které nebyly v závorkách (pro jistotu)
+    // 3. Detekce akordových řádků (vylepšeno pro Es, As, maj, min a interpunkci)
     const noSpaces = trimmed.replace(/\s/g, '');
     if (!noSpaces) continue;
 
-    const chordMatches = noSpaces.match(/([A-G]|maj|min|dim|sus|add|m|#|b|7|9|11|13|[\/|,\(\)\+\-])/gi) || [];
+    // Rozšířený regex o H a specifické koncovky
+    const chordMatches = noSpaces.match(/([A-GH]|maj|min|dim|sus|add|mi|m|#|b|7|9|11|13|Es|As|Des|Ges|Bes|[\/|,\(\)\+\-\[\]])/gi) || [];
     const chordCharsCount = chordMatches.join('').length;
-    const vowelCount = (noSpaces.match(/[eiouyáéíóúů]/gi) || []).length;
-    const ratio = chordCharsCount / noSpaces.length;
-    const vowelRatio = vowelCount / noSpaces.length;
+    
+    // U akordů jako maj/min/Es/As ignorujeme samohlásky v detekci plevele
+    const pureChords = trimmed.split(/[\s,.\-\+|]+/).filter(w => 
+       w.match(/^[A-GH](maj|min|dim|sus|add|mi|m|#|b|7|9|11|13)*$/i) || 
+       w.match(/^(Es|As|Des|Ges|Bes)$/i)
+    );
 
-    // Pokud řádek tvoří z 70% akordové znaky a nemá samohlásky, je to plevel
-    if ((ratio > 0.7 && vowelRatio < 0.1) || (noSpaces.length <= 4 && ratio > 0.8)) {
+    const ratio = chordCharsCount / noSpaces.length;
+    const isMainlyChords = ratio > 0.6;
+    const hasManyShortChordWords = pureChords.length >= 2 && (pureChords.length / trimmed.split(/\s+/).length) > 0.7;
+
+    // Pokud řádek tvoří z většiny akordové znaky nebo je to sled krátkých akordů
+    if (isMainlyChords || hasManyShortChordWords) {
        continue;
     }
 
