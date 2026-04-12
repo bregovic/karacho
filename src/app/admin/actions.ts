@@ -353,11 +353,19 @@ export async function importLyricsFromUrl(songId: string, url: string) {
     } else if (isSM) {
       const match = content.match(/<div id="songtext"[^>]*>([\s\S]*?)<\/div>/) || 
                     content.match(/<div class="song-text"[^>]*>([\s\S]*?)<\/div>/) ||
-                    content.match(/<div class="text"[^>]*>([\s\S]*?)<\/div>/);
+                    content.match(/<div class="text"[^>]*>([\s\S]*?)<\/div>/) ||
+                    content.match(/<span id="piesen_text"[^>]*>([\s\S]*?)<\/span>/);
       if (match) {
         textWithChords = match[1]
-          .replace(/<span[^>]*class="(akord|chord|chord_r|chord_l)"[^>]*>([\s\S]*?)<\/span>/gi, ' [$2] ')
-          .replace(/<b[^>]*>([A-G][#b]?[^<]*)<\/b>/gi, ' [$1] ')
+          .replace(/<span[^>]*class="[^"]*(akord|chord|piesen_akord)[^"]*"[^>]*>([\s\S]*?)<\/span>/gi, ' [$2] ')
+          .replace(/<b[^>]*>([\s\S]*?)<\/b>/gi, (m, c) => {
+             if (c.trim().length <= 8) return ` [${c.trim()}] `;
+             return c;
+          })
+          .replace(/<i[^>]*>([\s\S]*?)<\/i>/gi, (m, c) => {
+             if (c.trim().length <= 8) return ` [${c.trim()}] `;
+             return c;
+          })
           .replace(/<br\s*\/?>/gi, '\n');
       }
     } else {
