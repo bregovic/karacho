@@ -351,10 +351,13 @@ export async function importLyricsFromUrl(songId: string, url: string) {
       const match = content.match(/<pre[^>]*>([\s\S]*?)<\/pre>/);
       if (match) textWithChords = match[1];
     } else if (isSM) {
-      const match = content.match(/<div id="songtext"[^>]*>([\s\S]*?)<\/div>/) || content.match(/<div class="song-text"[^>]*>([\s\S]*?)<\/div>/);
+      const match = content.match(/<div id="songtext"[^>]*>([\s\S]*?)<\/div>/) || 
+                    content.match(/<div class="song-text"[^>]*>([\s\S]*?)<\/div>/) ||
+                    content.match(/<div class="text"[^>]*>([\s\S]*?)<\/div>/);
       if (match) {
         textWithChords = match[1]
-          .replace(/<(span|a)[^>]*class="(akord|chord)"[^>]*>([\s\S]*?)<\/\1>/gi, ' [$3] ')
+          .replace(/<span[^>]*class="(akord|chord|chord_r|chord_l)"[^>]*>([\s\S]*?)<\/span>/gi, ' [$2] ')
+          .replace(/<b[^>]*>([A-G][#b]?[^<]*)<\/b>/gi, ' [$1] ')
           .replace(/<br\s*\/?>/gi, '\n');
       }
     } else {

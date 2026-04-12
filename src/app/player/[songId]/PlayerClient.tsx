@@ -37,23 +37,33 @@ function ChordsView({ chords, songTitle, artist }: { chords: string, songTitle: 
   
   // Velmi jednoduchý ChordPro formatter (vloží akordy jako span nad text)
   const renderLine = (line: string) => {
-    // Pokud line obsahuje akordy jako [G]
+    // Pokud řádek vypadá jako čistě akordový (C G Ami D), obarvíme ho celý žlutě
+    const words = line.trim().split(/\s+/);
+    const looksLikeChords = words.length > 0 && words.every(w => 
+      /^[A-G](maj|min|dim|aug|sus|mi|m|#|b|7|9|11|13)*(\/[A-G][#b]*)?$/i.test(w) || /^[\/|,\(\)\+\-]+$/.test(w)
+    );
+
+    if (looksLikeChords && !line.includes('[')) {
+      return words.map((w, j) => <span key={j} style={{ color: '#ffcc00', fontWeight: 900, marginRight: '1.2em', fontSize: '1.1em' }}>{w}</span>);
+    }
+
+    // Klasický ChordPro [G]
     const parts = line.split(/(\[[^\]]+\])/);
     return parts.map((part, i) => {
       if (part.startsWith('[') && part.endsWith(']')) {
-        return <span key={i} style={{ color: '#ffcc00', fontWeight: 900, fontSize: '0.8em', position: 'absolute', top: '-1.2em', left: 0 }}>{part.slice(1, -1)}</span>;
+        return <span key={i} style={{ color: '#ffcc00', fontWeight: 900, fontSize: '0.85em', position: 'absolute', top: '-1.3em', left: 0, whiteSpace: 'nowrap' }}>{part.slice(1, -1)}</span>;
       }
-      return <span key={i} style={{ position: 'relative', display: 'inline-block', paddingTop: '1.2em', marginRight: part === ' ' ? '0.3em' : 0 }}>{part}</span>;
+      return <span key={i} style={{ position: 'relative', display: 'inline-block', paddingTop: '1.3em', marginRight: part === ' ' ? '0.3em' : 0 }}>{part}</span>;
     });
   };
 
   return (
     <div style={{ 
-      padding: '4rem 2rem 10rem', maxWidth: '800px', margin: '0 auto', 
-      fontSize: 'clamp(18px, 3vw, 24px)', lineHeight: '2.5', color: '#eee',
+      padding: '5rem 5% 15rem', maxWidth: '100%', width: '100%', boxSizing: 'border-box',
+      fontSize: 'clamp(20px, 4vw, 32px)', lineHeight: '3', color: '#eee',
       whiteSpace: 'pre-wrap', wordBreak: 'break-word', position: 'relative', zIndex: 10
     }}>
-      <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+      <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
         <h1 style={{ color: '#fff', fontSize: '32px', fontWeight: 900, margin: 0 }}>{songTitle}</h1>
         <p style={{ opacity: 0.6, fontSize: '18px' }}>{artist}</p>
       </div>
@@ -170,11 +180,24 @@ export default function PlayerClient({ song }: { song: any }) {
     const isWatchMode = window.location.search.includes('mode=watch');
     const a = new Audio();
     a.crossOrigin = "anonymous";
-    a.muted = isWatchMode || isChordsMode;
+    
+    // AGRESIVNÍ STOPKA PRO AKORDY
+    if (isChordsMode) {
+      a.muted = true;
+      a.volume = 0;
+    } else {
+      a.muted = isWatchMode;
+    }
+
     const initialSrc = (!!song.instrumentalUrl) ? song.instrumentalUrl : song.audioUrl;
     a.src = initialSrc;
-    a.preload = "auto";
+    a.preload = isChordsMode ? "none" : "auto";
+    
     a.onplay = () => { 
+      if (isChordsMode) {
+        a.pause();
+        return;
+      }
       setIsPlaying(true); 
       requestWakeLock(); 
       if (joinCode && !isWatchMode) updateSessionState(joinCode, { status: 'PLAYING', currentSongId: song.id });
