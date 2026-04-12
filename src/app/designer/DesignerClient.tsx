@@ -550,13 +550,23 @@ export default function DesignerClient({ song }: { song: any }) {
                     return (
                       <div key={li} style={{ marginBottom: '0.2rem' }}>
                         {words.map((word, wi) => {
-                          const hasTiming = eventsRef.current.some(e => e.type === 'word' && e.lineIdx === li && e.wordIdx === wi);
+                          const wordEv = eventsRef.current.find(e => e.type === 'word' && e.lineIdx === li && e.wordIdx === wi) as any;
+                          const hasTiming = !!wordEv;
+                          const v = wordEv?.v || voiceMap[li] || 3;
+                          
+                          let color = 'rgba(255,255,255,0.4)';
+                          if (hasTiming) {
+                             if (v === 1) color = '#ff4b2b';
+                             else if (v === 2) color = '#00d2ff';
+                             else color = 'var(--color-gold)';
+                          }
+
                           return (
                             <span key={wi}>
                               <span style={{ 
-                                color: hasTiming ? 'var(--color-gold)' : 'rgba(255,255,255,0.4)',
+                                color: color,
                                 fontWeight: hasTiming ? 900 : 400,
-                                textShadow: hasTiming ? '0 0 10px rgba(255,215,0,0.2)' : 'none'
+                                textShadow: hasTiming ? `0 0 10px ${color}33` : 'none'
                               }}>
                                 {word}
                               </span>
