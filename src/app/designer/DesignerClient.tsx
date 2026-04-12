@@ -604,6 +604,9 @@ export default function DesignerClient({ song }: { song: any }) {
                .mobile-main-controls { display: flex !important; } 
                .mobile-tap-hint { display: block !important; }
              }
+             @media (min-width: 1025px) {
+               .mobile-only { display: none !important; }
+             }
              .mobile-main-controls { display: none; }
              .mobile-tap-hint { display: none; }
           `}} />
@@ -618,7 +621,7 @@ export default function DesignerClient({ song }: { song: any }) {
              </div>
           </div>
 
-          <div className="mobile-main-controls" style={{ position: 'absolute', bottom: '100px', left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', zIndex: 100, pointerEvents: 'none' }}>
+          <div className="mobile-main-controls mobile-only" style={{ position: 'absolute', bottom: '100px', left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', zIndex: 100, pointerEvents: 'none' }}>
               {/* PROGRESS BAR - FULL WIDTH OVER CONTROLS */}
               <div style={{ width: '100vw', padding: '0 20px', boxSizing: 'border-box', pointerEvents: 'auto' }}>
                   <div 
