@@ -58,7 +58,8 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
 
   const filteredSongs = initialSongs.filter(song => {
     const matchesSearch = song.title.toLowerCase().includes(search.toLowerCase()) || 
-                         (song.artist?.toLowerCase() || '').includes(search.toLowerCase());
+                         (song.artist?.toLowerCase() || '').includes(search.toLowerCase()) ||
+                         (song.tags || []).some(t => t.toLowerCase().includes(search.toLowerCase()));
     const matchesGenre = genreFilter === 'ALL' || song.genre === genreFilter;
     const matchesTag = tagFilter === 'ALL' || (song.tags && song.tags.includes(tagFilter));
     const hasRealChords = !!(song as any).chords && (song as any).chords.includes('[');
@@ -142,20 +143,28 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
         </div>
 
         <div className="hero-controls" style={{ 
-          display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center',
-          width: '100%', maxWidth: '1000px', position: 'relative', zIndex: 10,
+          display: 'flex', gap: '0.8rem', flexWrap: 'wrap', justifyContent: 'center',
+          width: '100%', maxWidth: '1100px', position: 'relative', zIndex: 10,
+          background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '24px',
+          backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.08)',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.3)'
         }}>
           <input 
-            type="text" placeholder="🔍  Hledat..." 
+            type="text" placeholder="🔍  Hledat písně, autory nebo štítky..." 
             value={search} onChange={e => setSearch(e.target.value)}
             style={{ 
-              padding: '16px 20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.15)', 
-              background: 'rgba(255,255,255,0.07)', color: '#fff', flex: 2, minWidth: '220px',
-              fontSize: '18px', backdropFilter: 'blur(12px)', outline: 'none', transition: 'all 0.2s',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
+              padding: '14px 20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', 
+              background: 'rgba(255,255,255,0.04)', color: '#fff', flex: '2 1 300px',
+              fontSize: '16px', outline: 'none', transition: 'all 0.2s',
             }} 
           />
-          <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={selectStyle}>
+          <select value={genreFilter} onChange={e => setGenreFilter(e.target.value)} style={{ ...selectStyle, flex: '1 1 150px' }}>
+            <option value="ALL">🎭 VŠECHNY ŽÁNRY</option>
+            {allGenres.map(g => (
+              <option key={g} value={g as string}>{String(g).toUpperCase()}</option>
+            ))}
+          </select>
+          <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ ...selectStyle, flex: '1 1 150px' }}>
             <option value="POPULAR">🏆 TOP HRANÉ</option>
             <option value="TITLE_ASC">🎵 PÍSEŇ (A-Z)</option>
             <option value="ARTIST_ASC">🎤 INTERPRET (A-Z)</option>

@@ -76,7 +76,11 @@ export default function AdminCatalog({
     if (tagFilter !== 'ALL' && !(song.tags || []).includes(tagFilter)) return false;
 
     const q = search.toLowerCase();
-    if (q && !song.title.toLowerCase().includes(search.toLowerCase()) && !(song.artist || '').toLowerCase().includes(search.toLowerCase())) return false;
+    if (q && 
+        !song.title.toLowerCase().includes(q) && 
+        !(song.artist || '').toLowerCase().includes(q) &&
+        !(song.tags || []).some((t: string) => t.toLowerCase().includes(q))
+    ) return false;
 
     return true;
   });
@@ -89,22 +93,22 @@ export default function AdminCatalog({
   const selectAllFiltered = () => setSelectedIds(Array.from(new Set([...selectedIds, ...filteredSongs.map(s => s.id)])));
 
   return (
-    <div style={{ padding: 'clamp(1rem, 4vw, 2.5rem)', maxWidth: '1400px', margin: '0 auto' }}>
-      
-      {/* NAVIGATION TABS */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '2rem', flexWrap: 'wrap' }}>
+    <div style={{ padding: 'clamp(0.75rem, 3vw, 2.5rem)', maxWidth: '1400px', margin: '0 auto', boxSizing: 'border-box', overflowX: 'hidden', width: '100%' }}>
+          {/* NAVIGATION TABS */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
         <button 
           onClick={() => setActiveTab('SONGS')}
           style={{ 
-            padding: '12px 20px', 
+            padding: '12px 14px', 
             borderRadius: '14px', 
             border: 'none', 
             background: activeTab === 'SONGS' ? 'var(--color-teal)' : 'rgba(255,255,255,0.05)', 
             color: activeTab === 'SONGS' ? 'black' : 'white',
             fontWeight: 800,
             cursor: 'pointer',
-            flex: '1 1 auto',
-            fontSize: '13px'
+            flex: '1 1 140px',
+            fontSize: '12px',
+            whiteSpace: 'nowrap'
           }}
         >
           🎵 KATALOG
@@ -112,31 +116,33 @@ export default function AdminCatalog({
         <button 
           onClick={() => setActiveTab('TEAM')}
           style={{ 
-            padding: '12px 20px', 
+            padding: '12px 14px', 
             borderRadius: '14px', 
             border: 'none', 
             background: activeTab === 'TEAM' ? 'var(--color-teal)' : 'rgba(255,255,255,0.05)', 
             color: activeTab === 'TEAM' ? 'black' : 'white',
             fontWeight: 800,
             cursor: 'pointer',
-            flex: '1 1 auto',
-            fontSize: '13px'
+            flex: '1 1 140px',
+            fontSize: '12px',
+            whiteSpace: 'nowrap'
           }}
         >
           👥 TÝM
         </button>
-        <Link href="/admin/tech" style={{ textDecoration: 'none', flex: '1 1 auto' }}>
+        <Link href="/admin/tech" style={{ textDecoration: 'none', flex: '1 1 140px' }}>
           <button 
             style={{ 
               width: '100%',
-              padding: '12px 20px', 
+              padding: '12px 14px', 
               borderRadius: '14px', 
               border: '1px solid rgba(255,215,0,0.2)', 
               background: 'rgba(255,215,0,0.1)', 
               color: 'var(--color-gold)',
               fontWeight: 800,
               cursor: 'pointer',
-              fontSize: '13px'
+              fontSize: '12px',
+              whiteSpace: 'nowrap'
             }}
           >
             ⚙️ TECH
@@ -150,19 +156,19 @@ export default function AdminCatalog({
         <>
           {/* FILTRAČNÍ PANEL */}
           <div className="admin-filters" style={{ 
-            display: 'flex', gap: '0.75rem', marginBottom: '2.5rem', 
+            display: 'flex', gap: '0.75rem', marginBottom: '2rem', 
             background: 'rgba(255,255,255,0.04)', padding: '1rem', 
-            borderRadius: '24px', flexWrap: 'wrap', alignItems: 'center', 
+            borderRadius: '24px', flexWrap: 'wrap', alignItems: 'stretch', 
             border: '1px solid rgba(255,255,255,0.08)' 
           }}>
             <input 
               type="text" 
               placeholder={t('search_placeholder')}
               value={search} onChange={e => setSearch(e.target.value)}
-              style={{ padding: '14px 20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.4)', color: '#fff', flex: '1 1 300px', fontSize: '15px' }}
+              style={{ padding: '14px 20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.4)', color: '#fff', flex: '1 1 100%', fontSize: '15px', boxSizing: 'border-box' }}
             />
             <div style={{ display: 'flex', gap: '0.5rem', width: '100%', flexWrap: 'wrap' }}>
-                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ flex: 1, padding: '12px', borderRadius: '14px', background: '#111', color: '#fff', fontSize: '12px', fontWeight: 700 }}>
+                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ flex: '2 1 180px', padding: '12px', borderRadius: '14px', background: '#111', color: '#fff', fontSize: '12px', fontWeight: 700, border: '1px solid rgba(255,255,255,0.1)' }}>
                     <option value="ALL">🔍 VŠECHNY STAVY</option>
                     <option value="MISSING_LYRICS">✍️ TEXT</option>
                     <option value="MISSING_AUDIO">🎵 AUDIO</option>
@@ -171,18 +177,20 @@ export default function AdminCatalog({
                     <option value="REVIEW">🚦 KONTROLA</option>
                     <option value="ACTIVE">🟢 LIVE</option>
                 </select>
-                <button onClick={selectAllFiltered} className="btn-secondary" style={{ padding: '12px', fontSize: '12px' }}>Vše</button>
+                <button onClick={selectAllFiltered} className="btn-secondary" style={{ flex: '0 0 50px', padding: '12px', fontSize: '11px' }}>Vše</button>
                 <button 
                   className={showForm ? "btn-secondary" : "btn-primary"} 
                   onClick={() => setShowForm(!showForm)}
-                  style={{ flex: 1.5, padding: '12px', fontWeight: 900, borderRadius: '14px', fontSize: '12px' }}
+                  style={{ flex: '2 1 140px', padding: '12px', fontWeight: 900, borderRadius: '14px', fontSize: '11px', whiteSpace: 'nowrap' }}
                 >
                   {showForm ? 'ZAVŘÍT' : `➕ PŘIDAT HUDBU`}
                 </button>
             </div>
-            <div style={{ width: '100%', display: 'flex', gap: '0.5rem' }}>
-               <button onClick={async () => { if(confirm('Automaticky najít texty?')) await bulkFetchMissingLyrics(); }} className="btn-primary" style={{ flex: 1, padding: '12px', background: 'var(--color-teal)', fontSize: '12px' }}>⚡ AI TEXTY</button>
-               <BulkUploader initialSongs={initialSongs} />
+            <div style={{ width: '100%', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+               <button onClick={async () => { if(confirm('Automaticky najít texty?')) await bulkFetchMissingLyrics(); }} className="btn-primary" style={{ flex: '1 1 140px', padding: '11px', background: 'var(--color-teal)', fontSize: '11px' }}>⚡ AI TEXTY</button>
+               <div style={{ flex: '1 1 140px' }}>
+                  <BulkUploader initialSongs={initialSongs} />
+               </div>
             </div>
           </div>
  
@@ -216,7 +224,10 @@ export default function AdminCatalog({
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <label style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-teal)', textTransform: 'uppercase' }}>Žánr</label>
-              <input name="genre" placeholder="Např. Pop, Rock..." style={{ padding: '14px', borderRadius: '12px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }} />
+              <input name="genre" list="genre-list" placeholder="Např. Pop, Rock..." style={{ padding: '14px', borderRadius: '12px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }} />
+              <datalist id="genre-list">
+                {allGenres.map(g => <option key={g as string} value={g as string} />)}
+              </datalist>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <label style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-teal)', textTransform: 'uppercase' }}>Štítky (oddělené čárkou)</label>
@@ -254,7 +265,7 @@ export default function AdminCatalog({
             const canPlay = !!song.videoUrl || hasJson;
 
             return (
-              <div key={song.id} className="glass-panel song-card-admin" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', borderRadius: '32px', transition: 'all 0.3s' }}>
+              <div key={song.id} className="glass-panel song-card-admin" style={{ padding: 'min(1.5rem, 4vw)', display: 'flex', flexDirection: 'column', gap: '1.2rem', borderRadius: '28px', transition: 'all 0.3s', boxSizing: 'border-box', overflow: 'hidden' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div style={{ flex: 1, overflow: 'hidden', display: 'flex', gap: '1rem', alignItems: 'center' }}>
                       <input 
@@ -280,7 +291,7 @@ export default function AdminCatalog({
                 </div>
 
                 {/* STATUS & UPLOADERS */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '10px', background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '24px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))', gap: '8px', background: 'rgba(0,0,0,0.2)', padding: '0.8rem', borderRadius: '20px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                        <span style={{ fontSize: '10px', fontWeight: 800, color: hasAudio ? 'var(--color-teal)' : '#666', textAlign: 'center', textTransform: 'uppercase' }}>1. Audio {hasAudio && '✅'}</span>
                        <AudioUploader songId={song.id} type="audio" />
