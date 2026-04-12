@@ -103,7 +103,7 @@ function ChordsView({ chords, songTitle, artist }: { chords: string, songTitle: 
       <div style={{ height: '40vh' }} />
 
       {/* PLOVOUCÍ OVLÁDÁNÍ - Přesunuto vlevo dolů aby nevadilo menu/zavírání */}
-      <div style={{ position: 'fixed', bottom: '40px', left: '30px', zIndex: 1000, display: 'flex', gap: '10px' }}>
+      <div className="mobile-only" style={{ position: 'fixed', bottom: '40px', left: '30px', zIndex: 1000, display: 'flex', gap: '10px' }}>
          <button 
            onClick={(e) => { e.stopPropagation(); toggleScroll(); }}
            style={{ 
@@ -512,6 +512,9 @@ export default function PlayerClient({ song }: { song: any }) {
         #cur-line-1, #cur-line-2, #cur-line-C { font-size: clamp(24px, 5.5vw, 70px); font-weight: 900; text-align: center; min-height: 1.2em; line-height: 1.1; letter-spacing: -0.01em; }
         @keyframes blockIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
         .block-new { animation: blockIn 0.3s ease-out forwards; }
+        @media (min-width: 1025px) {
+          .mobile-only { display: none !important; }
+        }
         @media (max-width: 600px) {
           .footer-title-hide { display: none !important; }
         }
