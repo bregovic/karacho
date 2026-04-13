@@ -288,7 +288,7 @@ export default function PlayerClient({ song }: { song: any }) {
                 if (videoElRef.current) videoElRef.current.currentTime = serverTime;
              }
 
-             if (s.status === 'PLAYING' && audioRef.current.paused) {
+             if (s.status === 'PLAYING' && audioRef.current.paused && !isChordsMode) {
                 audioRef.current.play().catch(() => {});
              } else if (s.status === 'PAUSED' && !audioRef.current.paused) {
                 audioRef.current.pause();
@@ -297,9 +297,13 @@ export default function PlayerClient({ song }: { song: any }) {
        }
     }, isWatchMode ? 500 : 1000); // Rychlejší tep synchronizace
 
-    const playAttempt = a.play();
-    if (playAttempt !== undefined) {
-      playAttempt.catch(e => console.log("Autoplay blocked"));
+    if (!isChordsMode) {
+      const playAttempt = a.play();
+      if (playAttempt !== undefined) {
+        playAttempt.catch(err => {
+          console.log("Autoplay blocked by browser");
+        });
+      }
     }
 
     return () => {
@@ -352,6 +356,7 @@ export default function PlayerClient({ song }: { song: any }) {
 
   const togglePlay = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    if (isChordsMode) return; // V režimu akordů nehraje hudba
     if (!audioRef.current) return;
     toggleFullScreen();
     
