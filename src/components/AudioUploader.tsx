@@ -120,10 +120,10 @@ export default function AudioUploader({ songId, onUploaded, type = 'audio' }: Au
                  const file = e.target.files?.[0];
                  if (!file) return;
 
-                 // Kontrola velikosti (limit 15 MB)
-                 const MAX_SIZE = 15 * 1024 * 1024;
+                 // Kontrola velikosti (limit 50 MB)
+                 const MAX_SIZE = 50 * 1024 * 1024;
                  if (file.size > MAX_SIZE) {
-                   showToast("❌ CHYBA: Soubor je moc velký! (max 15 MB)", "error");
+                   showToast("❌ CHYBA: Soubor je moc velký! (max 50 MB)", "error");
                    e.target.value = '';
                    return;
                  }
