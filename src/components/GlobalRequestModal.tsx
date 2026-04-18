@@ -64,7 +64,7 @@ export default function GlobalRequestModal() {
       position: 'fixed', inset: 0, zIndex: 110000, 
       background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(20px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem'
-    }} onMouseUp={(e) => { if (e.target === e.currentTarget) setIsOpen(false); }}>
+    }} onPointerDown={(e) => { if (e.target === e.currentTarget) setIsOpen(false); }}>
       <div style={{
         width: '100%', maxWidth: '400px', background: '#111', borderRadius: '32px', padding: '2.5rem',
         border: '1px solid rgba(255,215,0,0.2)', boxShadow: '0 20px 60px rgba(0,0,0,1)',

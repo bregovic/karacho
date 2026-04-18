@@ -150,7 +150,7 @@ export default function GlobalMiniPlayer() {
           position: 'fixed', inset: 0, zIndex: 2000000, 
           background: 'rgba(0,0,0,0.95)', backdropFilter: 'blur(20px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem'
-        }} onMouseUp={(e) => { if (e.target === e.currentTarget) setShowQueueMgr(false); }}>
+        }} onPointerDown={(e) => { if (e.target === e.currentTarget) setShowQueueMgr(false); }}>
           
           <div style={{
             width: '100%', maxWidth: '600px', maxHeight: '85vh', background: '#111', 
