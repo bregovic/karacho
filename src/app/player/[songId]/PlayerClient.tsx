@@ -11,7 +11,7 @@ interface PlayerBlock {
   bs: number;
   be: number;
   v?: number; // Hlas 1 nebo 2
-  w: { t: number; i: number }[];
+  w: { t: number; i: number; v?: number }[];
 }
 
 interface TimingData {
