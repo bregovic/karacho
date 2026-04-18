@@ -622,7 +622,7 @@ export async function createHelperTrackAction(mainSongId: string) {
       instrumentalUrl: mainSong.instrumentalUrl,
       animationStyle: mainSong.animationStyle,
       createdById: mainSong.createdById,
-      state: 'UNPUBLISHED'
+      state: 'UNPUBLISHED' as any
     }
   });
 
