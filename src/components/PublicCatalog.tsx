@@ -25,6 +25,11 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
   const { joinCode, sessionData, localMode, refreshSession, createOrJoin } = useSession();
   const { showToast } = useToast();
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Definice dat pro frontu
   const currentSong = sessionData?.currentSong;
@@ -229,15 +234,74 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
                     <p style={{ opacity: 0.6, fontSize: '15px', margin: 0, fontWeight: 600 }}>{song.artist || 'Neznámý interpret'}</p>
                 </div>
                 
-                <a href={`/player/${song.id}`} style={{ textDecoration: 'none' }}>
-                    <button className="btn-primary" style={{ width: '100%', padding: '12px', fontSize: '16px', fontWeight: 900 }}>▶ PŘEHRÁT</button>
-                </a>
+                <Link 
+                  href={`/player/${song.id}`} 
+                  className="btn-primary" 
+                  style={{ 
+                    display: 'block', textDecoration: 'none', textAlign: 'center',
+                    width: '100%', padding: '12px', fontSize: '16px', fontWeight: 900,
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  ▶ PŘEHRÁT
+                </Link>
               </div>
             ))}
           </div>
         )}
-      </section>
+      </section>      {/* === FLOATING QUEUE BAR (DÁLKOVÉ OVLÁDÁNÍ) === */}
+      {(mounted && joinCode) && (
+        <div style={{
+          position: 'fixed', bottom: '20px', left: '50%', transform: 'translateX(-50%)',
+          width: 'min(92vw, 550px)', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(25px)',
+          borderRadius: '24px', padding: '12px 16px', zIndex: 1000,
+          border: '1px solid rgba(255,215,0,0.2)', boxShadow: '0 20px 60px rgba(0,0,0,0.7)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          animation: 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
+        }}>
+          {/* Aktuální info */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden', flex: 1 }}>
+            <span style={{ fontSize: '10px', color: 'var(--color-gold)', fontWeight: 800, textTransform: 'uppercase', opacity: 0.8 }}>PRÁVĚ HRAJE 🔥</span>
+            <span style={{ fontSize: '14px', fontWeight: 900, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {currentSong?.title || "Čekání na zpěváka..."}
+            </span>
+          </div>
 
+          {/* Ovládání */}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginLeft: '12px' }}>
+            <button 
+              onClick={() => {
+                const url = `${window.location.origin}/join/${joinCode}`;
+                navigator.clipboard.writeText(url);
+                showToast("Link zkopírován! 🔗", "success");
+              }}
+              style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+              title="Sdílet link s kamarády"
+            >
+              🔗
+            </button>
+            <a 
+              href={`/player/${currentSong?.id}?mode=watch&code=${joinCode}`}
+              style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}
+              title="Sledovat bez zvuku (Mirror)"
+            >
+              📺
+            </a>
+            <button 
+              onClick={() => remoteControl('NEXT')}
+              style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            >
+              ⏭️
+            </button>
+            <button 
+              onClick={() => remoteControl(sessionData?.status === 'PLAYING' ? 'PAUSE' : 'PLAY')}
+              style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'var(--color-gold)', border: 'none', color: 'black', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontWeight: 900, boxShadow: '0 0 20px rgba(255,215,0,0.3)' }}
+            >
+              {sessionData?.status === 'PLAYING' ? '⏸' : '▶'}
+            </button>
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         .glass-panel:hover { transform: translateY(-8px); border-color: rgba(255,215,0,0.3) !important; background: rgba(255,255,255,0.06) !important; }

@@ -154,43 +154,36 @@ export default function AdminCatalog({
         <AdminTeam adminEmails={adminEmails} />
       ) : (
         <>
-          {/* FILTRAČNÍ PANEL */}
+          {/* KOMPAKTNÍ FILTRAČNÍ PULT */}
           <div className="admin-filters" style={{ 
             display: 'flex', gap: '0.75rem', marginBottom: '2rem', 
-            background: 'rgba(255,255,255,0.04)', padding: '1rem', 
-            borderRadius: '24px', flexWrap: 'wrap', alignItems: 'stretch', 
-            border: '1px solid rgba(255,255,255,0.08)' 
+            background: 'rgba(255,255,255,0.03)', padding: '0.8rem', 
+            borderRadius: '24px', flexWrap: 'wrap', alignItems: 'center', 
+            border: '1px solid rgba(255,255,255,0.06)', boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
           }}>
             <input 
               type="text" 
               placeholder={t('search_placeholder')}
               value={search} onChange={e => setSearch(e.target.value)}
-              style={{ padding: '14px 20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.4)', color: '#fff', flex: '1 1 100%', fontSize: '15px', boxSizing: 'border-box' }}
+              style={{ padding: '12px 18px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.4)', color: '#fff', flex: '2 1 280px', fontSize: '14px', outline: 'none' }}
             />
-            <div style={{ display: 'flex', gap: '0.5rem', width: '100%', flexWrap: 'wrap' }}>
-                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ flex: '2 1 180px', padding: '12px', borderRadius: '14px', background: '#111', color: '#fff', fontSize: '12px', fontWeight: 700, border: '1px solid rgba(255,255,255,0.1)' }}>
-                    <option value="ALL">🔍 VŠECHNY STAVY</option>
-                    <option value="MISSING_LYRICS">✍️ TEXT</option>
-                    <option value="MISSING_AUDIO">🎵 AUDIO</option>
-                    <option value="MISSING_INSTR">🎻 INSTR.</option>
-                    <option value="MISSING_TIMING">⏱️ STUDIO</option>
-                    <option value="REVIEW">🚦 KONTROLA</option>
-                    <option value="ACTIVE">🟢 LIVE</option>
-                </select>
-                <button onClick={selectAllFiltered} className="btn-secondary" style={{ flex: '0 0 50px', padding: '12px', fontSize: '11px' }}>Vše</button>
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ flex: '1 1 150px', padding: '12px', borderRadius: '14px', background: '#111', color: '#fff', fontSize: '12px', fontWeight: 700, border: '1px solid rgba(255,255,255,0.1)' }}>
+                <option value="ALL">🔍 VŠECHNY STAVY</option>
+                <option value="MISSING_LYRICS">✍️ TEXT</option>
+                <option value="MISSING_AUDIO">🎵 AUDIO</option>
+                <option value="MISSING_INSTR">🎻 INSTR.</option>
+                <option value="MISSING_TIMING">⏱️ STUDIO</option>
+                <option value="REVIEW">🚦 KONTROLA</option>
+                <option value="ACTIVE">🟢 LIVE</option>
+            </select>
+            <div style={{ display: 'flex', gap: '8px', flex: '1 1 200px' }}>
                 <button 
                   className={showForm ? "btn-secondary" : "btn-primary"} 
                   onClick={() => setShowForm(!showForm)}
-                  style={{ flex: '2 1 140px', padding: '12px', fontWeight: 900, borderRadius: '14px', fontSize: '11px', whiteSpace: 'nowrap' }}
+                  style={{ padding: '12px', fontWeight: 900, borderRadius: '14px', fontSize: '11px', flex: 1 }}
                 >
                   {showForm ? 'ZAVŘÍT' : `➕ PŘIDAT HUDBU`}
                 </button>
-            </div>
-            <div style={{ width: '100%', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-               <button onClick={async () => { if(confirm('Automaticky najít texty?')) await bulkFetchMissingLyrics(); }} className="btn-primary" style={{ flex: '1 1 140px', padding: '11px', background: 'var(--color-teal)', fontSize: '11px' }}>⚡ AI TEXTY</button>
-               <div style={{ flex: '1 1 140px' }}>
-                  <BulkUploader initialSongs={initialSongs} />
-               </div>
             </div>
           </div>
  
@@ -290,41 +283,13 @@ export default function AdminCatalog({
                   </div>
                 </div>
 
-                {/* STATUS & UPLOADERS */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))', gap: '8px', background: 'rgba(0,0,0,0.2)', padding: '0.8rem', borderRadius: '20px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                       <span style={{ fontSize: '10px', fontWeight: 800, color: hasAudio ? 'var(--color-teal)' : '#666', textAlign: 'center', textTransform: 'uppercase' }}>1. Audio {hasAudio && '✅'}</span>
-                       <AudioUploader songId={song.id} type="audio" />
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                       <span style={{ fontSize: '10px', fontWeight: 800, color: !!song.instrumentalUrl ? 'var(--color-teal)' : '#666', textAlign: 'center', textTransform: 'uppercase' }}>2. Instr. {!!song.instrumentalUrl && '✅'}</span>
-                       <AudioUploader songId={song.id} type="instrumental" />
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                       <span style={{ fontSize: '10px', fontWeight: 800, color: hasJson ? 'var(--color-teal)' : '#666', textAlign: 'center', textTransform: 'uppercase' }}>3. Studio {hasJson && '✅'}</span>
-                       <AudioUploader songId={song.id} type="json" />
-                    </div>
-                </div>
-
                 <div style={{ display: 'flex', gap: '0.75rem', marginTop: 'auto' }}>
-                    <Link href={`/designer?songId=${song.id}`} style={{ flex: 1.2 }}>
-                      <button className="btn-primary" style={{ width: '100%', padding: '14px', background: 'var(--color-teal)', fontWeight: 900, borderRadius: '16px' }} disabled={!hasAudio}>🛠️ STUDIO</button>
+                    <Link href={`/designer?songId=${song.id}`} style={{ flex: 1 }}>
+                      <button className="btn-primary" style={{ width: '100%', padding: '12px', background: 'var(--color-teal)', fontWeight: 900, borderRadius: '14px', fontSize: '13px' }} disabled={!hasAudio}>🛠️ STUDIO</button>
                     </Link>
                     <Link href={`/player/${song.id}`} style={{ flex: 1 }}>
-                      <button className="btn-primary" style={{ width: '100%', padding: '14px', background: 'linear-gradient(45deg, #FFD700, #FFA500)', color: '#000', fontWeight: 900, borderRadius: '16px' }} disabled={!hasJson}>▶ PŘEHRÁT</button>
+                      <button className="btn-primary" style={{ width: '100%', padding: '12px', background: 'linear-gradient(45deg, #FFD700, #FFA500)', color: '#000', fontWeight: 900, borderRadius: '14px', fontSize: '13px' }} disabled={!hasJson}>▶ PŘEHRÁT</button>
                     </Link>
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  {canPlay && (
-                    <Link href={`/player/${song.id}`} title="Zpívat" style={{ flex: 1 }}>
-                      <button className="btn-primary" style={{ width: '100%', padding: '10px' }}>🎤 Zpívat</button>
-                    </Link>
-                  )}
-                  {hasJson && (
-                    <Link href={`/designer?songId=${song.id}`} style={{ flex: canPlay ? 0 : 1 }}>
-                       <button className="btn-secondary" style={{ width: '100%', padding: '10px' }} title="Upravit časování">⚙️ Studio</button>
-                    </Link>
-                  )}
                 </div>
               </div>
             );

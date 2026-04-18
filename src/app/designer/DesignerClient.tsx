@@ -728,29 +728,28 @@ export default function DesignerClient({ song }: { song: any }) {
           <style dangerouslySetInnerHTML={{ __html: `
              @media (max-width: 768px) { 
                .desktop-legend { display: none !important; } 
-               .mobile-main-controls { display: flex !important; } 
                .mobile-tap-hint { display: block !important; }
              }
-             @media (min-width: 1025px) {
+             @media (min-width: 769px) {
                .mobile-only { display: none !important; }
              }
-             .mobile-main-controls { display: none; }
              .mobile-tap-hint { display: none; }
           `}} />
           
-          <div className="desktop-legend" style={{ textAlign: 'center', width: '100%', pointerEvents: 'none', marginBottom: '80px' }}>
+          <div className="desktop-legend" style={{ textAlign: 'center', width: '100%', pointerEvents: 'none', marginBottom: '10px' }}>
              <div style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)', padding: '6px 16px', borderRadius: '20px', fontSize: '11px', color: 'rgba(255,255,255,0.4)', display: 'inline-flex', gap: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
                 <span><b>W / Šipka →</b> Slovo</span>
                 <span><b>Enter</b> Blok</span>
                 <span><b>Space</b> Pauza</span>
-                <span><b>Backspace</b> Zpět</span>
+                <span><b>Backspace</b> Zpět ✕</span>
+                <span><b>[ / ]</b> Zpět čas</span>
                 <span><b>A / D</b> Hlas 1 / 2</span>
              </div>
           </div>
 
-          <div className="mobile-main-controls" style={{ position: 'absolute', bottom: '100px', left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', zIndex: 100, pointerEvents: 'none' }}>
-              {/* PROGRESS BAR - Ponecháme viditelný pro všechny (na PC pro klikání myší) */}
-              <div style={{ width: '100vw', padding: '0 20px', boxSizing: 'border-box', pointerEvents: 'auto' }}>
+          <div className="main-controls" style={{ paddingBottom: '15px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px', zIndex: 100, pointerEvents: 'none', width: '100%' }}>
+              {/* PROGRESS BAR - Viditelný pro všechny nezávisle (myš + tah) */}
+              <div style={{ width: '100%', maxWidth: '800px', padding: '0 20px', boxSizing: 'border-box', pointerEvents: 'auto' }}>
                   <div 
                     onClick={(e) => { if (audioRef.current?.duration) { const r = e.currentTarget.getBoundingClientRect(); audioRef.current.currentTime = (e.clientX - r.left) / r.width * audioRef.current.duration; } }} 
                     style={{ width: '100%', height: '35px', background: 'rgba(255,255,255,0.05)', borderRadius: '18px', cursor: 'pointer', position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)' }}
@@ -763,9 +762,24 @@ export default function DesignerClient({ song }: { song: any }) {
                   </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '25px', pointerEvents: 'auto' }}>
+              {/* MOBILNÍ DOTYKOVÁ TLAČÍTKA */}
+              <div className="mobile-only" style={{ display: 'flex', alignItems: 'center', gap: '12px', pointerEvents: 'auto', flexWrap: 'wrap', justifyContent: 'center' }}>
                 <button 
-                  className="mobile-only"
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    if (audioRef.current) {
+                      audioRef.current.currentTime = 0;
+                      restoreState(); 
+                      forceUpdate(); 
+                    } 
+                  }} 
+                  style={{ width: '55px', height: '55px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.1)', border: '2px solid rgba(255, 255, 255, 0.3)', color: '#fff', fontSize: '24px', backdropFilter: 'blur(10px)' }}
+                  title="Od začátku"
+                >
+                  ⏪
+                </button>
+
+                <button 
                   onClick={(e) => { 
                     e.stopPropagation(); 
                     if (eventsRef.current.length > 0) { 
@@ -778,29 +792,27 @@ export default function DesignerClient({ song }: { song: any }) {
                       forceUpdate(); 
                     } 
                   }} 
-                  style={{ width: '70px', height: '70px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', border: '2px solid rgba(239, 68, 68, 0.4)', color: '#ef4444', fontSize: '28px', backdropFilter: 'blur(10px)' }}
-                  title="Zpět (Backspace)"
+                  style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', border: '2px solid rgba(239, 68, 68, 0.4)', color: '#ef4444', fontSize: '24px', backdropFilter: 'blur(10px)' }}
+                  title="Zpět (✕)"
                 >
                   ✕
                 </button>
                 
-                <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <button onClick={(e) => { e.stopPropagation(); togglePlay(); }} style={{ width: '100px', height: '100px', borderRadius: '50%', background: isPlaying ? 'var(--color-gold)' : 'rgba(255,255,255,0.15)', border: 'none', fontSize: '42px', boxShadow: isPlaying ? '0 0 40px rgba(255,215,0,0.4)' : 'none', transition: 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
-                    {isPlaying ? '⏸' : '▶'}
-                  </button>
-                </div>
+                <button onClick={(e) => { e.stopPropagation(); togglePlay(); }} style={{ width: '85px', height: '85px', borderRadius: '50%', background: isPlaying ? 'var(--color-gold)' : 'rgba(255,255,255,0.15)', border: 'none', fontSize: '38px', boxShadow: isPlaying ? '0 0 40px rgba(255,215,0,0.4)' : 'none', transition: 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
+                  {isPlaying ? '⏸' : '▶'}
+                </button>
 
-                <div className="mobile-only" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                <div style={{ display: 'flex', gap: '12px' }}>
                   <button 
                     onClick={(e) => { e.stopPropagation(); if(isPlaying) handleWordTiming(); }} 
-                    style={{ width: '85px', height: '85px', borderRadius: '50%', background: 'rgba(0,255,180,0.2)', border: '3px solid rgba(0,255,180,0.5)', color: 'white', fontSize: '32px', backdropFilter: 'blur(10px)', boxShadow: '0 0 30px rgba(0,255,180,0.2)' }}
+                    style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(0,255,180,0.2)', border: '3px solid rgba(0,255,180,0.5)', color: 'white', fontSize: '30px', backdropFilter: 'blur(10px)', boxShadow: '0 0 30px rgba(0,255,180,0.2)' }}
                   >
                     ✨
                   </button>
                   <button 
                     onClick={(e) => { e.stopPropagation(); if(isPlaying) forceLineEndAndAdvanceToNext(); }} 
                     style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '2px solid rgba(255,255,255,0.3)', color: 'white', fontSize: '20px', backdropFilter: 'blur(10px)' }}
-                    title="Další řádek (Enter)"
+                    title="Další řádek (📏)"
                   >
                     📏
                   </button>
