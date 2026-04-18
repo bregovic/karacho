@@ -11,6 +11,7 @@ interface SongEditModalProps {
   onRemoveBackground: (url: string) => Promise<void>;
   allGenres?: string[];
   allBackgrounds?: string[];
+  allSongs?: any[];
 }
 
 export default function SongEditModal({ 
@@ -19,7 +20,8 @@ export default function SongEditModal({
   onRefresh, 
   onRemoveBackground,
   allGenres = [],
-  allBackgrounds = []
+  allBackgrounds = [],
+  allSongs = []
 }: SongEditModalProps) {
   const [formData, setFormData] = useState(song);
   const [isSaving, setIsSaving] = useState(false);
@@ -29,6 +31,7 @@ export default function SongEditModal({
   const [activeTextView, setActiveTextView] = useState<'lyrics' | 'chords'>('lyrics');
   const [blacklist, setBlacklist] = useState('');
   const [importUrl, setImportUrl] = useState('');
+  const [mergeSourceId, setMergeSourceId] = useState('');
 
   const autoSave = async (updatedFields: any) => {
     try {
@@ -100,12 +103,11 @@ export default function SongEditModal({
   };
 
   const handleMergeDuet = async () => {
-    const sourceId = prompt(`Chcete do písně "${song.title}" napasovat časování z jiné písně?\n\nZadejte ID té pomocné písně (Hlas 2 získá modrou barvu a bude vložen souběžně do této osy):`);
-    if (!sourceId) return;
+    if (!mergeSourceId) return;
     
     setImportStatus('⌛ Slučuji JSONy...');
     try {
-      const res = await mergeDuetAction(song.id, sourceId);
+      const res = await mergeDuetAction(song.id, mergeSourceId);
       if (res.success) {
         setImportStatus('✅ Hlasy úspěšně sloučeny do duetu!');
         setTimeout(() => setImportStatus(null), 4000);
@@ -200,12 +202,28 @@ export default function SongEditModal({
                  <button type="button" onClick={handleCreateHelper} className="btn-secondary" style={{ width: '100%', padding: '10px', fontSize: '11px', fontWeight: 800, border: '1px dashed #00d2ff' }}>
                     1️⃣ Vytvořit pomocnou stopu ([HLAS 2] i se sdíleným audiem)
                  </button>
-                 <button type="button" onClick={handleMergeDuet} className="btn-secondary" style={{ width: '100%', padding: '10px', fontSize: '11px', fontWeight: 800 }}>
-                    2️⃣ Přilepit načasovaný 2. hlas sem k hlavní lince (Přes ID)
-                 </button>
+                 <div style={{ display: 'flex', gap: '8px' }}>
+                    <select 
+                       value={mergeSourceId} 
+                       onChange={e => setMergeSourceId(e.target.value)}
+                       style={{ flex: 1, padding: '10px', borderRadius: '8px', background: 'rgba(0,0,0,0.5)', color: 'white', border: '1px solid rgba(0,210,255,0.3)', fontSize: '11px', outline: 'none' }}
+                    >
+                       <option value="">-- Vyber připravený stín [HLAS 2] k připojení --</option>
+                       {allSongs.filter(s => s.id !== song.id && s.title.includes('[HLAS 2]')).map(s => (
+                          <option key={s.id} value={s.id}>{s.artist || '?'} - {s.title}</option>
+                       ))}
+                       <option disabled>──────────</option>
+                       {allSongs.filter(s => s.id !== song.id && !s.title.includes('[HLAS 2]')).map(s => (
+                          <option key={s.id} value={s.id}>{s.artist || '?'} - {s.title}</option>
+                       ))}
+                    </select>
+                    <button type="button" onClick={handleMergeDuet} disabled={!mergeSourceId} className="btn-secondary" style={{ padding: '10px 14px', fontSize: '11px', fontWeight: 800, opacity: !mergeSourceId ? 0.3 : 1 }}>
+                       2️⃣ PŘILEPIT
+                    </button>
+                 </div>
                </div>
                <div style={{ fontSize: '10px', color: '#888', marginTop: '10px', textAlign: 'center' }}>
-                 Krok 1 ti ušetří duplicity a přenášení MP3. Stínovou sekundu najdeš venku v katalogu. Tam do ní dej jen text ženské a oťukej to. Pak klikni na Krok 2 tady v originále.
+                 Nehledáš už žádné složité ID. Prostě rozbal roletku a nalep ten správný [HLAS 2] z katalogu přímo na tenhle originál.
                </div>
             </div>
           </div>

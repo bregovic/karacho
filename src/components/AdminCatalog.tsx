@@ -330,6 +330,7 @@ export default function AdminCatalog({
           onClose={() => setEditingSong(null)} 
           allGenres={allGenres as string[]} 
           allBackgrounds={allBackgrounds as string[]}
+          allSongs={initialSongs}
           onRemoveBackground={bulkRemoveBackground}
           onRefresh={() => {}} // In Next.js with Server Actions, revalidatePath handles this, or we can add a local reload
         />
