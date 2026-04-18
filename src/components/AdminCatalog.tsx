@@ -179,6 +179,7 @@ export default function AdminCatalog({
                 <option value="ACTIVE">🟢 LIVE</option>
             </select>
             <div style={{ display: 'flex', gap: '8px', flex: '1 1 200px' }}>
+                <BulkUploader initialSongs={initialSongs} />
                 <button 
                   className={showForm ? "btn-secondary" : "btn-primary"} 
                   onClick={() => setShowForm(!showForm)}
