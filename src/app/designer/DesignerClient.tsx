@@ -730,18 +730,14 @@ export default function DesignerClient({ song }: { song: any }) {
                 <div ref={nextLineEl} style={{ minHeight: '60px', color: 'rgba(255,255,255,0.15)', fontSize: 'clamp(20px, 4vw, 40px)', fontWeight: 500, letterSpacing: '2px', transition: 'all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)' }} />
              </div>
 
-             {/* MOBILNÍ DOTYKOVÁ PLOCHA (ŤUKAT SEM) */}
+             {/* MOBILNÍ DOTYKOVÁ PLOCHA (Skrytá pro ťukání) */}
              <div 
                onClick={(e) => { e.stopPropagation(); if(isPlaying) handleWordTiming(); }}
                style={{ 
                  position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'auto',
                  display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: '20vh'
                }}
-             >
-                <div className="mobile-tap-hint" style={{ padding: '20px 40px', background: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '50px', color: 'var(--color-gold)', fontWeight: 900, fontSize: '14px', letterSpacing: '0.1em', backdropFilter: 'blur(10px)', opacity: isPlaying ? 0.3 : 0 }}>
-                   ŤUKEJ SEM DO RYTMU
-                </div>
-             </div>
+             />
           </div>
 
           <style dangerouslySetInnerHTML={{ __html: `
@@ -781,8 +777,8 @@ export default function DesignerClient({ song }: { song: any }) {
                   </div>
               </div>
 
-              {/* MOBILNÍ DOTYKOVÁ TLAČÍTKA */}
-              <div className="mobile-only" style={{ display: 'flex', alignItems: 'center', gap: '12px', pointerEvents: 'auto', flexWrap: 'wrap', justifyContent: 'center' }}>
+              {/* OVLÁDACÍ TLAČÍTKA (Nyní viditelná i pro PC) */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', pointerEvents: 'auto', flexWrap: 'wrap', justifyContent: 'center' }}>
                 <button 
                   onClick={(e) => { 
                     e.stopPropagation(); 
@@ -792,7 +788,7 @@ export default function DesignerClient({ song }: { song: any }) {
                       forceUpdate(); 
                     } 
                   }} 
-                  style={{ width: '55px', height: '55px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.1)', border: '2px solid rgba(255, 255, 255, 0.3)', color: '#fff', fontSize: '24px', backdropFilter: 'blur(10px)' }}
+                  style={{ width: '55px', height: '55px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.1)', border: '2px solid rgba(255, 255, 255, 0.3)', color: '#fff', fontSize: '24px', backdropFilter: 'blur(10px)', cursor: 'pointer' }}
                   title="Od začátku"
                 >
                   ⏪
@@ -811,17 +807,17 @@ export default function DesignerClient({ song }: { song: any }) {
                       forceUpdate(); 
                     } 
                   }} 
-                  style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', border: '2px solid rgba(239, 68, 68, 0.4)', color: '#ef4444', fontSize: '24px', backdropFilter: 'blur(10px)' }}
+                  style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', border: '2px solid rgba(239, 68, 68, 0.4)', color: '#ef4444', fontSize: '24px', backdropFilter: 'blur(10px)', cursor: 'pointer' }}
                   title="Zpět (✕)"
                 >
                   ✕
                 </button>
                 
-                <button onClick={(e) => { e.stopPropagation(); togglePlay(); }} style={{ width: '85px', height: '85px', borderRadius: '50%', background: isPlaying ? 'var(--color-gold)' : 'rgba(255,255,255,0.15)', border: 'none', fontSize: '38px', boxShadow: isPlaying ? '0 0 40px rgba(255,215,0,0.4)' : 'none', transition: 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
+                <button onClick={(e) => { e.stopPropagation(); togglePlay(); }} style={{ width: '85px', height: '85px', borderRadius: '50%', background: isPlaying ? 'var(--color-gold)' : 'rgba(255,255,255,0.15)', border: 'none', fontSize: '38px', boxShadow: isPlaying ? '0 0 40px rgba(255,215,0,0.4)' : 'none', transition: 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)', cursor: 'pointer' }}>
                   {isPlaying ? '⏸' : '▶'}
                 </button>
 
-                <div style={{ display: 'flex', gap: '12px' }}>
+                <div className="mobile-only" style={{ display: 'flex', gap: '12px' }}>
                   <button 
                     onClick={(e) => { e.stopPropagation(); if(isPlaying) handleWordTiming(); }} 
                     style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(0,255,180,0.2)', border: '3px solid rgba(0,255,180,0.5)', color: 'white', fontSize: '30px', backdropFilter: 'blur(10px)', boxShadow: '0 0 30px rgba(0,255,180,0.2)' }}
