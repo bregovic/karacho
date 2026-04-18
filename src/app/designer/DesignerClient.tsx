@@ -531,49 +531,67 @@ export default function DesignerClient({ song }: { song: any }) {
               <label style={{ fontSize: '11px', fontWeight: 800, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', marginBottom: '0.5rem', display: 'block' }}>
                  {viewMode === 'lyrics' ? 'Editor textu & Progress:' : 'Editor akordů (Zdroj pro zpěvník):'}
               </label>
-              {viewMode === 'lyrics' ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ position: 'relative', width: '100%', minHeight: '300px', resize: 'vertical', overflow: 'hidden', borderRadius: '12px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,180,0,0.3)' }}>
+                  {/* BAREVNÝ NÁHLED V POZADÍ (Obarvená slova) */}
+                  <div 
+                    aria-hidden="true"
+                    style={{
+                      position: 'absolute', inset: 0,
+                      padding: '1rem',
+                      fontFamily: 'monospace', fontSize: '15px', lineHeight: '1.6',
+                      whiteSpace: 'pre-wrap', wordBreak: 'break-word', pointerEvents: 'none',
+                      color: 'rgba(255,255,255,0.2)', overflowY: 'auto'
+                    }}
+                  >
+                    {rawText.split('\n').map((lineText, li, arr) => {
+                      const tokens = lineText.split(/(\s+)/);
+                      let wordIdx = 0;
+                      return (
+                        <span key={li}>
+                          {tokens.map((token, ti) => {
+                            if (/^\s+$/.test(token)) return <span key={ti}>{token}</span>;
+                            
+                            const currentWordIdx = wordIdx++;
+                            const wordEv = eventsRef.current.find(e => e.type === 'word' && e.lineIdx === li && e.wordIdx === currentWordIdx) as any;
+                            const v = wordEv?.v || voiceMap[li] || 3;
+                            let color = 'rgba(255,255,255,0.4)';
+                            if (wordEv) {
+                               if (v === 1) color = '#ff4b2b'; // Červená (Hlas 1)
+                               else if (v === 2) color = '#00d2ff'; // Modrá (Hlas 2)
+                               else color = 'var(--color-gold)'; // Žlutá (Základ)
+                            }
+                            return (
+                              <span key={ti} style={{ color, fontWeight: wordEv ? 900 : 400 }}>{token}</span>
+                            );
+                          })}
+                          {li < arr.length - 1 ? '\n' : ''}
+                        </span>
+                      );
+                    })}
+                  </div>
+
+                  {/* PRŮHLEDNÁ TEXTAREA (Pro zápis a kurzor) */}
                   <textarea 
                     value={rawText}
                     onChange={(e) => setRawText(e.target.value)}
                     placeholder="Vložte text písně..."
                     spellCheck={false}
+                    onScroll={(e) => {
+                      const bg = e.currentTarget.previousElementSibling as HTMLElement;
+                      if (bg) bg.scrollTop = e.currentTarget.scrollTop;
+                    }}
                     style={{
-                      width: '100%', minHeight: '200px', maxHeight: '300px',
-                      background: 'rgba(0,0,0,0.4)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,180,0,0.3)', 
-                      padding: '1rem', borderRadius: '12px', fontFamily: 'monospace', fontSize: '15px', 
-                      lineHeight: '1.6', outline: 'none', resize: 'vertical'
+                      position: 'absolute', inset: 0,
+                      width: '100%', height: '100%',
+                      background: 'transparent', 
+                      color: 'transparent', caretColor: 'white',
+                      border: 'none', padding: '1rem', 
+                      fontFamily: 'monospace', fontSize: '15px', lineHeight: '1.6', 
+                      outline: 'none', resize: 'none', overflowY: 'auto',
+                      whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                      margin: 0
                     }}
                   />
-                  {/* BAREVNÝ NÁHLED (Pouze pro čtení, aby to nepadalo) */}
-                  <div style={{
-                    width: '100%', maxHeight: '200px', overflowY: 'auto',
-                    background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '12px',
-                    fontFamily: 'monospace', fontSize: '14px', lineHeight: '1.8', border: '1px dashed rgba(255,255,255,0.1)'
-                  }}>
-                    {rawText.split('\n').map((lineText, li) => {
-                      const words = lineText.trim().split(/\s+/).filter(w => w);
-                      if (words.length === 0) return <div key={li}><br/></div>;
-                      return (
-                        <div key={li} style={{ marginBottom: '0.2rem' }}>
-                          {words.map((word, wi) => {
-                            const wordEv = eventsRef.current.find(e => e.type === 'word' && e.lineIdx === li && e.wordIdx === wi) as any;
-                            const hasTiming = !!wordEv;
-                            const v = wordEv?.v || voiceMap[li] || 3;
-                            let color = 'rgba(255,255,255,0.3)';
-                            if (hasTiming) {
-                               if (v === 1) color = '#ff4b2b';
-                               else if (v === 2) color = '#00d2ff';
-                               else color = 'var(--color-gold)';
-                            }
-                            return (
-                              <span key={wi} style={{ color, fontWeight: hasTiming ? 900 : 400 }}>{word} </span>
-                            );
-                          })}
-                        </div>
-                      );
-                    })}
-                  </div>
                 </div>
               ) : (
                 <textarea 
