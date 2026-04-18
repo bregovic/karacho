@@ -19,8 +19,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Soubor nebyl nalezen ve formuláři" }, { status: 400 });
     }
 
-    if (file.size > 15 * 1024 * 1024) {
-      return NextResponse.json({ error: "Soubor překračuje limit 15 MB" }, { status: 400 });
+    if (file.size > 50 * 1024 * 1024) {
+      return NextResponse.json({ error: "Soubor překračuje limit 50 MB" }, { status: 400 });
     }
 
     let buffer: any = Buffer.from(await file.arrayBuffer());
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
            fs.writeFileSync(tempInput, buffer);
            
            await new Promise((resolve, reject) => {
-              const timer = setTimeout(() => reject(new Error("Timeout")), 25000); // 25s limit
+              const timer = setTimeout(() => reject(new Error("Timeout")), 60000); // 60s limit
               ffmpeg(tempInput)
                  .audioBitrate(128)
                  .toFormat('mp3')
