@@ -8,10 +8,10 @@ export default async function Home() {
   const session = await auth();
   const isAdmin = !!session?.user;
 
-  // Veřejnosti ukážeme jen písně, které už mají Video nebo nějakou stopu.
-  // Ale adminovi ukážeme všechny i rozpracované.
+  // Veřejný katalog (Home) ukazuje vždy jen plně publikované písně
+  // bez ohledu na to, jestli jsme přihlášení jako administrátoři.
   const songs = await db.song.findMany({
-    where: isAdmin ? undefined : { state: 'ACTIVE' },
+    where: { state: 'ACTIVE' },
     select: {
       id: true,
       title: true,
