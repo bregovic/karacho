@@ -501,7 +501,15 @@ export default function PlayerClient({ song }: { song: any }) {
     
     if (ci !== lastBlkRef.current) {
       if (cur) {
-        cur.innerHTML = cb.lw.map((w: string, i: number) => {
+        // Zjistíme, jestli bylo ticho víc jak 5 vteřin
+        let maxBe = 0;
+        for(let j = 0; j < ci; j++) {
+           if (blocks[j].be > maxBe) maxBe = blocks[j].be;
+        }
+        const isLongPause = ci > 0 && (cb.bs - maxBe >= 5.0);
+        const cueHTML = isLongPause ? `<span class="cue-icon" style="position: absolute; left: -1.2em; top: 0; opacity: 0; transition: all 0.2s; filter: drop-shadow(0 0 10px rgba(255,215,0,0.8));">☝️</span>` : '';
+
+        cur.innerHTML = cueHTML + cb.lw.map((w: string, i: number) => {
           // Zjistíme hlas konkrétního slova (pokud je v datech)
           const wordV = cb.w && cb.w[i] ? (cb.w[i] as any).v : null;
           const targetV = wordV || cb.v || 3;
@@ -524,6 +532,18 @@ export default function PlayerClient({ song }: { song: any }) {
       lastBlkRef.current = ci;
     }
     if (cur) {
+      const cue = cur.querySelector('.cue-icon') as HTMLElement;
+      if (cue) {
+         const timeToStart = cb.bs - t;
+         if (timeToStart <= 1.0 && timeToStart > 0) {
+            cue.style.opacity = '1';
+            cue.style.transform = 'scale(1.1)';
+         } else {
+            cue.style.opacity = '0';
+            cue.style.transform = 'scale(0.8)';
+         }
+      }
+
       const wraps = cur.querySelectorAll('.w-wrap');
       wraps.forEach((wrap: any, i: number) => {
         const on = wrap.querySelector('.w-on');
