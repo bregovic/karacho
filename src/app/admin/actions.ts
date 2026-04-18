@@ -612,3 +612,47 @@ export async function removeAdminEmail(id: string) {
   await db.adminEmail.delete({ where: { id } });
   revalidatePath('/admin');
 }
+
+export async function mergeDuetAction(mainSongId: string, sourceSongId: string) {
+  await ensureAdmin();
+
+  const mainSong = await db.song.findUnique({ where: { id: mainSongId } });
+  const sourceSong = await db.song.findUnique({ where: { id: sourceSongId } });
+
+  if (!mainSong || !sourceSong) return { error: 'Píseň nenalezena.' };
+  if (!mainSong.timingData || !sourceSong.timingData) return { error: 'Obě písně musí být načasované (mít JSON).' };
+
+  const mainData = mainSong.timingData as any;
+  const sourceData = sourceSong.timingData as any;
+
+  if (!mainData.blocks) mainData.blocks = [];
+  if (!sourceData.blocks) sourceData.blocks = [];
+
+  const sourceBlocks = sourceData.blocks.map((b: any) => {
+    const newLi = b.li + 1000;
+    return {
+      ...b,
+      li: newLi,
+      v: 2,
+      w: (b.w || []).map((word: any) => ({ ...word, v: 2 }))
+    };
+  });
+
+  mainData.blocks = [...mainData.blocks, ...sourceBlocks];
+  mainData.blocks.sort((a: any, b: any) => a.bs - b.bs);
+
+  const mainLyrics = mainSong.lyrics || '';
+  const sourceLyrics = sourceSong.lyrics || '';
+  const newLyrics = mainLyrics + '\n\n-- DRUHÝ HLAS --\n' + sourceLyrics;
+
+  await db.song.update({
+    where: { id: mainSongId },
+    data: { timingData: mainData, lyrics: newLyrics }
+  });
+
+  revalidatePath('/admin');
+  revalidatePath('/designer');
+  revalidatePath('/renderer');
+
+  return { success: true };
+}

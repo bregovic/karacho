@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { updateSong, updateSongAnimation, updateSongBackground, importLyricsFromUrl, researchSongDataAction, manuallyCleanLyricsAction } from '@/app/admin/actions';
+import { updateSong, updateSongAnimation, updateSongBackground, importLyricsFromUrl, researchSongDataAction, manuallyCleanLyricsAction, mergeDuetAction } from '@/app/admin/actions';
 import BackgroundGalleryModal from './BackgroundGalleryModal';
 import AudioUploader from './AudioUploader';
 
@@ -99,6 +99,25 @@ export default function SongEditModal({
     }
   };
 
+  const handleMergeDuet = async () => {
+    const sourceId = prompt(`Chcete do písně "${song.title}" napasovat časování z jiné písně?\n\nZadejte ID té pomocné písně (Hlas 2 získá modrou barvu a bude vložen souběžně do této osy):`);
+    if (!sourceId) return;
+    
+    setImportStatus('⌛ Slučuji JSONy...');
+    try {
+      const res = await mergeDuetAction(song.id, sourceId);
+      if (res.success) {
+        setImportStatus('✅ Hlasy úspěšně sloučeny do duetu!');
+        setTimeout(() => setImportStatus(null), 4000);
+        onRefresh();
+      } else {
+        setImportStatus(`❌ Chyba: ${res.error}`);
+      }
+    } catch(err: any) {
+      setImportStatus('❌ Chyba sítě.');
+    }
+  };
+
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
       <div className="glass-panel" style={{ width: '100%', maxWidth: '850px', padding: '2rem', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -156,6 +175,14 @@ export default function SongEditModal({
                <div style={{ fontSize: '10px', color: formData.audioUrl ? '#4ade80' : '#888', marginTop: '10px', textAlign: 'center', fontWeight: formData.audioUrl ? 800 : 400 }}>
                  {(formData.audioUrl || formData.instrumentalUrl) ? '✅ Audio je nahrané na serveru' : 'Zatím nebylo nahráno žádné audio'}
                </div>
+            </div>
+
+            {/* DUET MERGE SECTION */}
+            <div style={{ marginTop: '0.5rem', background: 'rgba(0,210,255,0.05)', padding: '1rem', borderRadius: '14px', border: '1px solid rgba(0,210,255,0.2)' }}>
+               <label style={{ fontSize: '11px', color: '#00d2ff', fontWeight: 800, letterSpacing: '0.05em', marginBottom: '0.75rem', display: 'block' }}>POKROČILÉ: DUET</label>
+               <button type="button" onClick={handleMergeDuet} className="btn-secondary" style={{ width: '100%', padding: '10px', fontSize: '11px', fontWeight: 800 }}>
+                  🎤 Sloučit s druhou nahrávkou (Zadat ID)
+               </button>
             </div>
           </div>
 
