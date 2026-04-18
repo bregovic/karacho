@@ -531,6 +531,7 @@ export default function DesignerClient({ song }: { song: any }) {
               <label style={{ fontSize: '11px', fontWeight: 800, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', marginBottom: '0.5rem', display: 'block' }}>
                  {viewMode === 'lyrics' ? 'Editor textu & Progress:' : 'Editor akordů (Zdroj pro zpěvník):'}
               </label>
+              {viewMode === 'lyrics' ? (
                 <div style={{ position: 'relative', width: '100%', minHeight: '300px', resize: 'vertical', overflow: 'hidden', borderRadius: '12px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,180,0,0.3)' }}>
                   {/* BAREVNÝ NÁHLED V POZADÍ (Obarvená slova) */}
                   <div 
