@@ -519,8 +519,8 @@ export default function PlayerClient({ song }: { song: any }) {
         for(let j = 0; j < ci; j++) {
            if (blocks[j].be > maxBe) maxBe = blocks[j].be;
         }
-        const isLongPause = ci > 0 && (cb.bs - maxBe >= 5.0);
-        const cueHTML = isLongPause ? `<span class="cue-icon" style="position: absolute; left: -1.2em; top: 0; opacity: 0; transition: all 0.2s; filter: drop-shadow(0 0 10px rgba(255,215,0,0.8));">☝️</span>` : '';
+        const isLongPause = ci > 0 && (cb.bs - maxBe >= 3.5);
+        const cueHTML = isLongPause ? `<span class="cue-icon" style="position: absolute; left: -1.5em; top: -0.1em; opacity: 0; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); filter: drop-shadow(0 0 15px rgba(255,215,0,1)); font-size: 1.1em; z-index: 10;">☝️</span>` : '';
 
         cur.innerHTML = cueHTML + cb.lw.map((w: string, i: number) => {
           // Zjistíme hlas konkrétního slova (pokud je v datech)
@@ -548,12 +548,12 @@ export default function PlayerClient({ song }: { song: any }) {
       const cue = cur.querySelector('.cue-icon') as HTMLElement;
       if (cue) {
          const realTimeToStart = cb.bs - (t - 0.5); // t tu je visualTime (audio + 0.5), realToStart je vůči audiu
-         if (realTimeToStart <= 1.0 && realTimeToStart > 0) {
+         if (realTimeToStart <= 2.0 && realTimeToStart > 0) {
             cue.style.opacity = '1';
-            cue.style.transform = 'scale(1.2) translateY(-2px)';
+            cue.style.transform = 'scale(1.3) translateY(-4px) rotate(-10deg)';
          } else {
             cue.style.opacity = '0';
-            cue.style.transform = 'scale(0.8) translateY(0)';
+            cue.style.transform = 'scale(0.5) translateY(10px) rotate(0deg)';
          }
       }
 
