@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { updateSong, updateSongAnimation, updateSongBackground, importLyricsFromUrl, researchSongDataAction, manuallyCleanLyricsAction } from '@/app/admin/actions';
 import BackgroundGalleryModal from './BackgroundGalleryModal';
+import AudioUploader from './AudioUploader';
 
 interface SongEditModalProps {
   song: any;
@@ -145,6 +146,17 @@ export default function SongEditModal({
 
             <label style={{ fontSize: '11px', color: '#888', fontWeight: 800, letterSpacing: '0.05em' }}>ŠTÍTKY</label>
             <input className="input-field" value={(formData.tags || []).join(', ')} onChange={e => setFormData({ ...formData, tags: e.target.value.split(',').map((s: string) => s.trim()) })} onBlur={(e) => autoSave({ tags: e.target.value.split(',').map((s: string) => s.trim()) })} />
+
+            <div style={{ marginTop: '0.5rem', background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.05)' }}>
+               <label style={{ fontSize: '11px', color: 'var(--color-teal)', fontWeight: 800, letterSpacing: '0.05em', marginBottom: '0.75rem', display: 'block' }}>NAHRÁVKY (MP3/WAV)</label>
+               <div style={{ display: 'flex', gap: '10px', flexDirection: 'column' }}>
+                  <AudioUploader songId={song.id} type="audio" onUploaded={(url) => { setFormData({...formData, audioUrl: url}); autoSave({ audioUrl: url }); }} />
+                  <AudioUploader songId={song.id} type="instrumental" onUploaded={(url) => { setFormData({...formData, instrumentalUrl: url}); autoSave({ instrumentalUrl: url }); }} />
+               </div>
+               <div style={{ fontSize: '10px', color: formData.audioUrl ? '#4ade80' : '#888', marginTop: '10px', textAlign: 'center', fontWeight: formData.audioUrl ? 800 : 400 }}>
+                 {(formData.audioUrl || formData.instrumentalUrl) ? '✅ Audio je nahrané na serveru' : 'Zatím nebylo nahráno žádné audio'}
+               </div>
+            </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
