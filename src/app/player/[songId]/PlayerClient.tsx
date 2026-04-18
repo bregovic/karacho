@@ -412,7 +412,20 @@ export default function PlayerClient({ song }: { song: any }) {
   };
 
   const getVoiceState = (t: number, voice: number) => {
-    const ci = blocks.findIndex(b => t >= b.bs && t < b.be && isBlockInVoice(b, voice));
+    let ci = blocks.findIndex(b => t >= b.bs && t < b.be && isBlockInVoice(b, voice));
+    
+    // PAUSE HANDLING: Pokud zrovna žádný text do t nehraje (ticho v písni),
+    // chceme na obrazovce ukázat BLÍŽÍCÍ se text jako přípravu, ať se nehledí do tmy.
+    if (ci < 0) {
+       const nextFutureIdx = blocks.findIndex(b => b.bs >= t && isBlockInVoice(b, voice));
+       if (nextFutureIdx >= 0) {
+          const futureBlock = blocks[nextFutureIdx];
+          if (futureBlock.bs - t < 15.0) { // objeví text až 15s předem
+             ci = nextFutureIdx;
+          }
+       }
+    }
+
     if (ci < 0) return null;
     const cb = blocks[ci];
     let nc = 0;
@@ -534,13 +547,13 @@ export default function PlayerClient({ song }: { song: any }) {
     if (cur) {
       const cue = cur.querySelector('.cue-icon') as HTMLElement;
       if (cue) {
-         const timeToStart = cb.bs - t;
-         if (timeToStart <= 1.0 && timeToStart > 0) {
+         const realTimeToStart = cb.bs - (t - 0.5); // t tu je visualTime (audio + 0.5), realToStart je vůči audiu
+         if (realTimeToStart <= 1.0 && realTimeToStart > 0) {
             cue.style.opacity = '1';
-            cue.style.transform = 'scale(1.1)';
+            cue.style.transform = 'scale(1.2) translateY(-2px)';
          } else {
             cue.style.opacity = '0';
-            cue.style.transform = 'scale(0.8)';
+            cue.style.transform = 'scale(0.8) translateY(0)';
          }
       }
 
@@ -581,7 +594,7 @@ export default function PlayerClient({ song }: { song: any }) {
         .w-wrap { position: relative; display: inline-block; padding: 0; margin: 0 0.1em; }
         .w-on { position: absolute; left: 0; top: 0; height: 100%; width: 100%; clip-path: inset(0 100% 0 0); overflow: visible; white-space: nowrap; text-shadow: 1px 1px 3px rgba(0,0,0,0.9); }
         .ln-ctx { font-size: clamp(14px, 1.8vw, 22px); color: rgba(255,255,255,0.4); font-weight: 700; text-align: center; min-height: 1.4em; transition: opacity 0.3s; }
-        #cur-line-1, #cur-line-2, #cur-line-C { font-size: clamp(24px, 5.5vw, 70px); font-weight: 900; text-align: center; min-height: 1.2em; line-height: 1.1; letter-spacing: -0.01em; }
+        #cur-line-1, #cur-line-2, #cur-line-C { position: relative; font-size: clamp(24px, 5.5vw, 70px); font-weight: 900; text-align: center; min-height: 1.2em; line-height: 1.1; letter-spacing: -0.01em; }
         @keyframes blockIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
         .block-new { animation: blockIn 0.3s ease-out forwards; }
         @media (min-width: 1025px) {
