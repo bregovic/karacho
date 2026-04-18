@@ -605,6 +605,31 @@ export async function addAdminEmail(email: string) {
   revalidatePath('/admin');
 }
 
+export async function createHelperTrackAction(mainSongId: string) {
+  await ensureAdmin();
+
+  const mainSong = await db.song.findUnique({ where: { id: mainSongId } });
+  if (!mainSong) return { error: 'Píseň nenalezena.' };
+
+  const helperSong = await db.song.create({
+    data: {
+      title: `${mainSong.title} [HLAS 2]`,
+      artist: mainSong.artist,
+      genre: mainSong.genre,
+      tags: mainSong.tags,
+      lyrics: '', 
+      audioUrl: mainSong.audioUrl, 
+      instrumentalUrl: mainSong.instrumentalUrl,
+      animationStyle: mainSong.animationStyle,
+      createdById: mainSong.createdById,
+      state: 'UNPUBLISHED'
+    }
+  });
+
+  revalidatePath('/admin');
+  return { success: true, helperId: helperSong.id };
+}
+
 export async function removeAdminEmail(id: string) {
   const session = await auth();
   if (session?.user?.role !== 'ADMIN') throw new Error('Nemáte oprávnění');
