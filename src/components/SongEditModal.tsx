@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { updateSong, updateSongAnimation, updateSongBackground, importLyricsFromUrl, researchSongDataAction, manuallyCleanLyricsAction, mergeDuetAction } from '@/app/admin/actions';
+import { updateSong, updateSongAnimation, updateSongBackground, importLyricsFromUrl, researchSongDataAction, manuallyCleanLyricsAction, mergeDuetAction, createHelperTrackAction } from '@/app/admin/actions';
 import BackgroundGalleryModal from './BackgroundGalleryModal';
 import AudioUploader from './AudioUploader';
 
@@ -118,6 +118,22 @@ export default function SongEditModal({
     }
   };
 
+  const handleCreateHelper = async () => {
+    setImportStatus('⌛ Vytvářím pomocnou stopu...');
+    try {
+      const res = await createHelperTrackAction(song.id);
+      if (res.success) {
+        setImportStatus(`✅ Nyní zavřete okno. V katalogu nahoře najdete stín [HLAS 2]. Vložte do něj text a běžte do jeho Studia!`);
+        setTimeout(() => setImportStatus(null), 10000);
+        onRefresh();
+      } else {
+        setImportStatus(`❌ Chyba: ${res.error}`);
+      }
+    } catch(err: any) {
+      setImportStatus('❌ Chyba sítě.');
+    }
+  };
+
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
       <div className="glass-panel" style={{ width: '100%', maxWidth: '850px', padding: '2rem', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -179,10 +195,18 @@ export default function SongEditModal({
 
             {/* DUET MERGE SECTION */}
             <div style={{ marginTop: '0.5rem', background: 'rgba(0,210,255,0.05)', padding: '1rem', borderRadius: '14px', border: '1px solid rgba(0,210,255,0.2)' }}>
-               <label style={{ fontSize: '11px', color: '#00d2ff', fontWeight: 800, letterSpacing: '0.05em', marginBottom: '0.75rem', display: 'block' }}>POKROČILÉ: DUET</label>
-               <button type="button" onClick={handleMergeDuet} className="btn-secondary" style={{ width: '100%', padding: '10px', fontSize: '11px', fontWeight: 800 }}>
-                  🎤 Sloučit s druhou nahrávkou (Zadat ID)
-               </button>
+               <label style={{ fontSize: '11px', color: '#00d2ff', fontWeight: 800, letterSpacing: '0.05em', marginBottom: '0.75rem', display: 'block' }}>POKROČILÉ: DVOJHLASÝ DUET</label>
+               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                 <button type="button" onClick={handleCreateHelper} className="btn-secondary" style={{ width: '100%', padding: '10px', fontSize: '11px', fontWeight: 800, border: '1px dashed #00d2ff' }}>
+                    1️⃣ Vytvořit pomocnou stopu ([HLAS 2] i se sdíleným audiem)
+                 </button>
+                 <button type="button" onClick={handleMergeDuet} className="btn-secondary" style={{ width: '100%', padding: '10px', fontSize: '11px', fontWeight: 800 }}>
+                    2️⃣ Přilepit načasovaný 2. hlas sem k hlavní lince (Přes ID)
+                 </button>
+               </div>
+               <div style={{ fontSize: '10px', color: '#888', marginTop: '10px', textAlign: 'center' }}>
+                 Krok 1 ti ušetří duplicity a přenášení MP3. Stínovou sekundu najdeš venku v katalogu. Tam do ní dej jen text ženské a oťukej to. Pak klikni na Krok 2 tady v originále.
+               </div>
             </div>
           </div>
 
