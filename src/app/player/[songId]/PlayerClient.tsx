@@ -388,28 +388,27 @@ export default function PlayerClient({ song }: { song: any }) {
   };
 
   const isBlockInVoice = (b: PlayerBlock, containerVoice: number) => {
-     const blockV = b.v || 3;
-     if (blockV === 1 || blockV === 2) {
-       return blockV === containerVoice;
-     }
-
-     let has1 = false; let has2 = false;
+     let has1 = false; let has2 = false; let has3 = false;
+     let wordCount = 0;
      for (const w of (b.w || [])) {
-        if (w.v === 1) has1 = true;
-        if (w.v === 2) has2 = true;
+        wordCount++;
+        const v = w.v || b.v || 3;
+        if (v === 1) has1 = true;
+        if (v === 2) has2 = true;
+        if (v === 3) has3 = true;
      }
 
-     if (has1 && has2) {
-       if (containerVoice === 1) return true;
-       if (containerVoice === 2) return true;
-       return false; 
-     } else if (has1) {
-       return containerVoice === 1;
-     } else if (has2) {
-       return containerVoice === 2;
+     // Pokud blok zatím nemá oťukaná slova (NextText náhledy), bereme globální barvu bloku
+     if (wordCount === 0) {
+        const v = b.v || 3;
+        return v === containerVoice;
      }
-     
-     return containerVoice === 3;
+
+     if (containerVoice === 1 && has1) return true;
+     if (containerVoice === 2 && has2) return true;
+     if (containerVoice === 3 && has3) return true;
+
+     return false;
   };
 
   const getVoiceState = (t: number, voice: number) => {
@@ -492,9 +491,7 @@ export default function PlayerClient({ song }: { song: any }) {
           nextText.innerHTML = nb.lw.map((w: string, i: number) => {
              const wordV = nb.w && nb.w[i] ? (nb.w[i] as any).v : null;
              const targetV = wordV || nb.v || 3;
-             let isHidden = false;
-             if (voice === 1 && targetV === 2) isHidden = true;
-             if (voice === 2 && targetV === 1) isHidden = true;
+             let isHidden = (voice !== targetV);
              return isHidden ? `<span style="visibility: hidden;">${w}</span>` : w;
           }).join(' ');
        } else {
@@ -507,16 +504,14 @@ export default function PlayerClient({ song }: { song: any }) {
         cur.innerHTML = cb.lw.map((w: string, i: number) => {
           // Zjistíme hlas konkrétního slova (pokud je v datech)
           const wordV = cb.w && cb.w[i] ? (cb.w[i] as any).v : null;
-          const targetV = wordV || voice || cb.v || 3;
+          const targetV = wordV || cb.v || 3;
           
           let fillColor = '#ffd700'; // Default Gold/Both (S)
           if (targetV === 1) fillColor = '#ff4b2b'; // Voice 1 - Red (A)
           if (targetV === 2) fillColor = '#00d2ff'; // Voice 2 - Blue (D)
           if (targetV === 3) fillColor = '#ffd700'; // Both - Gold (S)
 
-          let isHidden = false;
-          if (voice === 1 && targetV === 2) isHidden = true;
-          if (voice === 2 && targetV === 1) isHidden = true;
+          let isHidden = (voice !== targetV);
 
           const wrapStyle = isHidden ? "visibility: hidden;" : "";
           return `<span class="w-wrap" style="${wrapStyle}"><span class="w-off">${w}</span><span class="w-on" style="color: ${fillColor}; text-shadow: 0 0 15px ${fillColor}66">${w}</span></span>`;
