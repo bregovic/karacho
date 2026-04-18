@@ -270,9 +270,15 @@ export default function AdminCatalog({
                       <div style={{ flex: 1, overflow: 'hidden' }}>
                           {song.artist && <span style={{ color: 'var(--color-gold)', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em' }}>{song.artist}</span>}
                           <h3 style={{ fontSize: '20px', fontWeight: 900, margin: '4px 0', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.title}</h3>
-                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '10px' }}>
-                             {song.genre && <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '10px', fontWeight: 700 }}>{song.genre}</span>}
-                             {song.state === 'ACTIVE' && <span style={{ fontSize: '10px', background: 'rgba(0,177,64,0.15)', color: '#4ade80', padding: '4px 10px', borderRadius: '10px', fontWeight: 900 }}>LIVE ✅</span>}
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '10px', alignItems: 'center' }}>
+                             {song.genre && <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '10px', fontWeight: 700, marginRight: '8px' }}>{song.genre}</span>}
+                             
+                             <span style={{ fontSize: '14px', filter: !!song.audioUrl ? 'none' : 'grayscale(1) opacity(0.2)', transition: 'all 0.3s' }} title={!!song.audioUrl ? "MP3 Nahráno" : "Chybí MP3"}>🎵</span>
+                             <span style={{ fontSize: '14px', filter: !!song.instrumentalUrl ? 'none' : 'grayscale(1) opacity(0.2)', transition: 'all 0.3s' }} title={!!song.instrumentalUrl ? "Instrumental Nahrán" : "Chybí Instrumental"}>🎻</span>
+                             <span style={{ fontSize: '14px', filter: (!!song.lyrics && song.lyrics.trim().length > 0) ? 'none' : 'grayscale(1) opacity(0.2)', transition: 'all 0.3s' }} title={(!!song.lyrics && song.lyrics.trim().length > 0) ? "Text je připraven" : "Chybí Text"}>✍️</span>
+                             <span style={{ fontSize: '14px', filter: (!!song.jsonUrl || !!song.timingData) ? 'none' : 'grayscale(1) opacity(0.2)', transition: 'all 0.3s' }} title={(!!song.jsonUrl || !!song.timingData) ? "Časování Dokončeno" : "Chybí Časování JSON"}>⏱️</span>
+                             
+                             {song.state === 'ACTIVE' && <span style={{ fontSize: '10px', background: 'rgba(0,177,64,0.15)', color: '#4ade80', padding: '4px 10px', borderRadius: '10px', fontWeight: 900, marginLeft: 'auto' }}>LIVE ✅</span>}
                           </div>
                       </div>
                   </div>
