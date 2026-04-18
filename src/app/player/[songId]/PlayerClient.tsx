@@ -387,15 +387,40 @@ export default function PlayerClient({ song }: { song: any }) {
     rafRef.current = requestAnimationFrame(tick);
   };
 
+  const isBlockInVoice = (b: PlayerBlock, containerVoice: number) => {
+     const blockV = b.v || 3;
+     if (blockV === 1 || blockV === 2) {
+       return blockV === containerVoice;
+     }
+
+     let has1 = false; let has2 = false;
+     for (const w of (b.w || [])) {
+        if (w.v === 1) has1 = true;
+        if (w.v === 2) has2 = true;
+     }
+
+     if (has1 && has2) {
+       if (containerVoice === 1) return true;
+       if (containerVoice === 2) return true;
+       return false; 
+     } else if (has1) {
+       return containerVoice === 1;
+     } else if (has2) {
+       return containerVoice === 2;
+     }
+     
+     return containerVoice === 3;
+  };
+
   const getVoiceState = (t: number, voice: number) => {
-    const ci = blocks.findIndex(b => t >= b.bs && t < b.be && ((b.v || 3) === voice));
+    const ci = blocks.findIndex(b => t >= b.bs && t < b.be && isBlockInVoice(b, voice));
     if (ci < 0) return null;
     const cb = blocks[ci];
     let nc = 0;
     for (const w of cb.w || []) {
       if (t >= w.t) nc = w.i + 1;
     }
-    const nextIdx = blocks.findIndex((b, idx) => idx > ci && ((b.v || 3) === voice));
+    const nextIdx = blocks.findIndex((b, idx) => idx > ci && isBlockInVoice(b, voice));
     return {
       cb, nc, ci,
       next: nextIdx >= 0 ? blocks[nextIdx] : null
@@ -456,12 +481,26 @@ export default function PlayerClient({ song }: { song: any }) {
 
     if (!state) {
       if (cur) cur.innerHTML = '';
-      if (nextText) nextText.textContent = '';
+      if (nextText) nextText.innerHTML = '';
       lastBlkRef.current = -1;
       return;
     }
     const { cb, ci, next: nb } = state;
-    if (nextText) nextText.textContent = nb ? nb.lw.join(' ') : '';
+
+    if (nextText) {
+       if (nb) {
+          nextText.innerHTML = nb.lw.map((w: string, i: number) => {
+             const wordV = nb.w && nb.w[i] ? (nb.w[i] as any).v : null;
+             const targetV = wordV || nb.v || 3;
+             let isHidden = false;
+             if (voice === 1 && targetV === 2) isHidden = true;
+             if (voice === 2 && targetV === 1) isHidden = true;
+             return isHidden ? `<span style="visibility: hidden;">${w}</span>` : w;
+          }).join(' ');
+       } else {
+          nextText.innerHTML = '';
+       }
+    }
     
     if (ci !== lastBlkRef.current) {
       if (cur) {
@@ -475,7 +514,12 @@ export default function PlayerClient({ song }: { song: any }) {
           if (targetV === 2) fillColor = '#00d2ff'; // Voice 2 - Blue (D)
           if (targetV === 3) fillColor = '#ffd700'; // Both - Gold (S)
 
-          return `<span class="w-wrap"><span class="w-off">${w}</span><span class="w-on" style="color: ${fillColor}; text-shadow: 0 0 15px ${fillColor}66">${w}</span></span>`;
+          let isHidden = false;
+          if (voice === 1 && targetV === 2) isHidden = true;
+          if (voice === 2 && targetV === 1) isHidden = true;
+
+          const wrapStyle = isHidden ? "visibility: hidden;" : "";
+          return `<span class="w-wrap" style="${wrapStyle}"><span class="w-off">${w}</span><span class="w-on" style="color: ${fillColor}; text-shadow: 0 0 15px ${fillColor}66">${w}</span></span>`;
         }).join(' ');
         
         cur.classList.remove('block-new');
