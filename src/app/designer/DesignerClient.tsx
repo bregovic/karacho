@@ -196,7 +196,7 @@ export default function DesignerClient({ song }: { song: any }) {
     renderUI();
   };
 
-  const forceLineEndAndAdvanceToNext = (autoKeyFirstWord: boolean = false) => {
+  const forceLineEndAndAdvanceToNext = (autoKeyFirstWord: boolean = false, targetVoice?: number) => {
     if (!audioRef.current) return;
     const t = audioRef.current.currentTime;
     
@@ -212,7 +212,9 @@ export default function DesignerClient({ song }: { song: any }) {
        eventsRef.current.push({ type: 'line', time: t, lineIdx: nextL });
        
        if (autoKeyFirstWord && nextL < linesRef.current.length) {
-          eventsRef.current.push({ type: 'word', time: t, lineIdx: nextL, wordIdx: 0, v: voiceMap[nextL] || 3 });
+          const newV = targetVoice !== undefined ? targetVoice : (voiceMap[nextL] || 3);
+          eventsRef.current.push({ type: 'word', time: t, lineIdx: nextL, wordIdx: 0, v: newV });
+          setVoiceMap(prev => ({ ...prev, [nextL]: newV }));
           curLineRef.current = nextL;
           curWordRef.current = 0;
        } else {
@@ -245,7 +247,7 @@ export default function DesignerClient({ song }: { song: any }) {
       restoreState();
       forceUpdate();
     } else {
-      forceLineEndAndAdvanceToNext(true); // <--- Tady u W chceme auto-key prvního slova
+      forceLineEndAndAdvanceToNext(true, targetVoice); // <--- Předáme dál cílový hlas
     }
   };
 
