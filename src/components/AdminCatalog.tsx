@@ -20,7 +20,7 @@ export default function AdminCatalog({
   const t = useTranslation('cs');
   const [activeTab, setActiveTab] = useState<'SONGS' | 'TEAM' | 'TECH'>('SONGS');
   const [showForm, setShowForm] = useState(false);
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('UNPUBLISHED');
   // ... rest of state
   const [genreFilter, setGenreFilter] = useState('ALL');
   const [tagFilter, setTagFilter] = useState('ALL');
@@ -71,7 +71,8 @@ export default function AdminCatalog({
   const filteredSongs = initialSongs.filter(song => {
     const step = getWorkflowStep(song);
     
-    if (statusFilter !== 'ALL' && step !== statusFilter) return false;
+    if (statusFilter === 'UNPUBLISHED' && step === 'ACTIVE') return false;
+    else if (statusFilter !== 'ALL' && statusFilter !== 'UNPUBLISHED' && step !== statusFilter) return false;
     if (genreFilter !== 'ALL' && song.genre !== genreFilter) return false;
     if (tagFilter !== 'ALL' && !(song.tags || []).includes(tagFilter)) return false;
 
@@ -169,6 +170,7 @@ export default function AdminCatalog({
             />
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ flex: '1 1 150px', padding: '12px', borderRadius: '14px', background: '#111', color: '#fff', fontSize: '12px', fontWeight: 700, border: '1px solid rgba(255,255,255,0.1)' }}>
                 <option value="ALL">🔍 VŠECHNY STAVY</option>
+                <option value="UNPUBLISHED">🛠️ NEPUBLIKOVANÉ</option>
                 <option value="MISSING_LYRICS">✍️ TEXT</option>
                 <option value="MISSING_AUDIO">🎵 AUDIO</option>
                 <option value="MISSING_INSTR">🎻 INSTR.</option>
