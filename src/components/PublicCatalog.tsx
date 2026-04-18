@@ -26,10 +26,14 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
   const { showToast } = useToast();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [seedMap, setSeedMap] = useState<Record<string, number>>({});
 
   useEffect(() => {
+    const sm: Record<string, number> = {};
+    initialSongs.forEach(s => { sm[s.id] = Math.random(); });
+    setSeedMap(sm);
     setMounted(true);
-  }, []);
+  }, [initialSongs]);
 
   // Definice dat pro frontu
   const currentSong = sessionData?.currentSong;
@@ -38,7 +42,7 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
   const [search, setSearch] = useState('');
   const [genreFilter, setGenreFilter] = useState('ALL');
   const [tagFilter, setTagFilter] = useState('ALL');
-  const [sortBy, setSortBy] = useState('POPULAR');
+  const [sortBy, setSortBy] = useState('RANDOM');
   const [queueSize, setQueueSize] = useState(0);
   const [joinId, setJoinId] = useState('');
 
@@ -76,6 +80,11 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
     const titleA = (a.title || '').trim();
     const titleB = (b.title || '').trim();
 
+    if (sortBy === 'RANDOM') {
+      const vA = seedMap[a.id] || 0;
+      const vB = seedMap[b.id] || 0;
+      return vA - vB;
+    }
     if (sortBy === 'POPULAR') {
       const diff = (b.playCount || 0) - (a.playCount || 0);
       if (diff !== 0) return diff;
@@ -185,6 +194,7 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
             ))}
           </select>
           <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ ...selectStyle, flex: '1 1 150px' }}>
+            <option value="RANDOM">🎲 NÁHODNĚ</option>
             <option value="POPULAR">🏆 TOP HRANÉ</option>
             <option value="TITLE_ASC">🎵 PÍSEŇ (A-Z)</option>
             <option value="ARTIST_ASC">🎤 INTERPRET (A-Z)</option>
