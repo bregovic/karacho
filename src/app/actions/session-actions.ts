@@ -169,3 +169,31 @@ export async function advanceSessionQueue(code: string) {
     }
   });
 }
+
+export async function playFromQueue(code: string, queueItemId: string) {
+  const s = await db.karaokeSession.findUnique({ 
+    where: { joinCode: code.toUpperCase() }, 
+    include: { queue: true } 
+  });
+  if (!s) return null;
+
+  const target = s.queue.find(item => item.id === queueItemId);
+  if (!target) return null;
+
+  await db.karaokeSessionQueue.delete({ where: { id: queueItemId } });
+
+  const updated = await db.karaokeSession.update({
+    where: { id: s.id },
+    data: {
+      currentSongId: target.songId,
+      status: 'PLAYING',
+      startedAt: new Date(),
+      startTimeOffset: 0,
+      currentTime: 0,
+      updatedAt: new Date()
+    }
+  });
+  
+  revalidatePath('/');
+  return updated;
+}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from '@/context/SessionContext';
-import { advanceSessionQueue } from '@/app/actions/session-actions';
+import { advanceSessionQueue, playFromQueue } from '@/app/actions/session-actions';
 
 export default function GlobalQueueModal() {
   const { joinCode, sessionData, refreshSession } = useSession();
@@ -30,14 +30,15 @@ export default function GlobalQueueModal() {
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 120000, 
-      background: 'rgba(0,0,0,0.95)', backdropFilter: 'blur(20px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem'
+      background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(20px)',
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'center', 
+      padding: 'clamp(80px, 12vh, 120px) 1rem 2rem'
     }} onPointerDown={(e) => { if (e.target === e.currentTarget) setIsOpen(false); }}>
       
       <div style={{
-        width: '100%', maxWidth: '600px', maxHeight: '85vh', background: '#111', 
-        borderRadius: '40px', border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden',
-        display: 'flex', flexDirection: 'column', animation: 'slideUpModal 0.4s ease-out'
+        width: '100%', maxWidth: '600px', maxHeight: '75vh', background: '#111', 
+        borderRadius: '32px', border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden',
+        display: 'flex', flexDirection: 'column', animation: 'slideDownModal 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
       }} onClick={e => e.stopPropagation()}>
         
         <div style={{ padding: '2rem 2.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -65,23 +66,39 @@ export default function GlobalQueueModal() {
                  {queueItems.length === 0 ? (
                     <div style={{ padding: '3rem', textAlign: 'center', opacity: 0.4 }}>Fronta je prázdná.</div>
                  ) : (
-                    queueItems.map((item: any, idx: number) => (
-                       <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'rgba(255,255,255,0.03)', padding: '1rem 1.5rem', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                          <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>{idx + 1}</div>
-                          <div style={{ flex: 1, overflow: 'hidden' }}>
-                             <div style={{ fontWeight: 800, fontSize: '15px' }}>{item.song?.title}</div>
-                             <div style={{ fontSize: '13px', opacity: 0.5 }}>{item.song?.artist}</div>
-                          </div>
-                          <button onClick={(e) => handleRemoveFromQueue(item.id, e)} style={{ background: 'none', border: 'none', color: '#ff4b2b', fontSize: '18px', cursor: 'pointer' }}>✕</button>
-                       </div>
-                    ))
-                 )}
-              </div>
-           </div>
-        </div>
+                     queueItems.map((item: any, idx: number) => (
+                        <div 
+                          key={item.id} 
+                          className="queue-item-row"
+                          onClick={async () => {
+                            if (!joinCode) return;
+                            await playFromQueue(joinCode, item.id);
+                            refreshSession();
+                            setIsOpen(false);
+                          }}
+                          style={{ 
+                            display: 'flex', alignItems: 'center', gap: '1rem', 
+                            background: 'rgba(255,255,255,0.03)', padding: '1rem 1.5rem', 
+                            borderRadius: '20px', border: '1px solid rgba(255,255,255,0.04)',
+                            cursor: 'pointer', transition: 'all 0.2s'
+                          }}
+                        >
+                           <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>{idx + 1}</div>
+                           <div style={{ flex: 1, overflow: 'hidden' }}>
+                              <div style={{ fontWeight: 800, fontSize: '15px' }}>{item.song?.title}</div>
+                              <div style={{ fontSize: '13px', opacity: 0.5 }}>{item.song?.artist}</div>
+                           </div>
+                           <button onClick={(e) => handleRemoveFromQueue(item.id, e)} style={{ background: 'none', border: 'none', color: '#ff4b2b', fontSize: '18px', cursor: 'pointer', zIndex: 2 }}>✕</button>
+                        </div>
+                     ))
+                  )}
+               </div>
+            </div>
+         </div>
       </div>
       <style jsx>{`
-        @keyframes slideUpModal { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes slideDownModal { from { transform: translateY(-40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .queue-item-row:hover { background: rgba(255,255,255,0.08) !important; transform: scale(1.01); }
       `}</style>
     </div>
   );
