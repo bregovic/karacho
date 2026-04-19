@@ -4,7 +4,7 @@ import Link from 'next/link';
 import AudioUploader from '@/components/AudioUploader';
 import BulkUploader from '@/components/BulkUploader';
 import SongEditModal from '@/components/SongEditModal';
-import { createSong, deleteSong, updateSong, removeSongResource, bulkRemoveBackground, bulkUpdateState, fetchLyricsAction, bulkFetchMissingLyrics, checkDuplicateSong } from '@/app/admin/actions';
+import { createSong, deleteSong, updateSong, removeSongResource, bulkRemoveBackground, bulkUpdateState, fetchLyricsAction, bulkFetchMissingLyrics, checkDuplicateSong, researchSongDataAction } from '@/app/admin/actions';
 import { autoAlignSong } from '@/app/admin/auto-align';
 import { useTranslation } from '@/lib/translations';
 
@@ -139,6 +139,23 @@ export default function AdminCatalog({
     setTimeout(() => setDownloadingUrl(null), 3000);
   };
 
+  const enhanceSelectedSongs = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Opravdu zkusit dohledat chybějící texty a žánry pro ${selectedIds.length} vybraných písní přes naše api roboty? Může to chvíli trvat.`)) return;
+
+    let success = 0;
+    for (const id of selectedIds) {
+       const s = initialSongs.find(x => x.id === id);
+       setDownloadingUrl(`Hledám text pro: ${s?.title || 'Neznámý'}...`);
+       try {
+         const res = await researchSongDataAction(id);
+         if (res && res.success) success++;
+       } catch (err) {}
+    }
+    setDownloadingUrl(`Hotovo! Dohledána chybějící data a texty pro ${success} z ${selectedIds.length} písní.`);
+    setTimeout(() => setDownloadingUrl(null), 4000);
+  };
+
   const clearSelection = () => setSelectedIds([]);
   const selectAllFiltered = () => setSelectedIds(Array.from(new Set([...selectedIds, ...filteredSongs.map(s => s.id)])));
 
@@ -247,6 +264,9 @@ export default function AdminCatalog({
               </button>
               <button onClick={exportSelectedMp3s} disabled={selectedIds.length === 0} className="btn-secondary" style={{ padding: '12px 20px', borderRadius: '14px', fontSize: '12px', fontWeight: 800, opacity: selectedIds.length ? 1 : 0.4, border: '1px solid rgba(255,255,255,0.1)' }}>
                   📥 EXPORT MP3 ({selectedIds.length})
+              </button>
+              <button onClick={enhanceSelectedSongs} disabled={selectedIds.length === 0} className="btn-secondary" style={{ padding: '12px 20px', borderRadius: '14px', fontSize: '12px', fontWeight: 800, opacity: selectedIds.length ? 1 : 0.4, border: '1px solid rgba(255,255,255,0.1)', color: 'var(--color-gold)' }}>
+                  🤖 DOHLEDAT TEXTY ({selectedIds.length})
               </button>
               
               <div style={{ width: '1px', background: 'rgba(255,255,255,0.08)', margin: '0 8px' }} />
