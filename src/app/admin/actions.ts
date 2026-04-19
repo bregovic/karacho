@@ -4,6 +4,8 @@ import { db } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { logAdminAction } from '@/app/actions/admin-extra-actions';
+import { r2, BUCKET_NAME } from '@/lib/r2';
+import { ListObjectsV2Command } from '@aws-sdk/client-s3';
 
 async function ensureAdmin() {
   const session = await auth();
@@ -697,4 +699,51 @@ export async function mergeDuetAction(mainSongId: string, sourceSongId: string) 
   revalidatePath('/renderer');
 
   return { success: true };
+}
+
+export async function getAdminStats() {
+  await ensureAdmin();
+
+  // 1. STATISTIKY Z DATABÁZE (stavy)
+  const stateCounts = await db.song.groupBy({
+    by: ['state'],
+    _count: { _all: true }
+  });
+
+  // 2. STATISTIKY Z CLOUDU (obsazené místo)
+  let totalSizeBytes = 0;
+  let objectsCount = 0;
+  
+  try {
+    let isTruncated = true;
+    let continuationToken: string | undefined = undefined;
+
+    while (isTruncated) {
+      const command = new ListObjectsV2Command({
+        Bucket: BUCKET_NAME,
+        ContinuationToken: continuationToken
+      });
+      const response = await r2.send(command);
+      
+      if (response.Contents) {
+        for (const obj of response.Contents) {
+          totalSizeBytes += obj.Size || 0;
+          objectsCount++;
+        }
+      }
+      isTruncated = response.IsTruncated || false;
+      continuationToken = response.NextContinuationToken;
+    }
+  } catch (err) {
+    console.error('Failed to list R2 objects:', err);
+  }
+
+  return {
+    states: stateCounts.map(s => ({ state: s.state, count: s._count._all })),
+    storage: {
+      bytes: totalSizeBytes,
+      human: (totalSizeBytes / (1024 * 1024)).toFixed(2) + ' MB',
+      files: objectsCount
+    }
+  };
 }
