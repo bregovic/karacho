@@ -210,17 +210,32 @@ export async function updateSong(songId: string, data: any) {
   const session = await auth();
   if (!session?.user) throw new Error('Nejste přihlášeni');
 
-  if (typeof data.tags === 'string') {
-    data.tags = data.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+  // FILTRACE POLÍ (Prisma nesmí dostat systémová pole nebo pole co neexistují v modelu)
+  const allowedFields = [
+    'title', 'artist', 'genre', 'tags', 'lyrics', 'chords', 
+    'audioUrl', 'instrumentalUrl', 'backgroundUrl', 'jsonUrl', 
+    'videoUrl', 'videoSize', 'animationStyle', 'state', 'timingData'
+  ];
+  
+  const filteredData: any = {};
+  for (const key of allowedFields) {
+    if (data[key] !== undefined) {
+      filteredData[key] = data[key];
+    }
+  }
+
+  if (typeof filteredData.tags === 'string') {
+    filteredData.tags = filteredData.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
   }
 
   await db.song.update({ 
     where: { id: songId }, 
-    data 
+    data: filteredData 
   });
 
   await logAdminAction('UPDATE_SONG', `Upravena píseň ID: ${songId}`, 'Song', songId);
   revalidatePath('/admin');
+  revalidatePath('/renderer');
 }
 
 export async function bulkRemoveBackground(backgroundUrl: string) {

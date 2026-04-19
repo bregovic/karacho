@@ -439,8 +439,18 @@ export default function AdminCatalog({
                         style={{ width: '22px', height: '22px', cursor: 'pointer', accentColor: 'var(--color-teal)' }} 
                       />
                       <div style={{ flex: 1, overflow: 'hidden' }}>
-                          {song.artist && <span style={{ color: 'var(--color-gold)', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em' }}>{song.artist}</span>}
-                          <h3 style={{ fontSize: '20px', fontWeight: 900, margin: '4px 0', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.title}</h3>
+                          <input 
+                            defaultValue={song.artist || ''} 
+                            onBlur={(e) => updateSong(song.id, { artist: e.target.value })}
+                            placeholder="Interpret / Autor"
+                            style={{ background: 'none', border: 'none', color: 'var(--color-gold)', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', width: '100%', outline: 'none', padding: 0 }} 
+                          />
+                          <input 
+                            defaultValue={song.title} 
+                            onBlur={(e) => updateSong(song.id, { title: e.target.value })}
+                            placeholder="Název písně"
+                            style={{ background: 'none', border: 'none', color: 'white', fontSize: '20px', fontWeight: 900, width: '100%', outline: 'none', margin: '4px 0', padding: 0 }} 
+                          />
                           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '10px', alignItems: 'center' }}>
                              {song.genre && <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '10px', fontWeight: 700, marginRight: '8px' }}>{song.genre}</span>}
                              
