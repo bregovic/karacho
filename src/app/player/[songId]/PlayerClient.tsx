@@ -169,6 +169,35 @@ export default function PlayerClient({ song }: { song: any }) {
   const blocks = data.blocks || [];
   const dur = data.dur || 0;
 
+  // Media Session API - Integrace pro Android Auto / Palubní desky aut
+  useEffect(() => {
+    if ('mediaSession' in navigator && song) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: song.title,
+        artist: song.artist || 'Karacho Interpret',
+        album: 'Karacho Karaoke 🎤',
+        artwork: [
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/icon-192.png', sizes: '192x192', type: 'image/png' }
+        ]
+      });
+
+      navigator.mediaSession.setActionHandler('play', () => {
+         // Vyvoláme stávající logiku Play
+         const btn = document.getElementById('main-play-btn');
+         if (btn) btn.click();
+      });
+      navigator.mediaSession.setActionHandler('pause', () => {
+         const btn = document.getElementById('main-play-btn');
+         if (btn) btn.click();
+      });
+      navigator.mediaSession.setActionHandler('nexttrack', () => {
+         const btn = document.getElementById('main-next-btn');
+         if (btn) btn.click();
+      });
+    }
+  }, [song]);
+
   const requestWakeLock = async () => {
     if ('wakeLock' in navigator) {
       try {
@@ -768,12 +797,12 @@ export default function PlayerClient({ song }: { song: any }) {
 
               <div className="btn-group-center" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 {!isChordsMode && (
-                  <button onClick={togglePlay} style={{ width: '68px', height: '68px', borderRadius: '50%', background: 'var(--color-gold)', border: 'none', color: '#000', fontSize: '30px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 40px rgba(255,215,0,0.4)', transition: 'transform 0.2s', zIndex: 100 }}>
+                  <button id="main-play-btn" onClick={togglePlay} style={{ width: '68px', height: '68px', borderRadius: '50%', background: 'var(--color-gold)', border: 'none', color: '#000', fontSize: '30px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 40px rgba(255,215,0,0.4)', transition: 'transform 0.2s', zIndex: 100 }}>
                     {isPlaying ? '⏸' : '▶'}
                   </button>
                 )}
                 {joinCode && (
-                  <button onClick={handleNext} style={{ width: '46px', height: '46px', borderRadius: '14px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }} title="Další ve frontě">
+                  <button id="main-next-btn" onClick={handleNext} style={{ width: '46px', height: '46px', borderRadius: '14px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }} title="Další ve frontě">
                     ⏭️
                   </button>
                 )}
