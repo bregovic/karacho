@@ -279,7 +279,7 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
         )}
       </section>      {/* === FLOATING QUEUE BAR (DÁLKOVÉ OVLÁDÁNÍ) === */}
       {(mounted && joinCode) && (
-        <div style={{
+        <div className="floating-queue-bar" style={{
           position: 'fixed', bottom: '20px', left: '50%', transform: 'translateX(-50%)',
           width: 'min(92vw, 550px)', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(25px)',
           borderRadius: '24px', padding: '12px 16px', zIndex: 1000,
@@ -338,6 +338,9 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
         @media (max-width: 600px) {
           .hero-logo-img { height: 180px; }
           .hero-logo-wrap { margin-bottom: 2rem !important; }
+        }
+        @media (min-width: 851px) {
+          .floating-queue-bar { display: none !important; }
         }
         @keyframes slideUp { from { transform: translate(-50%, 30px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
       `}</style>
