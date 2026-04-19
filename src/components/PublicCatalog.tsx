@@ -45,6 +45,11 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
   const [sortBy, setSortBy] = useState('RANDOM');
   const [queueSize, setQueueSize] = useState(0);
   const [joinId, setJoinId] = useState('');
+  const [displayCount, setDisplayCount] = useState(60);
+
+  useEffect(() => {
+    setDisplayCount(60);
+  }, [search, genreFilter, tagFilter, sortBy]);
 
   const handleRemoveFromQueue = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -104,7 +109,8 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
     return 0;
   });
 
-  const hasSongs = sortedSongs.length > 0;
+  const visibleSongs = sortedSongs.slice(0, displayCount);
+  const hasSongs = visibleSongs.length > 0;
 
   const handleAddToQueue = async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -222,7 +228,7 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: '2rem' }}>
-            {sortedSongs.map((song) => (
+            {visibleSongs.map((song) => (
               <div key={song.id} className="glass-panel" style={{ 
                 padding: '2rem', borderRadius: '28px', position: 'relative',
                 background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)',
@@ -257,6 +263,18 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
                 </Link>
               </div>
             ))}
+          </div>
+        )}
+
+        {hasSongs && displayCount < sortedSongs.length && (
+          <div style={{ textAlign: 'center', marginTop: '3rem' }}>
+            <button 
+              className="btn-secondary" 
+              onClick={() => setDisplayCount(prev => prev + 60)} 
+              style={{ padding: '15px 40px', borderRadius: '50px', fontSize: '14px', fontWeight: 800, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer' }}
+            >
+              🔽 NAČÍST DALŠÍCH ({sortedSongs.length - displayCount})
+            </button>
           </div>
         )}
       </section>      {/* === FLOATING QUEUE BAR (DÁLKOVÉ OVLÁDÁNÍ) === */}

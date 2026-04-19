@@ -23,10 +23,15 @@ export default function AdminCatalog({
   const [statusFilter, setStatusFilter] = useState('UNPUBLISHED');
   // ... rest of state
   const [genreFilter, setGenreFilter] = useState('ALL');
-  const [tagFilter, setTagFilter] = useState('ALL');
   const [search, setSearch] = useState('');
   const [editingSong, setEditingSong] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [displayCount, setDisplayCount] = useState(60);
+
+  import { useEffect } from 'react';
+  useEffect(() => {
+    setDisplayCount(60);
+  }, [search, genreFilter, tagFilter, statusFilter]);
 
   // Pomůcka pro určení stavu workflow
   const getWorkflowStep = (s: any) => {
@@ -92,6 +97,8 @@ export default function AdminCatalog({
 
   const clearSelection = () => setSelectedIds([]);
   const selectAllFiltered = () => setSelectedIds(Array.from(new Set([...selectedIds, ...filteredSongs.map(s => s.id)])));
+
+  const visibleSongs = filteredSongs.slice(0, displayCount);
 
   return (
     <div style={{ padding: 'clamp(0.75rem, 3vw, 2.5rem)', maxWidth: '1400px', margin: '0 auto', boxSizing: 'border-box', overflowX: 'hidden', width: '100%' }}>
@@ -254,8 +261,8 @@ export default function AdminCatalog({
             <p>Žádné písně neodpovídají zvoleným filtrům.</p>
          </div>
       ) : (
-         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 380px), 1fr))', gap: '2rem' }}>
-          {filteredSongs.map((song) => {
+         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 380px), 1fr))', gap: '2rem', marginBottom: '3rem' }}>
+          {visibleSongs.map((song) => {
             const hasAudio = !!song.audioUrl;
             const hasJson = !!song.jsonUrl || !!song.timingData;
             const canPlay = !!song.videoUrl || hasJson;
@@ -303,6 +310,18 @@ export default function AdminCatalog({
               </div>
             );
           })}
+         </div>
+      )}
+
+      {filteredSongs.length > 0 && displayCount < filteredSongs.length && (
+         <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+            <button 
+              className="btn-secondary" 
+              onClick={() => setDisplayCount(prev => prev + 60)} 
+              style={{ padding: '15px 40px', borderRadius: '50px', fontSize: '14px', fontWeight: 800, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer' }}
+            >
+              🔽 NAČÍST DALŠÍCH ({filteredSongs.length - displayCount})
+            </button>
          </div>
       )}
 
