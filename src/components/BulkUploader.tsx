@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { createSong, updateSongInstrumental } from '@/app/admin/actions';
 
 export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) {
+  const [localSongs, setLocalSongs] = useState<any[]>(initialSongs);
   const [uploading, setUploading] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [log, setLog] = useState<{msg: string, status: 'info'|'success'|'error'}[]>([]);
@@ -71,17 +72,19 @@ export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) 
         if (mode === 'ORIGINAL') {
           const songData = new FormData();
           songData.append('title', title);
-          songData.append('artist', artist);
+          songData.append('artist', artist === 'Neznámý' ? '' : artist);
           songData.append('audioUrl', fileUrl);
           
-          await createSong(songData);
+          const newSong = await createSong(songData);
+          setLocalSongs(prev => [newSong, ...prev]);
           addLog(`✅ Píseň "${title}" vytvořena.`, 'success');
         } else {
           // Režim INSTRUMENTAL - inteligentní shoda
-          const existing = initialSongs.find(s => {
+          const existing = localSongs.find(s => {
             const dbArtist = normalizeName(s.artist || '');
             const dbTitle = normalizeName(s.title || '');
-            return dbTitle === normTitle && (dbArtist === normArtist || !dbArtist || !normArtist);
+            const matchArtist = dbArtist === normArtist || !dbArtist || !normArtist || dbArtist === 'neznámý' || normArtist === 'neznámý';
+            return dbTitle === normTitle && matchArtist;
           });
 
           if (existing) {
@@ -106,7 +109,7 @@ export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) 
   return (
     <>
       <button 
-        onClick={() => { setShowModal(true); setPendingFiles([]); setLog([]); }}
+        onClick={() => { setShowModal(true); setPendingFiles([]); setLog([]); setLocalSongs(initialSongs); }}
         className="btn-secondary"
         style={{ padding: '10px 20px', borderRadius: '14px', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}
       >
