@@ -60,9 +60,8 @@ export default async function RootLayout({
             }}>
               {/* VLEVO: Logo + ID */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 'clamp(8px, 2vw, 18px)', textDecoration: 'none' }}>
+                <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none' }}>
                   <img src="/logo.png" alt="Karacho Logo" className="header-logo-img" />
-                  <span className="header-title">KARACHO</span>
                 </a>
                 <div style={{ marginLeft: '4px' }} className="header-session-info-wrap">
                   <HeaderSessionInfo />
@@ -84,11 +83,11 @@ export default async function RootLayout({
             </nav>
 
             <style>{`
-              .header-logo-img { width: 50px; height: 50px; border-radius: 12px; transition: all 0.3s; }
+              .header-logo-img { width: auto; height: 54px; border-radius: 12px; transition: all 0.3s; }
               .header-title { fontSize: 30px; fontWeight: 900; color: var(--color-gold); letterSpacing: -0.06em; textShadow: 0 0 20px rgba(255,215,0,0.2); transition: all 0.3s; }
               
               @media (max-width: 600px) {
-                .header-logo-img { width: 38px; height: 38px; border-radius: 10px; }
+                .header-logo-img { height: 44px; border-radius: 10px; }
                 .header-title { fontSize: 22px; }
                 .hide-mobile { display: none; }
                 .header-session-info-wrap { transform: scale(0.85); transform-origin: left; }

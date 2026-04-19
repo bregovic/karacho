@@ -123,6 +123,7 @@ function ChordsView({ chords, songTitle, artist }: { chords: string, songTitle: 
 }
 
 export default function PlayerClient({ song }: { song: any }) {
+  const isWatchMode = typeof window !== 'undefined' && window.location.search.includes('mode=watch');
   const { joinCode, sessionData, localMode, isHost } = useSession();
   const isChordsMode = localMode === 'CHORDS' || sessionData?.sessionMode === 'CHORDS';
   const shouldSuppressAudio = (isChordsMode || isWatchMode) && !isHost;
@@ -202,8 +203,6 @@ export default function PlayerClient({ song }: { song: any }) {
     }, 4000);
     return () => clearInterval(interval);
   }, [joinCode, song.id]);
-
-  const isWatchMode = typeof window !== 'undefined' && window.location.search.includes('mode=watch');
 
   useEffect(() => {
     const a = new Audio();
