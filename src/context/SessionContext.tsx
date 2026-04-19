@@ -8,6 +8,7 @@ interface SessionContextType {
   sessionData: any | null;
   localMode: 'KARAOKE' | 'CHORDS';
   isLoading: boolean;
+  isHost: boolean;
   toggleLocalMode: () => void;
   createOrJoin: (code?: string) => Promise<string>;
   leaveSession: () => void;
@@ -21,6 +22,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [sessionData, setSessionData] = useState<any | null>(null);
   const [localMode, setLocalMode] = useState<'KARAOKE' | 'CHORDS'>('KARAOKE');
   const [isLoading, setIsLoading] = useState(true);
+  const [isHost, setIsHost] = useState(false);
 
   // Načtení relace a režimu při startu
   useEffect(() => {
@@ -28,8 +30,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     const urlCode = params.get('code');
     const saved = localStorage.getItem('karacho_session_code');
     const savedMode = localStorage.getItem('karacho_local_mode');
+    const savedHost = localStorage.getItem('karacho_is_host');
 
     if (savedMode === 'CHORDS') setLocalMode('CHORDS');
+    if (savedHost === 'true') setIsHost(true);
 
     if (urlCode) {
       setJoinCode(urlCode);
@@ -90,6 +94,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setJoinCode(session.joinCode);
       setSessionData(session);
       localStorage.setItem('karacho_session_code', session.joinCode);
+      
+      if (!code) {
+        localStorage.setItem('karacho_is_host', 'true');
+        setIsHost(true);
+      } else {
+        localStorage.removeItem('karacho_is_host');
+        setIsHost(false);
+      }
+      
       return session.joinCode;
     } finally {
       setIsLoading(false);
@@ -98,8 +111,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const leaveSession = () => {
     localStorage.removeItem('karacho_session_code');
+    localStorage.removeItem('karacho_is_host');
     setJoinCode(null);
     setSessionData(null);
+    setIsHost(false);
   };
 
   const refreshSession = async () => {
@@ -107,7 +122,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <SessionContext.Provider value={{ joinCode, sessionData, localMode, isLoading, toggleLocalMode, createOrJoin, leaveSession, refreshSession }}>
+    <SessionContext.Provider value={{ joinCode, sessionData, localMode, isLoading, isHost, toggleLocalMode, createOrJoin, leaveSession, refreshSession }}>
       {children}
     </SessionContext.Provider>
   );
