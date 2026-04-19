@@ -285,21 +285,36 @@ export default function PlayerClient({ song }: { song: any }) {
                 serverTime = (now - startedAt) / 1000 + (s.startTimeOffset || 0);
              }
 
-             const diff = Math.abs(audioRef.current.currentTime - serverTime);
-             // Zmenšená tolerance pro extrémní přesnost (0.4s)
-             if (diff > 0.4) { 
+             const diff = serverTime - audioRef.current.currentTime; // kladné = jsme pozadu, záporné = jsme napřed
+             const absDiff = Math.abs(diff);
+
+             // SMART SYNC LOGIC
+             if (absDiff > 1.2) {
+                // Velký skok - musíme seeknout
                 audioRef.current.currentTime = serverTime;
                 if (videoElRef.current) videoElRef.current.currentTime = serverTime;
+                audioRef.current.playbackRate = 1.0;
+             } else if (absDiff > 0.15) {
+                // Malý drift - plynulé srovnání pomocí rychlosti přehrávání (není tolik slyšet jako skok)
+                if (diff > 0) {
+                   audioRef.current.playbackRate = 1.05; // Mírně zrychlíme
+                } else {
+                   audioRef.current.playbackRate = 0.95; // Mírně zpomalíme
+                }
+             } else {
+                // Jsme v toleranci, hrajeme normálně
+                audioRef.current.playbackRate = 1.0;
              }
 
              if (s.status === 'PLAYING' && audioRef.current.paused && !isChordsMode) {
                 audioRef.current.play().catch(() => {});
              } else if (s.status === 'PAUSED' && !audioRef.current.paused) {
                 audioRef.current.pause();
+                audioRef.current.playbackRate = 1.0;
              }
           }
        }
-    }, isWatchMode ? 500 : 1000); // Rychlejší tep synchronizace
+    }, isWatchMode ? 250 : 1000); // watch režim "tepe" 4x za sekundu pro lepší plynulost
 
     if (!isChordsMode) {
       const playAttempt = a.play();
