@@ -797,3 +797,18 @@ export async function manageTagAction(oldName: string, newName: string | null) {
   revalidatePath('/admin');
   return { success: true };
 }
+
+export async function getTaxonomyAction() {
+  await ensureAdmin();
+  const rawGenres = await db.song.findMany({ select: { genre: true }, distinct: ['genre'] });
+  const rawTags = await db.song.findMany({ select: { tags: true } });
+  
+  const genres = rawGenres.map(r => r.genre).filter((g): g is string => !!g).sort();
+  const tagsSet = new Set<string>();
+  rawTags.forEach(r => {
+    if (r.tags) r.tags.forEach(t => tagsSet.add(t));
+  });
+  const tags = Array.from(tagsSet).sort();
+
+  return { genres, tags };
+}
