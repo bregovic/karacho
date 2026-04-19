@@ -232,6 +232,23 @@ export async function bulkRemoveBackground(backgroundUrl: string) {
   revalidatePath('/admin');
 }
 
+export async function bulkUpdateMetadata(ids: string[], genre?: string, tags?: string[]) {
+  const session = await auth();
+  if (!session?.user || session.user.role !== 'ADMIN') throw new Error('Nejste přihlášeni');
+
+  const data: any = {};
+  if (genre !== undefined) data.genre = genre;
+  if (tags !== undefined) data.tags = tags;
+
+  if (Object.keys(data).length > 0) {
+    await db.song.updateMany({
+      where: { id: { in: ids } },
+      data
+    });
+  }
+  revalidatePath('/admin');
+}
+
 function toSlug(text: string): string {
   return text
     .normalize('NFD')

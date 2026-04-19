@@ -4,7 +4,7 @@ import Link from 'next/link';
 import AudioUploader from '@/components/AudioUploader';
 import BulkUploader from '@/components/BulkUploader';
 import SongEditModal from '@/components/SongEditModal';
-import { createSong, deleteSong, updateSong, removeSongResource, bulkRemoveBackground, bulkUpdateState, fetchLyricsAction, bulkFetchMissingLyrics, checkDuplicateSong, researchSongDataAction } from '@/app/admin/actions';
+import { createSong, deleteSong, updateSong, removeSongResource, bulkRemoveBackground, bulkUpdateState, fetchLyricsAction, bulkFetchMissingLyrics, checkDuplicateSong, researchSongDataAction, bulkUpdateMetadata } from '@/app/admin/actions';
 import { autoAlignSong } from '@/app/admin/auto-align';
 import { useTranslation } from '@/lib/translations';
 
@@ -30,6 +30,8 @@ export default function AdminCatalog({
   const [displayCount, setDisplayCount] = useState(60);
   const [showTools, setShowTools] = useState(false);
   const [downloadingUrl, setDownloadingUrl] = useState<string | null>(null);
+  const [bulkGenre, setBulkGenre] = useState('');
+  const [bulkTags, setBulkTags] = useState('');
 
   useEffect(() => {
     setDisplayCount(60);
@@ -156,6 +158,19 @@ export default function AdminCatalog({
     setTimeout(() => setDownloadingUrl(null), 4000);
   };
 
+  const handleBulkUpdateMetadata = async () => {
+   if (selectedIds.length === 0) return;
+   const genre = bulkGenre.trim() || undefined;
+   const tags = bulkTags.trim() ? bulkTags.split(',').map(t => t.trim()).filter(Boolean) : undefined;
+   
+   if (!genre && !tags) return;
+   if (!confirm(`Opravdu chcete upravit žánr/tagy (Žánr: ${genre||'neměnit'}, Štítky: ${tags?tags.join(', '):'neměnit'}) pro ${selectedIds.length} písní?`)) return;
+
+   await bulkUpdateMetadata(selectedIds, genre, tags);
+   setBulkGenre('');
+   setBulkTags('');
+  };
+
   const clearSelection = () => setSelectedIds([]);
   const selectAllFiltered = () => setSelectedIds(Array.from(new Set([...selectedIds, ...filteredSongs.map(s => s.id)])));
 
@@ -269,6 +284,16 @@ export default function AdminCatalog({
                   🤖 DOHLEDAT TEXTY ({selectedIds.length})
               </button>
               
+              <div style={{ width: '1px', background: 'rgba(255,255,255,0.08)', margin: '0 8px' }} />
+              
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                 <input value={bulkGenre} onChange={e=>setBulkGenre(e.target.value)} placeholder="Hromadný žánr..." list="genre-list" style={{ padding: '10px 14px', borderRadius: '12px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', fontSize: '12px', width: '140px' }} />
+                 <input value={bulkTags} onChange={e=>setBulkTags(e.target.value)} placeholder="Štítky (cz, pop)..." style={{ padding: '10px 14px', borderRadius: '12px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', fontSize: '12px', width: '140px' }} />
+                 <button onClick={handleBulkUpdateMetadata} disabled={selectedIds.length === 0 || (!bulkGenre && !bulkTags)} className="btn-primary" style={{ padding: '10px 16px', borderRadius: '12px', fontSize: '12px', fontWeight: 800, opacity: (selectedIds.length > 0 && (bulkGenre || bulkTags)) ? 1 : 0.4 }}>
+                    💾 ZAPSAT ({selectedIds.length})
+                 </button>
+              </div>
+
               <div style={{ width: '1px', background: 'rgba(255,255,255,0.08)', margin: '0 8px' }} />
               
               <BulkUploader initialSongs={initialSongs} />
