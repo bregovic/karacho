@@ -163,6 +163,7 @@ export default function PlayerClient({ song }: { song: any }) {
   const lastBlock1 = useRef<number>(-1);
   const lastBlock2 = useRef<number>(-1);
   const lastBlockC = useRef<number>(-1);
+  const recordHandled = useRef(false);
 
   const data: TimingData = (song.timingData as any) || { blocks: [], dur: 0 };
   const blocks = data.blocks || [];
@@ -242,8 +243,11 @@ export default function PlayerClient({ song }: { song: any }) {
       }
     };
     a.onplaying = () => {
-      incrementPlayCount(song.id);
-      recordSinging(song.id);
+      if (!recordHandled.current) {
+        incrementPlayCount(song.id);
+        recordSinging(song.id);
+        recordHandled.current = true;
+      }
       startTick();
       if (!isWatchMode) toggleFullScreen();
     };
