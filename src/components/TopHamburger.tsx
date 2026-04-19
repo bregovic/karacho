@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession } from '@/context/SessionContext';
+import { useToast } from '@/context/ToastContext';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import Link from 'next/link';
@@ -14,7 +15,38 @@ interface TopHamburgerProps {
 export default function TopHamburger({ isAdmin, isAuthenticated }: TopHamburgerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { leaveSession, localMode, toggleLocalMode, joinCode, sessionData } = useSession();
+  const { showToast } = useToast();
   const router = useRouter();
+
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+    setIsOpen(false);
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setDeferredPrompt(null);
+      }
+    } else {
+      // Detekce iOS
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+      if (isIOS) {
+         showToast("PWA na iOS nainstalujete přes: Sdílet -> Přidat na plochu 📲", "info");
+      } else {
+         showToast("Aplikace je již nainstalována nebo ji prohlížeč nepodporuje.", "info");
+      }
+    }
+  };
 
   const openRequestModal = () => {
     window.dispatchEvent(new CustomEvent('open-request-song-modal'));
@@ -64,6 +96,16 @@ export default function TopHamburger({ isAdmin, isAuthenticated }: TopHamburgerP
             >
               <span style={{ fontSize: '18px' }}>🎫</span>
               <span style={{ fontSize: '14px', fontWeight: 700 }}>Zadat kód show</span>
+            </div>
+
+            {/* PWA INSTALL */}
+            <div 
+              onClick={handleInstallClick}
+              style={{ padding: '16px 20px', cursor: 'pointer', transition: 'all 0.2s', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,215,0,0.03)' }}
+              className="menu-item"
+            >
+              <span style={{ fontSize: '18px' }}>📱</span>
+              <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-gold)' }}>Mobilní aplikace</span>
             </div>
 
             {/* GLOBÁLNÍ PŘEPÍNAČ REŽIMU (ZPĚVNÍK / KARAOKE) */}
