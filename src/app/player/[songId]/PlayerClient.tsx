@@ -184,6 +184,10 @@ export default function PlayerClient({ song }: { song: any }) {
   const toggleFullScreen = () => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(err => {});
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(err => {});
+      }
     }
   };
 
