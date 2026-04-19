@@ -229,7 +229,6 @@ export default function AdminCatalog({
                 <option value="REVIEW">🚦 KONTROLA</option>
                 <option value="ACTIVE">🟢 LIVE</option>
             </select>
-            </select>
             <div style={{ display: 'flex', position: 'relative' }}>
                 <button 
                   onClick={() => setShowTools(!showTools)}
