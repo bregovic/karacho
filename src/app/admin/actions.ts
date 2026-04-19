@@ -762,3 +762,37 @@ export async function getAdminStats() {
     }
   };
 }
+
+export async function manageGenreAction(oldName: string, newName: string | null) {
+  await ensureAdmin();
+  if (!oldName) return;
+
+  if (newName === null) {
+    await db.song.updateMany({
+      where: { genre: oldName },
+      data: { genre: null }
+    });
+  } else {
+    await db.song.updateMany({
+      where: { genre: oldName },
+      data: { genre: newName.trim() }
+    });
+  }
+  revalidatePath('/admin');
+  return { success: true };
+}
+
+export async function manageTagAction(oldName: string, newName: string | null) {
+  await ensureAdmin();
+  if (!oldName) return;
+
+  if (newName === null) {
+    // Smazat tag ze všech polí
+    await db.$executeRaw`UPDATE "Song" SET tags = array_remove(tags, ${oldName})`;
+  } else {
+    // Přejmenovat tag ve všech polích a sjednotit
+    await db.$executeRaw`UPDATE "Song" SET tags = array_replace(tags, ${oldName}, ${newName.trim()})`;
+  }
+  revalidatePath('/admin');
+  return { success: true };
+}

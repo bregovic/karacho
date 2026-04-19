@@ -4,7 +4,7 @@ import Link from 'next/link';
 import AudioUploader from '@/components/AudioUploader';
 import BulkUploader from '@/components/BulkUploader';
 import SongEditModal from '@/components/SongEditModal';
-import { createSong, deleteSong, updateSong, removeSongResource, bulkRemoveBackground, bulkUpdateState, fetchLyricsAction, bulkFetchMissingLyrics, checkDuplicateSong, researchSongDataAction, bulkUpdateMetadata, getAdminStats } from '@/app/admin/actions';
+import { createSong, deleteSong, updateSong, removeSongResource, bulkRemoveBackground, bulkUpdateState, fetchLyricsAction, bulkFetchMissingLyrics, checkDuplicateSong, researchSongDataAction, bulkUpdateMetadata, getAdminStats, manageGenreAction, manageTagAction } from '@/app/admin/actions';
 import { autoAlignSong } from '@/app/admin/auto-align';
 import { useTranslation } from '@/lib/translations';
 
@@ -316,14 +316,34 @@ export default function AdminCatalog({
 
               <div style={{ width: '1px', background: 'rgba(255,255,255,0.08)', margin: '0 8px' }} />
 
-              <button 
-                onClick={fetchStats}
-                disabled={loadingStats}
-                className="btn-secondary"
-                style={{ padding: '12px 20px', borderRadius: '14px', fontSize: '12px', fontWeight: 800, border: '1px solid var(--color-gold)', color: 'var(--color-gold)' }}
-              >
-                📊 {loadingStats ? 'POČÍTÁM...' : 'ZOBRAZIT STATISTIKY'}
+              <button onClick={fetchStats} disabled={loadingStats} className="btn-secondary" style={{ padding: '12px 20px', borderRadius: '14px', fontSize: '12px', fontWeight: 800, border: '1px solid var(--color-gold)', color: 'var(--color-gold)' }}>
+                  📊 {loadingStats ? 'POČÍTÁM...' : 'STATISTIKY'}
               </button>
+
+              <div style={{ width: '1px', background: 'rgba(255,255,255,0.08)', margin: '0 8px' }} />
+
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'rgba(255,255,255,0.03)', padding: '6px 14px', borderRadius: '16px' }}>
+                 <label style={{ fontSize: '10px', fontWeight: 800, color: '#888' }}>SPRÁVA ČÍSELNÍKŮ:</label>
+                 <button onClick={async () => {
+                   const oldG = prompt('Původní název žánru k přejmenování:');
+                   if (!oldG) return;
+                   const newG = prompt(`Nový název pro "${oldG}" (nechte prázdné pro SMAZÁNÍ žánru u všech písní):`);
+                   if (newG === null) return;
+                   if (confirm(`Opravdu změnit "${oldG}" na "${newG || 'SMAZÁNO'}" u všech písní?`)) {
+                      await manageGenreAction(oldG, newG || null);
+                   }
+                 }} className="btn-secondary" style={{ fontSize: '10px', padding: '6px 10px' }}>🎸 ŽÁNRY</button>
+                 
+                 <button onClick={async () => {
+                   const oldT = prompt('Původní název ŠTÍTKU k přejmenování:');
+                   if (!oldT) return;
+                   const newT = prompt(`Nový název pro "${oldT}" (nechte prázdné pro SMAZÁNÍ štítku ze všech písní):`);
+                   if (newT === null) return;
+                   if (confirm(`Opravdu změnit/smazat štítek "${oldT}" napříč celou DB?`)) {
+                      await manageTagAction(oldT, newT || null);
+                   }
+                 }} className="btn-secondary" style={{ fontSize: '10px', padding: '6px 10px' }}>🏷️ ŠTÍTKY</button>
+              </div>
           </div>
 
           {/* STATISTIKY DASHBOARD */}
