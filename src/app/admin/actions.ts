@@ -734,11 +734,11 @@ export async function getAdminStats() {
     let continuationToken: string | undefined = undefined;
 
     while (isTruncated) {
-      const command = new ListObjectsV2Command({
+      const listCommand = new ListObjectsV2Command({
         Bucket: BUCKET_NAME,
         ContinuationToken: continuationToken
       });
-      const response = await r2.send(command);
+      const response = await r2.send(listCommand);
       
       if (response.Contents) {
         for (const obj of response.Contents) {
