@@ -61,7 +61,7 @@ export default async function RootLayout({
               {/* VLEVO: Logo + ID */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 'clamp(8px, 2vw, 18px)', textDecoration: 'none' }}>
-                  <img src="/icon.png" alt="Karacho Logo" className="header-logo-img" />
+                  <img src="/logo.png" alt="Karacho Logo" className="header-logo-img" />
                   <span className="header-title">KARACHO</span>
                 </a>
                 <div style={{ marginLeft: '4px' }} className="header-session-info-wrap">
