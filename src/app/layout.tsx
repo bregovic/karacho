@@ -18,6 +18,14 @@ const font = Outfit({
 export const metadata: Metadata = {
   title: "Karacho Karaoke Platform",
   description: "Modern, playful karaoke platform for web, TV, and mobile.",
+  manifest: "/manifest.json",
+  themeColor: "#ffd700",
+  viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Karacho",
+  },
 };
 
 import { ToastProvider } from "@/context/ToastContext";
