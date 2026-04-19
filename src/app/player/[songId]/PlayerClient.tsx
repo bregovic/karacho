@@ -404,8 +404,8 @@ export default function PlayerClient({ song }: { song: any }) {
         return v === containerVoice;
      }
 
-     if (containerVoice === 1 && (has1 || has3)) return true;
-     if (containerVoice === 2 && (has2 || has3)) return true;
+     if (containerVoice === 1 && has1) return true;
+     if (containerVoice === 2 && has2) return true;
      if (containerVoice === 3 && has3) return true;
 
      return false;
@@ -545,11 +545,13 @@ export default function PlayerClient({ song }: { song: any }) {
     }
     if (cur) {
       const cue = cur.querySelector('.cue-icon') as HTMLElement;
-      // Reálný čas do začátku BLOKU (audio vteřiny)
-      const realTimeToStartLine = cb.bs - (t - 0.5); 
+      // Zpřesnění: Čas do začátku PRVNÍHO SLOVA v řádku (místo začátku bloku bs)
+      const firstWordT = cb.w && cb.w[0] ? cb.w[0].t : cb.bs;
+      const realTimeToStartLine = firstWordT - (t - 0.5); 
 
       if (cue) {
-         if (realTimeToStartLine <= 2.0 && realTimeToStartLine > 0) {
+         // Kratší a údernější okno pro prst (1.5s)
+         if (realTimeToStartLine <= 1.5 && realTimeToStartLine > 0) {
             cue.style.opacity = '1';
             cue.style.transform = 'scale(1.4) translateY(-6px) rotate(-15deg)';
          } else {
@@ -568,9 +570,8 @@ export default function PlayerClient({ song }: { song: any }) {
         const wordEnd = (i < cb.w.length - 1) ? cb.w[i+1].t : cb.be;
         
         // ORANŽOVÉ BLIKNUTÍ (Pobočka zpěváka)
-        // 2s až 1s před začátkem SLADY (nebo hned pokud je pauza krátká)
-        // Chceme to sladit s prstem
-        if (realTimeToStartLine <= 2.0 && realTimeToStartLine > 1.0) {
+        // Ladíme bliknutí na 1.5s až 0.5s před začátkem slova
+        if (realTimeToStartLine <= 1.5 && realTimeToStartLine > 0.5) {
            off.style.color = '#ff8c00'; // Oranžová upozorňovačka
            off.style.textShadow = '0 0 15px #ff8c00aa';
         } else {
