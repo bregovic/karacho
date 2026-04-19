@@ -731,14 +731,15 @@ export async function getAdminStats() {
   
   try {
     let isTruncated = true;
-    let continuationToken: string | undefined = undefined;
+    let continuationToken: any = undefined;
+    let listCommand: any;
 
     while (isTruncated) {
-      const listCommand = new ListObjectsV2Command({
+      listCommand = new ListObjectsV2Command({
         Bucket: BUCKET_NAME,
         ContinuationToken: continuationToken
       });
-      const response = await r2.send(listCommand);
+      const response: any = await r2.send(listCommand);
       
       if (response.Contents) {
         for (const obj of response.Contents) {
