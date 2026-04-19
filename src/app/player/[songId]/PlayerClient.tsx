@@ -123,8 +123,9 @@ function ChordsView({ chords, songTitle, artist }: { chords: string, songTitle: 
 }
 
 export default function PlayerClient({ song }: { song: any }) {
-  const { joinCode, sessionData, localMode } = useSession();
+  const { joinCode, sessionData, localMode, isHost } = useSession();
   const isChordsMode = localMode === 'CHORDS' || sessionData?.sessionMode === 'CHORDS';
+  const shouldSuppressAudio = (isChordsMode || isWatchMode) && !isHost;
   const [isPlaying, setIsPlaying] = useState(false);
   const [isInstrumental, setIsInstrumental] = useState(!!song.instrumentalUrl);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -208,8 +209,8 @@ export default function PlayerClient({ song }: { song: any }) {
     const a = new Audio();
     a.crossOrigin = "anonymous";
     
-    // AGRESIVNÍ STOPKA PRO AKORDY A PASIVNÍ REŽIM
-    if (isChordsMode || isMuted) {
+    // AGRESIVNÍ STOPKA PRO AKORDY A PASIVNÍ REŽIM (POUZE PRO NON-HOST)
+    if (shouldSuppressAudio || isMuted) {
       a.muted = true;
       a.volume = 0;
     }
@@ -219,7 +220,7 @@ export default function PlayerClient({ song }: { song: any }) {
     a.preload = (isChordsMode || isWatchMode) ? "none" : "auto";
     
     a.onplay = () => { 
-      if (isChordsMode) {
+      if (isChordsMode && !isHost) {
         a.pause();
         return;
       }
@@ -316,7 +317,7 @@ export default function PlayerClient({ song }: { song: any }) {
        }
     }, isWatchMode ? 250 : 1000); // watch režim "tepe" 4x za sekundu pro lepší plynulost
 
-    if (!isChordsMode) {
+    if (!isChordsMode || isHost) {
       const playAttempt = a.play();
       if (playAttempt !== undefined) {
         playAttempt.catch(err => {
@@ -350,7 +351,7 @@ export default function PlayerClient({ song }: { song: any }) {
     setIsInstrumental(nextMode);
   };
 
-  const [isMuted, setIsMuted] = useState(isWatchMode);
+  const [isMuted, setIsMuted] = useState(shouldSuppressAudio);
   
   // Načtení/Uložení mute preferencí
   useEffect(() => {
@@ -375,7 +376,7 @@ export default function PlayerClient({ song }: { song: any }) {
 
   const togglePlay = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (isChordsMode) return; // V režimu akordů nehraje hudba
+    if (isChordsMode && !isHost) return; // V režimu akordů nehraje hudba (pokud nejsme host)
     if (!audioRef.current) return;
     toggleFullScreen();
     
