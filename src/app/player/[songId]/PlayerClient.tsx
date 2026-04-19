@@ -565,6 +565,14 @@ export default function PlayerClient({ song }: { song: any }) {
       const firstWordT = cb.w && cb.w[0] ? cb.w[0].t : cb.bs;
       const realTimeToStartLine = firstWordT - (t - 0.5); 
 
+      // Výpočet mezery od předchozího bloku pro tento hlas
+      let lastBe = 0;
+      for (let j = 0; j < ci; j++) {
+        if (isBlockInVoice(blocks[j], voice) && blocks[j].be > lastBe) lastBe = blocks[j].be;
+      }
+      const gap = (ci === 0) ? firstWordT : (firstWordT - lastBe);
+      const shouldFlash = gap >= 5.0;
+
       const wraps = cur.querySelectorAll('.w-wrap');
       wraps.forEach((wrap: any, i: number) => {
         const off = wrap.querySelector('.w-off');
@@ -574,9 +582,8 @@ export default function PlayerClient({ song }: { song: any }) {
         const wordStart = cb.w[i].t;
         const wordEnd = (i < cb.w.length - 1) ? cb.w[i+1].t : cb.be;
         
-        // ORANŽOVÉ BLIKNUTÍ (Pobočka zpěváka)
-        // Ladíme bliknutí na 1.5s až 0.5s před začátkem slova
-        if (realTimeToStartLine <= 1.5 && realTimeToStartLine > 0.5) {
+        // ORANŽOVÉ BLIKNUTÍ - Pouze při pauze > 5s nebo na začátku
+        if (shouldFlash && realTimeToStartLine <= 1.5 && realTimeToStartLine > 0.5) {
            off.style.color = '#ff8c00'; // Oranžová upozorňovačka
            off.style.textShadow = '0 0 15px #ff8c00aa';
         } else {
