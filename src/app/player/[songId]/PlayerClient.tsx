@@ -665,48 +665,80 @@ export default function PlayerClient({ song }: { song: any }) {
       </div>
 
       <div id="ui-layer" style={{ position: 'absolute', inset: 0, zIndex: 10, pointerEvents: 'none', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-         <div id="controls" style={{ padding: '2rem', display: 'flex', alignItems: 'center', gap: '1.5rem', pointerEvents: 'auto', background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }}>
-            <div className="meta-info" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>
-                   <span className="footer-title-hide" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>{song.artist} – {song.title}</span>
-                   {!isChordsMode && <span ref={timeEl}>0:00 / 0:00</span>}
-                </div>
-                {!isChordsMode && (
-                   <div onClick={handleSeek} style={{ height: '8px', background: 'rgba(255,255,255,0.15)', borderRadius: '4px', cursor: 'pointer', position: 'relative' }}>
-                      <div ref={pbarEl} style={{ height: '100%', background: 'var(--color-gold)', width: '0%', borderRadius: '4px', boxShadow: '0 0 12px var(--glow)' }} />
-                   </div>
-                )}
-            </div>
-            <div className="btn-group" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-              {!isChordsMode && (
-                <button 
-                  onClick={toggleMute} 
-                  style={{ 
-                    width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', 
-                    border: '1px solid rgba(255,255,255,0.1)', color: isMuted ? '#ff4b2b' : 'white', 
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' 
-                  }}
-                  title={isMuted ? "Zapnout zvuk" : "Vypnout zvuk"}
-                >
-                  {isMuted ? '🔇' : '🔊'}
-                </button>
-              )}
-              {!isChordsMode && (
-                <button onClick={togglePlay} style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'var(--color-gold)', border: 'none', color: '#000', fontSize: '22px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                   {isPlaying ? '⏸' : '▶'}
-                </button>
-              )}
-              {!isChordsMode && song.instrumentalUrl && (
-                <button onClick={toggleTrack} style={{ padding: '12px 16px', borderRadius: '12px', background: isInstrumental ? 'rgba(0,177,64,0.2)' : 'rgba(255,255,255,0.05)', border: isInstrumental ? '1px solid #00B140' : '1px solid rgba(255,255,255,0.1)', color: isInstrumental ? '#00B140' : 'white', cursor: 'pointer', fontWeight: 600, fontSize: '12px', display: 'flex', gap: '8px', alignItems: 'center', whiteSpace: 'nowrap' }}>
-                  {isInstrumental ? <span>🎻 KARAOKE</span> : <span>👤 ORIGINÁL</span>}
-                </button>
-              )}
-              <button onClick={(e) => { e.stopPropagation(); toggleFullScreen(); }} style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }} title="Full Screen">
-                ⛶
-              </button>
-              <Link href="/" style={{ padding: '10px 18px', background: 'rgba(255,255,255,0.1)', color: 'white', borderRadius: '8px', textDecoration: 'none', fontSize: '13px', border: '1px solid rgba(255,255,255,0.1)', whiteSpace: 'nowrap' }} onClick={e=>e.stopPropagation()}>Zavřít</Link>
-            </div>
+         <div id="controls" style={{ 
+           padding: '1.2rem 1.5rem 2.5rem', 
+           display: 'flex', 
+           flexDirection: 'column',
+           gap: '0.8rem',
+           pointerEvents: 'auto', 
+           background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 70%, transparent 100%)',
+           backdropFilter: 'blur(10px)'
+         }}>
+            
+            {/* PROGRESS BAR - FULL WIDTH & BIG TOUCH AREA */}
+            {!isChordsMode && (
+               <div className="progress-section" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div 
+                    onClick={handleSeek} 
+                    style={{ 
+                      height: '32px', // Větší plocha pro dotyk dle pravidel
+                      display: 'flex',
+                      alignItems: 'center',
+                      cursor: 'pointer',
+                      position: 'relative',
+                      zIndex: 20
+                    }}
+                  >
+                     <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.15)', borderRadius: '10px', position: 'relative', overflow: 'hidden' }}>
+                        <div ref={pbarEl} style={{ height: '100%', background: 'var(--color-gold)', width: '0%', borderRadius: '10px', boxShadow: '0 0 15px var(--glow)' }} />
+                     </div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'rgba(255,255,255,0.5)', fontWeight: 700, padding: '0 2px' }}>
+                     <span ref={timeEl}>0:00 / 0:00</span>
+                     <span className="footer-title-hide" style={{ opacity: 0.8 }}>{song.artist} – {song.title}</span>
+                  </div>
+               </div>
+            )}
 
+            <div className="bottom-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+              
+              <div className="btn-group-left" style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                {!isChordsMode && (
+                  <button 
+                    onClick={toggleMute} 
+                    style={{ 
+                      width: '46px', height: '46px', borderRadius: '14px', background: 'rgba(255,255,255,0.08)', 
+                      border: '1px solid rgba(255,255,255,0.1)', color: isMuted ? '#ff4b2b' : 'white', 
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' 
+                    }}
+                  >
+                    {isMuted ? '🔇' : '🔊'}
+                  </button>
+                )}
+
+                <button onClick={(e) => { e.stopPropagation(); toggleFullScreen(); }} style={{ width: '46px', height: '46px', borderRadius: '14px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
+                   ⛶
+                </button>
+              </div>
+
+              <div className="btn-group-center">
+                {!isChordsMode && (
+                  <button onClick={togglePlay} style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'var(--color-gold)', border: 'none', color: '#000', fontSize: '28px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 30px rgba(255,215,0,0.3)', transition: 'transform 0.2s' }}>
+                    {isPlaying ? '⏸' : '▶'}
+                  </button>
+                )}
+              </div>
+
+              <div className="btn-group-right" style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                {!isChordsMode && song.instrumentalUrl && (
+                  <button onClick={toggleTrack} style={{ height: '46px', padding: '0 16px', borderRadius: '14px', background: isInstrumental ? 'rgba(0,177,64,0.15)' : 'rgba(255,255,255,0.08)', border: isInstrumental ? '1px solid #00B140' : '1px solid rgba(255,255,255,0.1)', color: isInstrumental ? '#00ffa0' : 'white', cursor: 'pointer', fontWeight: 800, fontSize: '11px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    {isInstrumental ? '🎻 KARAOKE' : '👤 ORIGINÁL'}
+                  </button>
+                )}
+                <Link href="/" style={{ height: '46px', padding: '0 16px', background: 'rgba(255,255,255,0.1)', color: 'white', borderRadius: '14px', textDecoration: 'none', fontSize: '13px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', fontWeight: 700 }} onClick={e=>e.stopPropagation()}>ZAVŘÍT</Link>
+              </div>
+
+            </div>
          </div>
       </div>
     </div>
