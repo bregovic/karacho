@@ -386,6 +386,21 @@ export default function PlayerClient({ song }: { song: any }) {
     }
   };
 
+  const handleNext = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    if (audioRef.current) audioRef.current.pause();
+
+    if (joinCode) {
+      const next = await advanceSessionQueue(joinCode);
+      if (next && next.currentSongId) {
+        window.location.href = `/player/${next.currentSongId}`;
+        return;
+      }
+    }
+    window.location.href = '/';
+  };
+
   const startTick = () => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(tick);
@@ -721,10 +736,15 @@ export default function PlayerClient({ song }: { song: any }) {
                 </button>
               </div>
 
-              <div className="btn-group-center">
+              <div className="btn-group-center" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 {!isChordsMode && (
-                  <button onClick={togglePlay} style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'var(--color-gold)', border: 'none', color: '#000', fontSize: '28px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 30px rgba(255,215,0,0.3)', transition: 'transform 0.2s' }}>
+                  <button onClick={togglePlay} style={{ width: '68px', height: '68px', borderRadius: '50%', background: 'var(--color-gold)', border: 'none', color: '#000', fontSize: '30px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 40px rgba(255,215,0,0.4)', transition: 'transform 0.2s', zIndex: 100 }}>
                     {isPlaying ? '⏸' : '▶'}
+                  </button>
+                )}
+                {joinCode && (
+                  <button onClick={handleNext} style={{ width: '46px', height: '46px', borderRadius: '14px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }} title="Další ve frontě">
+                    ⏭️
                   </button>
                 )}
               </div>
