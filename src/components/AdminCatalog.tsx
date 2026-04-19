@@ -4,7 +4,7 @@ import Link from 'next/link';
 import AudioUploader from '@/components/AudioUploader';
 import BulkUploader from '@/components/BulkUploader';
 import SongEditModal from '@/components/SongEditModal';
-import { createSong, deleteSong, updateSong, removeSongResource, bulkRemoveBackground, bulkUpdateState, fetchLyricsAction, bulkFetchMissingLyrics, checkDuplicateSong, researchSongDataAction, bulkUpdateMetadata } from '@/app/admin/actions';
+import { createSong, deleteSong, updateSong, removeSongResource, bulkRemoveBackground, bulkUpdateState, fetchLyricsAction, bulkFetchMissingLyrics, checkDuplicateSong, researchSongDataAction, bulkUpdateMetadata, getAdminStats } from '@/app/admin/actions';
 import { autoAlignSong } from '@/app/admin/auto-align';
 import { useTranslation } from '@/lib/translations';
 
@@ -32,6 +32,8 @@ export default function AdminCatalog({
   const [downloadingUrl, setDownloadingUrl] = useState<string | null>(null);
   const [bulkGenre, setBulkGenre] = useState('');
   const [bulkTags, setBulkTags] = useState('');
+  const [stats, setStats] = useState<any>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
 
   useEffect(() => {
     setDisplayCount(60);
@@ -171,6 +173,13 @@ export default function AdminCatalog({
    setBulkTags('');
   };
 
+  const fetchStats = async () => {
+    setLoadingStats(true);
+    const res = await getAdminStats();
+    setStats(res);
+    setLoadingStats(false);
+  };
+
   const clearSelection = () => setSelectedIds([]);
   const selectAllFiltered = () => setSelectedIds(Array.from(new Set([...selectedIds, ...filteredSongs.map(s => s.id)])));
 
@@ -304,7 +313,44 @@ export default function AdminCatalog({
               >
                 {showForm ? 'ZAVŘÍT FORMULÁŘ' : `➕ PŘIDAT HUDBU`}
               </button>
+
+              <div style={{ width: '1px', background: 'rgba(255,255,255,0.08)', margin: '0 8px' }} />
+
+              <button 
+                onClick={fetchStats}
+                disabled={loadingStats}
+                className="btn-secondary"
+                style={{ padding: '12px 20px', borderRadius: '14px', fontSize: '12px', fontWeight: 800, border: '1px solid var(--color-gold)', color: 'var(--color-gold)' }}
+              >
+                📊 {loadingStats ? 'POČÍTÁM...' : 'ZOBRAZIT STATISTIKY'}
+              </button>
           </div>
+
+          {/* STATISTIKY DASHBOARD */}
+          {stats && (
+            <div className="glass-panel" style={{ padding: '2rem', borderRadius: '25px', background: 'rgba(255,215,0,0.05)', border: '1px solid rgba(255,215,0,0.2)', marginBottom: '2rem', animation: 'fadeIn 0.4s ease-out' }}>
+               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <h3 style={{ margin: 0, color: 'var(--color-gold)', fontWeight: 900 }}>📊 Panel Statistik</h3>
+                  <button onClick={() => setStats(null)} style={{ background: 'none', border: 'none', color: '#ff4b2b', cursor: 'pointer', fontWeight: 800 }}>ZAVŘÍT ✕</button>
+               </div>
+               
+               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+                  <div style={{ background: 'rgba(0,0,0,0.3)', padding: '1.5rem', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                     <label style={{ fontSize: '11px', opacity: 0.5, textTransform: 'uppercase', fontWeight: 800 }}>Kapacita Cloudu</label>
+                     <div style={{ fontSize: '24px', fontWeight: 900, color: '#white', marginTop: '5px' }}>{stats.storage.human}</div>
+                     <div style={{ fontSize: '12px', opacity: 0.4 }}>{stats.storage.files} souborů v R2</div>
+                  </div>
+                  
+                  {stats.states.map((s: any) => (
+                    <div key={s.state} style={{ background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                       <label style={{ fontSize: '11px', opacity: 0.5, textTransform: 'uppercase', fontWeight: 800 }}>Stav: {s.state}</label>
+                       <div style={{ fontSize: '24px', fontWeight: 900, color: 'var(--color-teal)', marginTop: '5px' }}>{s.count}</div>
+                       <div style={{ fontSize: '11px', opacity: 0.4 }}>písní</div>
+                    </div>
+                  ))}
+               </div>
+            </div>
+          )}
 
           {downloadingUrl && (
             <div style={{ padding: '1rem', background: 'var(--color-teal)', color: 'black', borderRadius: '14px', marginBottom: '1rem', fontWeight: 800, textAlign: 'center' }}>
