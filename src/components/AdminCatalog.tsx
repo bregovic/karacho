@@ -4,7 +4,7 @@ import Link from 'next/link';
 import AudioUploader from '@/components/AudioUploader';
 import BulkUploader from '@/components/BulkUploader';
 import SongEditModal from '@/components/SongEditModal';
-import { createSong, deleteSong, updateSong, removeSongResource, bulkRemoveBackground, bulkUpdateState, fetchLyricsAction, bulkFetchMissingLyrics, checkDuplicateSong, researchSongDataAction, bulkUpdateMetadata, getAdminStats, manageGenreAction, manageTagAction } from '@/app/admin/actions';
+import { createSong, deleteSong, updateSong, removeSongResource, bulkRemoveBackground, bulkUpdateState, fetchLyricsAction, bulkFetchMissingLyrics, checkDuplicateSong, researchSongDataAction, bulkUpdateMetadata, getAdminStats, manageGenreAction, manageTagAction, getTaxonomyAction } from '@/app/admin/actions';
 import { autoAlignSong } from '@/app/admin/auto-align';
 import { useTranslation } from '@/lib/translations';
 
@@ -34,6 +34,17 @@ export default function AdminCatalog({
   const [bulkTags, setBulkTags] = useState('');
   const [stats, setStats] = useState<any>(null);
   const [loadingStats, setLoadingStats] = useState(false);
+  const [taxonomy, setTaxonomy] = useState<{genres: string[], tags: string[]}>({genres: [], tags: []});
+  const [showTaxonomyManager, setShowTaxonomyManager] = useState(false);
+
+  const fetchTaxonomy = async () => {
+    const data = await getTaxonomyAction();
+    if (data) setTaxonomy(data);
+  };
+
+  useEffect(() => {
+     fetchTaxonomy();
+  }, []);
 
   useEffect(() => {
     setDisplayCount(60);
@@ -324,25 +335,9 @@ export default function AdminCatalog({
 
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'rgba(255,255,255,0.03)', padding: '6px 14px', borderRadius: '16px' }}>
                  <label style={{ fontSize: '10px', fontWeight: 800, color: '#888' }}>SPRÁVA ČÍSELNÍKŮ:</label>
-                 <button onClick={async () => {
-                   const oldG = prompt('Původní název žánru k přejmenování:');
-                   if (!oldG) return;
-                   const newG = prompt(`Nový název pro "${oldG}" (nechte prázdné pro SMAZÁNÍ žánru u všech písní):`);
-                   if (newG === null) return;
-                   if (confirm(`Opravdu změnit "${oldG}" na "${newG || 'SMAZÁNO'}" u všech písní?`)) {
-                      await manageGenreAction(oldG, newG || null);
-                   }
-                 }} className="btn-secondary" style={{ fontSize: '10px', padding: '6px 10px' }}>🎸 ŽÁNRY</button>
-                 
-                 <button onClick={async () => {
-                   const oldT = prompt('Původní název ŠTÍTKU k přejmenování:');
-                   if (!oldT) return;
-                   const newT = prompt(`Nový název pro "${oldT}" (nechte prázdné pro SMAZÁNÍ štítku ze všech písní):`);
-                   if (newT === null) return;
-                   if (confirm(`Opravdu změnit/smazat štítek "${oldT}" napříč celou DB?`)) {
-                      await manageTagAction(oldT, newT || null);
-                   }
-                 }} className="btn-secondary" style={{ fontSize: '10px', padding: '6px 10px' }}>🏷️ ŠTÍTKY</button>
+                 <button onClick={() => setShowTaxonomyManager(true)} className="btn-secondary" style={{ fontSize: '10px', padding: '6px 12px', color: 'var(--color-gold)', border: '1px solid var(--color-gold)' }}>
+                    🗃️ OTEVŘÍT SPRÁVCE
+                 </button>
               </div>
           </div>
 
@@ -534,6 +529,67 @@ export default function AdminCatalog({
            </div>
         </div>
       )}
+      {/* MODÁL PRO SPRÁVU TAXONOMIE */}
+      {showTaxonomyManager && (
+         <div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <div className="glass-panel" style={{ width: 'min(90vw, 600px)', maxHeight: '85vh', display: 'flex', flexDirection: 'column', padding: '2.5rem', borderRadius: '32px', position: 'relative' }}>
+                <button onClick={() => { setShowTaxonomyManager(false); fetchTaxonomy(); }} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#888', fontSize: '24px', cursor: 'pointer' }}>✕</button>
+                <h2 style={{ margin: '0 0 1.5rem', fontSize: '24px', fontWeight: 900 }}>🗃️ Správce číselníků</h2>
+                
+                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                    
+                    {/* ŽÁNRY */}
+                    <div>
+                       <h3 style={{ fontSize: '12px', fontWeight: 900, color: 'var(--color-gold)', letterSpacing: '0.1em', marginBottom: '1rem' }}>🎸 EXISTUJÍCÍ ŽÁNRY</h3>
+                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                          {taxonomy.genres.map(g => (
+                             <div key={g} style={{ background: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <span style={{ fontSize: '14px', fontWeight: 600 }}>{g}</span>
+                                <div style={{ display: 'flex', gap: '4px' }}>
+                                   <button onClick={async () => {
+                                      const n = prompt(`Přejmenovat žánr "${g}" na:`, g);
+                                      if (n && n !== g) { await manageGenreAction(g, n); fetchTaxonomy(); }
+                                   }} style={{ background: 'none', border: 'none', fontSize: '12px', cursor: 'pointer' }}>✏️</button>
+                                   <button onClick={async () => {
+                                      if (confirm(`Opravdu SMAZAT žánr "${g}" u všech skladeb?`)) { await manageGenreAction(g, null); fetchTaxonomy(); }
+                                   }} style={{ background: 'none', border: 'none', fontSize: '12px', cursor: 'pointer' }}>🗑️</button>
+                                </div>
+                             </div>
+                          ))}
+                       </div>
+                    </div>
+
+                    {/* TAGY */}
+                    <div>
+                       <h3 style={{ fontSize: '12px', fontWeight: 900, color: 'var(--color-teal)', letterSpacing: '0.1em', marginBottom: '1rem' }}>🏷️ POUŽÍVANÉ ŠTÍTKY</h3>
+                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                          {taxonomy.tags.map(t => (
+                             <div key={t} style={{ background: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <span style={{ fontSize: '14px', fontWeight: 600 }}>{t}</span>
+                                <div style={{ display: 'flex', gap: '4px' }}>
+                                   <button onClick={async () => {
+                                      const n = prompt(`Přejmenovat štítek "${t}" na:`, t);
+                                      if (n && n !== t) { await manageTagAction(t, n); fetchTaxonomy(); }
+                                   }} style={{ background: 'none', border: 'none', fontSize: '12px', cursor: 'pointer' }}>✏️</button>
+                                   <button onClick={async () => {
+                                      if (confirm(`Opravdu ODSTRANIT štítek "${t}" ze všech skladeb?`)) { await manageTagAction(t, null); fetchTaxonomy(); }
+                                   }} style={{ background: 'none', border: 'none', fontSize: '12px', cursor: 'pointer' }}>🗑️</button>
+                                </div>
+                             </div>
+                          ))}
+                       </div>
+                    </div>
+
+                </div>
+
+                <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+                   <p style={{ fontSize: '11px', color: '#666' }}>Změny se projeví v celém katalogu okamžitě. Přejmenováním duplicitního názvu na jiný existující dojde k jejich sloučení.</p>
+                </div>
+            </div>
+         </div>
+      )}
+
+      {/* EXISTUJÍCÍ SONG MODÁLY */}
       {editingSong && (
         <SongEditModal 
           song={editingSong} 
