@@ -519,8 +519,7 @@ export default function PlayerClient({ song }: { song: any }) {
         for(let j = 0; j < ci; j++) {
            if (blocks[j].be > maxBe) maxBe = blocks[j].be;
         }
-        const isLongPause = ci > 0 && (cb.bs - maxBe >= 3.5);
-        const cueHTML = isLongPause ? `<span class="cue-icon" style="position: absolute; left: -1.5em; top: -0.1em; opacity: 0; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); filter: drop-shadow(0 0 15px rgba(255,215,0,1)); font-size: 1.1em; z-index: 10;">☝️</span>` : '';
+        const cueHTML = `<span class="cue-icon" style="position: absolute; left: -1.8em; top: -0.1em; opacity: 0; transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); filter: drop-shadow(0 0 20px rgba(255,215,0,1)); font-size: 1.2em; z-index: 10;">☝️</span>`;
 
         cur.innerHTML = cueHTML + cb.lw.map((w: string, i: number) => {
           // Zjistíme hlas konkrétního slova (pokud je v datech)
@@ -546,23 +545,39 @@ export default function PlayerClient({ song }: { song: any }) {
     }
     if (cur) {
       const cue = cur.querySelector('.cue-icon') as HTMLElement;
+      // Reálný čas do začátku BLOKU (audio vteřiny)
+      const realTimeToStartLine = cb.bs - (t - 0.5); 
+
       if (cue) {
-         const realTimeToStart = cb.bs - (t - 0.5); // t tu je visualTime (audio + 0.5), realToStart je vůči audiu
-         if (realTimeToStart <= 2.0 && realTimeToStart > 0) {
+         if (realTimeToStartLine <= 2.0 && realTimeToStartLine > 0) {
             cue.style.opacity = '1';
-            cue.style.transform = 'scale(1.3) translateY(-4px) rotate(-10deg)';
+            cue.style.transform = 'scale(1.4) translateY(-6px) rotate(-15deg)';
          } else {
             cue.style.opacity = '0';
-            cue.style.transform = 'scale(0.5) translateY(10px) rotate(0deg)';
+            cue.style.transform = 'scale(0.5) translateY(15px) rotate(0deg)';
          }
       }
 
       const wraps = cur.querySelectorAll('.w-wrap');
       wraps.forEach((wrap: any, i: number) => {
+        const off = wrap.querySelector('.w-off');
         const on = wrap.querySelector('.w-on');
-        if (!on) return;
+        if (!on || !off) return;
+        
         const wordStart = cb.w[i].t;
         const wordEnd = (i < cb.w.length - 1) ? cb.w[i+1].t : cb.be;
+        
+        // ORANŽOVÉ BLIKNUTÍ (Pobočka zpěváka)
+        // 2s až 1s před začátkem SLADY (nebo hned pokud je pauza krátká)
+        // Chceme to sladit s prstem
+        if (realTimeToStartLine <= 2.0 && realTimeToStartLine > 1.0) {
+           off.style.color = '#ff8c00'; // Oranžová upozorňovačka
+           off.style.textShadow = '0 0 15px #ff8c00aa';
+        } else {
+           off.style.color = '';
+           off.style.textShadow = '';
+        }
+
         let p = 0;
         if (t >= wordStart && t < wordEnd) p = (t - wordStart) / (wordEnd - wordStart);
         else if (t >= wordEnd) p = 1;
