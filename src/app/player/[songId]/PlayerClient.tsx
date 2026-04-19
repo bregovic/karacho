@@ -523,9 +523,7 @@ export default function PlayerClient({ song }: { song: any }) {
         for(let j = 0; j < ci; j++) {
            if (blocks[j].be > maxBe) maxBe = blocks[j].be;
         }
-        const cueHTML = `<span class="cue-icon" style="position: absolute; left: -1.8em; top: -0.1em; opacity: 0; transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); filter: drop-shadow(0 0 20px rgba(255,215,0,1)); font-size: 1.2em; z-index: 10;">☝️</span>`;
-
-        cur.innerHTML = cueHTML + cb.lw.map((w: string, i: number) => {
+        cur.innerHTML = cb.lw.map((w: string, i: number) => {
           // Zjistíme hlas konkrétního slova (pokud je v datech)
           const wordV = cb.w && cb.w[i] ? (cb.w[i] as any).v : null;
           const targetV = wordV || cb.v || 3;
@@ -548,21 +546,9 @@ export default function PlayerClient({ song }: { song: any }) {
       lastBlkRef.current = ci;
     }
     if (cur) {
-      const cue = cur.querySelector('.cue-icon') as HTMLElement;
       // Zpřesnění: Čas do začátku PRVNÍHO SLOVA v řádku (místo začátku bloku bs)
       const firstWordT = cb.w && cb.w[0] ? cb.w[0].t : cb.bs;
       const realTimeToStartLine = firstWordT - (t - 0.5); 
-
-      if (cue) {
-         // Kratší a údernější okno pro prst (1.5s)
-         if (realTimeToStartLine <= 1.5 && realTimeToStartLine > 0) {
-            cue.style.opacity = '1';
-            cue.style.transform = 'scale(1.4) translateY(-6px) rotate(-15deg)';
-         } else {
-            cue.style.opacity = '0';
-            cue.style.transform = 'scale(0.5) translateY(15px) rotate(0deg)';
-         }
-      }
 
       const wraps = cur.querySelectorAll('.w-wrap');
       wraps.forEach((wrap: any, i: number) => {
