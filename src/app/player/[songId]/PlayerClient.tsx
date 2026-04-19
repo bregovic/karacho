@@ -404,8 +404,8 @@ export default function PlayerClient({ song }: { song: any }) {
         return v === containerVoice;
      }
 
-     if (containerVoice === 1 && has1) return true;
-     if (containerVoice === 2 && has2) return true;
+     if (containerVoice === 1 && (has1 || has3)) return true;
+     if (containerVoice === 2 && (has2 || has3)) return true;
      if (containerVoice === 3 && has3) return true;
 
      return false;
@@ -420,7 +420,7 @@ export default function PlayerClient({ song }: { song: any }) {
        const nextFutureIdx = blocks.findIndex(b => b.bs >= t && isBlockInVoice(b, voice));
        if (nextFutureIdx >= 0) {
           const futureBlock = blocks[nextFutureIdx];
-          if (futureBlock.bs - t < 15.0) { // objeví text až 15s předem
+          if (futureBlock.bs - t < 8.0) { // objeví text až 8s předem
              ci = nextFutureIdx;
           }
        }
@@ -504,7 +504,7 @@ export default function PlayerClient({ song }: { song: any }) {
           nextText.innerHTML = nb.lw.map((w: string, i: number) => {
              const wordV = nb.w && nb.w[i] ? (nb.w[i] as any).v : null;
              const targetV = wordV || nb.v || 3;
-             let isHidden = (voice !== targetV);
+             let isHidden = (voice !== 3 && voice !== targetV && targetV !== 3);
              return isHidden ? `<span style="visibility: hidden;">${w}</span>` : w;
           }).join(' ');
        } else {
@@ -532,7 +532,7 @@ export default function PlayerClient({ song }: { song: any }) {
           if (targetV === 2) fillColor = '#00d2ff'; // Voice 2 - Blue (D)
           if (targetV === 3) fillColor = '#ffd700'; // Both - Gold (S)
 
-          let isHidden = (voice !== targetV);
+          let isHidden = (voice !== 3 && voice !== targetV && targetV !== 3);
 
           const wrapStyle = isHidden ? "visibility: hidden;" : "";
           return `<span class="w-wrap" style="${wrapStyle}"><span class="w-off">${w}</span><span class="w-on" style="color: ${fillColor}; text-shadow: 0 0 15px ${fillColor}66">${w}</span></span>`;
