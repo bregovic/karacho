@@ -124,7 +124,7 @@ function ChordsView({ chords, songTitle, artist }: { chords: string, songTitle: 
 
 export default function PlayerClient({ song }: { song: any }) {
   const isWatchMode = typeof window !== 'undefined' && window.location.search.includes('mode=watch');
-  const { joinCode, sessionData, localMode, isHost } = useSession();
+  const { joinCode, sessionData, localMode, isHost, isLoading } = useSession();
   const isChordsMode = localMode === 'CHORDS' || sessionData?.sessionMode === 'CHORDS';
   const shouldSuppressAudio = (isChordsMode || isWatchMode) && !isHost;
   const [isPlaying, setIsPlaying] = useState(false);
@@ -356,13 +356,17 @@ export default function PlayerClient({ song }: { song: any }) {
 
   const [isMuted, setIsMuted] = useState(shouldSuppressAudio);
   
-  // Načtení/Uložení mute preferencí
+  // Načtení/Uložení mute preferencí - s respektem k isHost
   useEffect(() => {
+    if (isLoading) return;
     const savedMute = localStorage.getItem('karacho_mute');
     if (savedMute !== null) {
-      setIsMuted(savedMute === 'true' || isWatchMode);
+      // Pokud jsme host, ignorujeme uložené ztlumení pokud je automatické
+      setIsMuted(savedMute === 'true' || shouldSuppressAudio);
+    } else {
+      setIsMuted(shouldSuppressAudio);
     }
-  }, [isWatchMode]);
+  }, [isLoading, shouldSuppressAudio]);
 
   useEffect(() => {
     localStorage.setItem('karacho_mute', isMuted.toString());

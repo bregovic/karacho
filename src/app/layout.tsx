@@ -8,6 +8,8 @@ import HeaderSessionInfo from "@/components/HeaderSessionInfo";
 import GlobalEscape from "@/components/GlobalEscape";
 import TopHamburger from "@/components/TopHamburger";
 import GlobalRequestModal from "@/components/GlobalRequestModal";
+import GlobalQueueModal from "@/components/GlobalQueueModal";
+import GlobalSessionModal from "@/components/GlobalSessionModal";
 import GlobalMiniPlayer from "@/components/GlobalMiniPlayer";
 
 const font = Outfit({
@@ -45,6 +47,8 @@ export default async function RootLayout({
             <SessionProvider>
             <GlobalEscape />
             <GlobalRequestModal />
+            <GlobalQueueModal />
+            <GlobalSessionModal />
             <nav style={{ 
               padding: '1rem clamp(1rem, 3vw, 4rem)', 
               background: 'rgba(0,0,0,0.6)', 
