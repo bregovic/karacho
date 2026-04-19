@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import AudioUploader from '@/components/AudioUploader';
 import BulkUploader from '@/components/BulkUploader';
@@ -23,12 +23,14 @@ export default function AdminCatalog({
   const [statusFilter, setStatusFilter] = useState('UNPUBLISHED');
   // ... rest of state
   const [genreFilter, setGenreFilter] = useState('ALL');
+  const [tagFilter, setTagFilter] = useState('ALL');
   const [search, setSearch] = useState('');
   const [editingSong, setEditingSong] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [displayCount, setDisplayCount] = useState(60);
+  const [showTools, setShowTools] = useState(false);
+  const [downloadingUrl, setDownloadingUrl] = useState<string | null>(null);
 
-  import { useEffect } from 'react';
   useEffect(() => {
     setDisplayCount(60);
   }, [search, genreFilter, tagFilter, statusFilter]);
@@ -93,6 +95,48 @@ export default function AdminCatalog({
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const isAllSelected = filteredSongs.length > 0 && filteredSongs.every(s => selectedIds.includes(s.id));
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds(prev => prev.filter(id => !filteredSongs.some(s => s.id === id)));
+    } else {
+      setSelectedIds(prev => Array.from(new Set([...prev, ...filteredSongs.map(s => s.id)])));
+    }
+  };
+
+  const exportSelectedMp3s = async () => {
+    const songsToExport = initialSongs.filter(s => selectedIds.includes(s.id) && s.audioUrl);
+    if (songsToExport.length === 0) {
+      alert('Žádná z vybraných písní nemá audio.');
+      return;
+    }
+    if (!confirm(`Opravdu stáhnout ${songsToExport.length} MP3 postupně?`)) return;
+
+    for (const song of songsToExport) {
+       setDownloadingUrl(`Stahuji: ${song.title}...`);
+       try {
+         const res = await fetch(song.audioUrl);
+         const blob = await res.blob();
+         const url = window.URL.createObjectURL(blob);
+         const a = document.createElement('a');
+         a.href = url;
+         const safeArtist = song.artist ? song.artist.replace(/[/\\?%*:|"<>]/g, '') : "Neznamy";
+         const safeTitle = song.title.replace(/[/\\?%*:|"<>]/g, '');
+         a.download = `${safeArtist} - ${safeTitle}.mp3`;
+         document.body.appendChild(a);
+         a.click();
+         document.body.removeChild(a);
+         window.URL.revokeObjectURL(url);
+       } catch(err) {
+         console.error("Chyba při stahování:", song.title, err);
+       }
+       await new Promise(r => setTimeout(r, 700));
+    }
+    setDownloadingUrl('Export dokončen!');
+    setTimeout(() => setDownloadingUrl(null), 3000);
   };
 
   const clearSelection = () => setSelectedIds([]);
@@ -185,17 +229,44 @@ export default function AdminCatalog({
                 <option value="REVIEW">🚦 KONTROLA</option>
                 <option value="ACTIVE">🟢 LIVE</option>
             </select>
-            <div style={{ display: 'flex', gap: '8px', flex: '1 1 200px' }}>
-                <BulkUploader initialSongs={initialSongs} />
+            </select>
+            <div style={{ display: 'flex', position: 'relative' }}>
                 <button 
-                  className={showForm ? "btn-secondary" : "btn-primary"} 
-                  onClick={() => setShowForm(!showForm)}
-                  style={{ padding: '12px', fontWeight: 900, borderRadius: '14px', fontSize: '11px', flex: 1 }}
+                  onClick={() => setShowTools(!showTools)}
+                  className="btn-secondary"
+                  style={{ padding: '12px 18px', borderRadius: '14px', background: 'rgba(255,255,255,0.05)', fontSize: '12px', fontWeight: 800, border: '1px solid rgba(255,255,255,0.1)' }}
                 >
-                  {showForm ? 'ZAVŘÍT' : `➕ PŘIDAT HUDBU`}
+                  ⚙️ NÁSTROJE {showTools ? '▲' : '▼'}
                 </button>
             </div>
           </div>
+
+          {/* Rozbalovací panel nástrojů */}
+          <div style={{ display: showTools ? 'flex' : 'none', gap: '10px', background: 'rgba(0,0,0,0.3)', padding: '1.25rem', borderRadius: '24px', marginBottom: '2rem', flexWrap: 'wrap', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <button onClick={toggleSelectAll} className="btn-secondary" style={{ padding: '12px 20px', borderRadius: '14px', fontSize: '12px', fontWeight: 800 }}>
+                  {isAllSelected ? "🔲 ODZNAČIT VŠE ZOBRAZENÉ" : "☑️ OZNAČIT VŠE ZOBRAZENÉ"}
+              </button>
+              <button onClick={exportSelectedMp3s} disabled={selectedIds.length === 0} className="btn-secondary" style={{ padding: '12px 20px', borderRadius: '14px', fontSize: '12px', fontWeight: 800, opacity: selectedIds.length ? 1 : 0.4, border: '1px solid rgba(255,255,255,0.1)' }}>
+                  📥 EXPORT MP3 ({selectedIds.length})
+              </button>
+              
+              <div style={{ width: '1px', background: 'rgba(255,255,255,0.08)', margin: '0 8px' }} />
+              
+              <BulkUploader initialSongs={initialSongs} />
+              <button 
+                className={showForm ? "btn-secondary" : "btn-primary"} 
+                onClick={() => setShowForm(!showForm)}
+                style={{ padding: '12px 24px', fontWeight: 900, borderRadius: '14px', fontSize: '12px' }}
+              >
+                {showForm ? 'ZAVŘÍT FORMULÁŘ' : `➕ PŘIDAT HUDBU`}
+              </button>
+          </div>
+
+          {downloadingUrl && (
+            <div style={{ padding: '1rem', background: 'var(--color-teal)', color: 'black', borderRadius: '14px', marginBottom: '1rem', fontWeight: 800, textAlign: 'center' }}>
+               {downloadingUrl}
+            </div>
+          )}
  
       {/* FORMULÁŘ PRO NOVOU PÍSEŇ */}
       {showForm && (
