@@ -126,6 +126,7 @@ export default function SongEditModal({
       const res = await createHelperTrackAction(song.id);
       if (res.success) {
         setImportStatus(`✅ Nyní zavřete okno. V katalogu nahoře najdete stín [HLAS 2]. Vložte do něj text a běžte do jeho Studia!`);
+        if (res.helperId) setMergeSourceId(res.helperId);
         setTimeout(() => setImportStatus(null), 10000);
         onRefresh();
       } else {
@@ -209,11 +210,47 @@ export default function SongEditModal({
                        style={{ flex: 1, padding: '10px', borderRadius: '8px', background: 'rgba(0,0,0,0.5)', color: 'white', border: '1px solid rgba(0,210,255,0.3)', fontSize: '11px', outline: 'none' }}
                     >
                        <option value="">-- Vyber připravený stín [HLAS 2] k připojení --</option>
-                       {allSongs.filter(s => s.id !== song.id && s.title.includes('[HLAS 2]')).map(s => (
-                          <option key={s.id} value={s.id}>{s.artist || '?'} - {s.title}</option>
-                       ))}
-                       <option disabled>──────────</option>
-                       {allSongs.filter(s => s.id !== song.id && !s.title.includes('[HLAS 2]')).map(s => (
+                       
+                       {/* 1. CHYTRÉ SHODY - Stejný interpret + [HLAS 2] tag */}
+                       {(() => {
+                          const isHlas2Match = (t: string) => /\[HLAS 2\]|\(HLAS 2\)|HLAS 2/i.test(t);
+                          const smartMatches = allSongs.filter(s => 
+                            s.id !== song.id && 
+                            isHlas2Match(s.title) && 
+                            (s.artist?.toLowerCase() === song.artist?.toLowerCase())
+                          );
+                          if (smartMatches.length === 0) return null;
+                          return (
+                            <>
+                               <option disabled>✨ DOPORUČENÉ SHODY (Stejný interpret) ✨</option>
+                               {smartMatches.map(s => (
+                                  <option key={s.id} value={s.id}>{s.artist || '?'} - {s.title}</option>
+                               ))}
+                               <option disabled>──────────</option>
+                            </>
+                          );
+                       })()}
+
+                       {/* 2. OSTATNÍ STÍNY [HLAS 2] */}
+                       {(() => {
+                          const isHlas2Match = (t: string) => /\[HLAS 2\]|\(HLAS 2\)|HLAS 2/i.test(t);
+                          const smartMatchesIds = allSongs
+                            .filter(s => s.id !== song.id && isHlas2Match(s.title) && s.artist?.toLowerCase() === song.artist?.toLowerCase())
+                            .map(m => m.id);
+                          
+                          const others = allSongs.filter(s => 
+                            s.id !== song.id && 
+                            isHlas2Match(s.title) && 
+                            !smartMatchesIds.includes(s.id)
+                          );
+                          if (others.length === 0) return null;
+                          return others.map(s => (
+                             <option key={s.id} value={s.id}>{s.artist || '?'} - {s.title}</option>
+                          ));
+                       })()}
+
+                       <option disabled>🎨 OSTATNÍ SKLADBY V KATALOGU 🎨</option>
+                       {allSongs.filter(s => s.id !== song.id && !(/\[HLAS 2\]|\(HLAS 2\)|HLAS 2/i.test(s.title))).map(s => (
                           <option key={s.id} value={s.id}>{s.artist || '?'} - {s.title}</option>
                        ))}
                     </select>

@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AudioUploader from '@/components/AudioUploader';
 import BulkUploader from '@/components/BulkUploader';
@@ -18,6 +19,7 @@ export default function AdminCatalog({
   adminEmails?: any[]
 }) {
   const t = useTranslation('cs');
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'SONGS' | 'TEAM' | 'TECH'>('SONGS');
   const [showForm, setShowForm] = useState(false);
   const [statusFilter, setStatusFilter] = useState('UNPUBLISHED');
@@ -598,7 +600,7 @@ export default function AdminCatalog({
           allBackgrounds={allBackgrounds as string[]}
           allSongs={initialSongs}
           onRemoveBackground={bulkRemoveBackground}
-          onRefresh={() => {}} // In Next.js with Server Actions, revalidatePath handles this, or we can add a local reload
+          onRefresh={() => router.refresh()} 
         />
       )}
         </>
