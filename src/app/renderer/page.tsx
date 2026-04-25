@@ -280,8 +280,8 @@ function RendererContent() {
         const interval = setInterval(() => {
             const t = au.currentTime;
             
-            // Vizuální offset 0.5s (kompenzace reakční doby při časování)
-            const visualTime = t + 0.5;
+            // Vizuální offset 0.2s (kompenzace reakční doby při časování)
+            const visualTime = t + 0.2;
 
             setProgress((t / au.duration) * 100);
             

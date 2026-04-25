@@ -514,7 +514,7 @@ export default function PlayerClient({ song }: { song: any }) {
     if (!audioRef.current) return;
     const t = audioRef.current.currentTime;
     const d = audioRef.current.duration || dur || 1;
-    const visualTime = t + 0.5;
+    const visualTime = t + 0.2;
 
     const s1 = getVoiceState(visualTime, 1);
     const s2 = getVoiceState(visualTime, 2);
@@ -615,7 +615,7 @@ export default function PlayerClient({ song }: { song: any }) {
     if (cur) {
       // Zpřesnění: Čas do začátku PRVNÍHO SLOVA v řádku (místo začátku bloku bs)
       const firstWordT = cb.w && cb.w[0] ? cb.w[0].t : cb.bs;
-      const realTimeToStartLine = firstWordT - (t - 0.5); 
+      const realTimeToStartLine = firstWordT - (t - 0.2); 
 
       // Výpočet mezery od předchozího bloku pro tento hlas
       let lastBe = 0;
@@ -635,7 +635,7 @@ export default function PlayerClient({ song }: { song: any }) {
         const wordEnd = (i < cb.w.length - 1) ? cb.w[i+1].t : cb.be;
         
         // ORANŽOVÉ BLIKNUTÍ - Pouze při pauze > 5s nebo na začátku
-        if (shouldFlash && realTimeToStartLine <= 1.5 && realTimeToStartLine > 0.5) {
+        if (shouldFlash && realTimeToStartLine <= 1.5 && realTimeToStartLine > 0.2) {
            off.style.color = '#ff8c00'; // Oranžová upozorňovačka
            off.style.textShadow = '0 0 15px #ff8c00aa';
         } else {
