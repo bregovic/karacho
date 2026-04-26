@@ -14,7 +14,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Heslo musí mít alespoň 6 znaků." }, { status: 400 });
     }
 
-    const existing = await db.user.findUnique({ where: { email } });
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const existing = await db.user.findUnique({ where: { email: normalizedEmail } });
     if (existing) {
       return NextResponse.json({ error: "Tento email je již zaregistrován." }, { status: 409 });
     }
@@ -22,12 +24,12 @@ export async function POST(req: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Kontrola, zda je email v whitelistu administrátorů
-    const isAdmin = await db.adminEmail.findUnique({ where: { email } });
+    const isAdmin = await db.adminEmail.findUnique({ where: { email: normalizedEmail } });
 
     await db.user.create({
       data: { 
         name, 
-        email, 
+        email: normalizedEmail, 
         password: hashedPassword,
         role: isAdmin ? 'ADMIN' : 'USER'
       },

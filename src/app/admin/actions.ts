@@ -631,10 +631,11 @@ export async function addAdminEmail(email: string) {
   const session = await auth();
   if (session?.user?.role !== 'ADMIN') throw new Error('Nemáte oprávnění');
 
+  const normalizedEmail = email.toLowerCase().trim();
   await db.adminEmail.upsert({
-    where: { email },
+    where: { email: normalizedEmail },
     update: {},
-    create: { email }
+    create: { email: normalizedEmail }
   });
   revalidatePath('/admin');
 }
