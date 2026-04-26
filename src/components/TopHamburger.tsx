@@ -121,7 +121,7 @@ export default function TopHamburger({ isAdmin, isAuthenticated }: TopHamburgerP
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                  <span style={{ fontSize: '18px' }}>{localMode === 'CHORDS' ? '📖' : '🎤'}</span>
                  <span style={{ fontSize: '14px', fontWeight: 700 }}>
-                   {localMode === 'CHORDS' ? 'Režim: ZPĚVNÍK 🎸' : 'Režim: KARAOKE 🎤'}
+                   {localMode === 'CHORDS' ? 'Režim: ZPĚVNÍK' : 'Režim: KARAOKE'}
                  </span>
               </div>
               <div style={{ width: '36px', height: '20px', background: localMode === 'CHORDS' ? '#00ffaa' : 'rgba(255,255,255,0.1)', borderRadius: '10px', position: 'relative', transition: 'all 0.3s' }}>
@@ -201,7 +201,10 @@ export default function TopHamburger({ isAdmin, isAuthenticated }: TopHamburgerP
 
             {isAuthenticated ? (
               <div 
-                onClick={() => { setIsOpen(false); signOut({ callbackUrl: '/' }); }}
+                onClick={async () => { 
+                  setIsOpen(false); 
+                  await signOut({ redirect: true, callbackUrl: '/' }); 
+                }}
                 style={{ padding: '16px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }} 
                 className="menu-item"
               >
