@@ -825,7 +825,9 @@ export default function PlayerClient({ song }: { song: any }) {
                       cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', 
                       fontSize: '11px', fontWeight: 900, gap: '8px'
                     }}
-                         {playbackMode === 'INST' && '🎹'}
+                  >
+                    <span style={{ fontSize: '16px' }}>
+                      {playbackMode === 'INST' && '🎹'}
                       {playbackMode === 'ORIG' && '🎤'}
                     </span>
                     <span className="footer-title-hide">
@@ -836,10 +838,7 @@ export default function PlayerClient({ song }: { song: any }) {
                 )}
                 <Link href="/" style={{ flexShrink: 0, height: '46px', padding: '0 16px', background: 'rgba(255,255,255,0.1)', color: 'white', borderRadius: '14px', textDecoration: 'none', fontSize: '13px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', fontWeight: 700 }} onClick={e=>e.stopPropagation()}>ZAVŘÍT</Link>
               </div>
-            </div>
-nClick={e=>e.stopPropagation()}>ZAVŘÍT</Link>
               </div>
-
             </div>
          </div>
       </div>
