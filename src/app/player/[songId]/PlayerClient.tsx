@@ -329,7 +329,8 @@ export default function PlayerClient({ song }: { song: any }) {
 
     audioOrigRef.current = aOrig;
     audioInstRef.current = aInst;
-    audioRef.current = aOrig;
+    // Jako master časomíru použijeme Instrumental (pokud je), protože ten hraje většinou celou dobu
+    audioRef.current = song.instrumentalUrl ? aInst : aOrig;
 
     const syncInterval = setInterval(async () => {
       if (!joinCode || !audioRef.current) return;
@@ -417,9 +418,10 @@ export default function PlayerClient({ song }: { song: any }) {
 
   useEffect(() => {
     localStorage.setItem('karacho_mute', isMuted.toString());
-    if (audioOrigRef.current && audioInstRef.current) {
-      audioOrigRef.current.muted = isMuted;
-      audioInstRef.current.muted = isMuted;
+    // Mute řešíme dynamicky v ticku, ale pro okamžitou reakci při pauze:
+    if (isMuted && audioOrigRef.current && audioInstRef.current) {
+      audioOrigRef.current.muted = true;
+      audioInstRef.current.muted = true;
     }
   }, [isMuted]);
 
@@ -563,16 +565,20 @@ export default function PlayerClient({ song }: { song: any }) {
       }
 
       if (activeTrack === 'INST') {
-        if (audioInstRef.current.volume !== 1) audioInstRef.current.volume = 1;
-        if (audioOrigRef.current.volume !== 0) audioOrigRef.current.volume = 0;
+        audioInstRef.current.muted = isMuted;
+        audioOrigRef.current.muted = true;
       } else {
-        if (audioInstRef.current.volume !== 0) audioInstRef.current.volume = 0;
-        if (audioOrigRef.current.volume !== 1) audioOrigRef.current.volume = 1;
+        audioInstRef.current.muted = true;
+        audioOrigRef.current.muted = isMuted;
       }
+      
+      // Volume pojistka (vždy 1, když hrají)
+      if (audioInstRef.current.volume !== 1) audioInstRef.current.volume = 1;
+      if (audioOrigRef.current.volume !== 1) audioOrigRef.current.volume = 1;
+
     } else if (isMuted && audioOrigRef.current && audioInstRef.current) {
-       // Ujistíme se, že v mute jsou oba na nule (pro jistotu, i když jsou muted)
-       audioOrigRef.current.volume = 0;
-       audioInstRef.current.volume = 0;
+       audioOrigRef.current.muted = true;
+       audioInstRef.current.muted = true;
     }
 
     renderVoiceState(s1, visualTime, 1);
