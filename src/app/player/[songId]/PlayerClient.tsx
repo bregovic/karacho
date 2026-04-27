@@ -206,6 +206,20 @@ export default function PlayerClient({ song }: { song: any }) {
     }
   }, [song]);
 
+  // Preserve fullscreen across session song transitions
+  useEffect(() => {
+    const wasFullscreen = sessionStorage.getItem('karacho-fullscreen') === '1';
+    if (wasFullscreen && !document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+
+    const onFsChange = () => {
+      sessionStorage.setItem('karacho-fullscreen', document.fullscreenElement ? '1' : '0');
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
+
   const requestWakeLock = async () => {
     if ('wakeLock' in navigator) {
       try {
@@ -314,7 +328,6 @@ export default function PlayerClient({ song }: { song: any }) {
         recordHandled.current = true;
       }
       startTick();
-      if (!isWatchMode) toggleFullScreen();
     };
 
     p.onplaying = handlePlaying;
@@ -446,7 +459,6 @@ export default function PlayerClient({ song }: { song: any }) {
     if (isChordsMode && !isHost) return;
     const p = audioRef.current;
     if (!p) return;
-    toggleFullScreen();
     initWebAudio();
     
     const isCurrentlyPaused = p.paused;
