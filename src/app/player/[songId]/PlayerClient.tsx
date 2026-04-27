@@ -256,6 +256,8 @@ export default function PlayerClient({ song }: { song: any }) {
     if (shouldSuppressAudio || isMuted) {
       aOrig.muted = true; aOrig.volume = 0;
       aInst.muted = true; aInst.volume = 0;
+    }
+
     aOrig.src = song.audioUrl || "";
     aInst.src = song.instrumentalUrl || song.audioUrl || "";
 
