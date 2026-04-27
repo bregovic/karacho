@@ -129,6 +129,8 @@ export default function PlayerClient({ song }: { song: any }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [playbackMode, setPlaybackMode] = useState<'ORIG' | 'INST'>(song.instrumentalUrl ? 'INST' : 'ORIG');
+  const playbackModeRef = useRef(playbackMode);
+  const isMutedRef = useRef(isMuted);
   const [imgLoaded, setImgLoaded] = useState(false);
 
   const systemBackgrounds = useMemo(() => [
@@ -385,6 +387,7 @@ export default function PlayerClient({ song }: { song: any }) {
     const nextMode = availableModes[nextIndex] as any;
     
     setPlaybackMode(nextMode);
+    playbackModeRef.current = nextMode;
   };
 
   useEffect(() => {
@@ -392,6 +395,7 @@ export default function PlayerClient({ song }: { song: any }) {
   }, [playbackMode, song.audioUrl, song.instrumentalUrl]);
 
   useEffect(() => {
+    isMutedRef.current = isMuted;
     if (audioRef.current) audioRef.current.muted = isMuted;
     if (audioInstRef.current) audioInstRef.current.muted = isMuted;
   }, [isMuted]);
@@ -572,9 +576,9 @@ export default function PlayerClient({ song }: { song: any }) {
     }
 
     if (audioRef.current) {
-       let activeTrack: 'INST' | 'ORIG' = playbackMode === 'INST' ? 'INST' : 'ORIG';
+       let activeTrack: 'INST' | 'ORIG' = playbackModeRef.current === 'INST' ? 'INST' : 'ORIG';
        
-       if (!isMuted) {
+       if (!isMutedRef.current) {
            const muteOrig = activeTrack === 'INST';
            const muteInst = activeTrack === 'ORIG';
            
@@ -594,7 +598,7 @@ export default function PlayerClient({ song }: { song: any }) {
        }
        
        const dbg = document.getElementById('debug-overlay');
-       if (dbg) dbg.innerText = `[DEBUG] Mode: ${playbackMode} | Trk: ${activeTrack} | O-St: ${audioRef.current.readyState} O-Vol: ${audioRef.current.volume} | I-St: ${audioInstRef.current?.readyState} I-Vol: ${audioInstRef.current?.volume}`;
+       if (dbg) dbg.innerText = `Mode: ${playbackModeRef.current} | Trk: ${activeTrack} | O: ${audioRef.current.volume} | I: ${audioInstRef.current?.volume}`;
     }
 
     renderVoiceState(s1, visualTime, 1, curLineEl1, nextLineEl1, lastBlock1);
