@@ -310,10 +310,8 @@ export default function PlayerClient({ song }: { song: any }) {
       window.location.href = '/';
     };
 
-    aOrig.onplay = () => { aInst.play().catch(() => {}); handlePlay(); };
-    aInst.onplay = () => { aOrig.play().catch(() => {}); handlePlay(); };
-    aOrig.onpause = () => { aInst.pause(); handlePause(); };
-    aInst.onpause = () => { aOrig.pause(); handlePause(); };
+    aOrig.onplay = handlePlay; aInst.onplay = handlePlay;
+    aOrig.onpause = handlePause; aInst.onpause = handlePause;
     aOrig.onended = handleEnded;
     aInst.onended = handleEnded;
 
@@ -337,7 +335,13 @@ export default function PlayerClient({ song }: { song: any }) {
     const syncInterval = setInterval(async () => {
       if (!joinCode || !audioRef.current) return;
       
-      if (!aOrig.paused && !aInst.paused) {
+      if (aOrig.paused !== aInst.paused) {
+        if (aOrig.paused) {
+          aInst.pause();
+        } else {
+          aInst.play().catch(() => {});
+        }
+      } else if (!aOrig.paused && !aInst.paused) {
         const diff = Math.abs(aOrig.currentTime - aInst.currentTime);
         if (diff > 0.1) {
           aInst.currentTime = aOrig.currentTime;
