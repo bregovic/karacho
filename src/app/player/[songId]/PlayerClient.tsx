@@ -1,10 +1,10 @@
 'use client';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { incrementPlayCount } from '@/app/admin/actions';
+import { incrementPlayCount, recordSinging } from '@/app/actions/stats-actions';
 import { useSession } from '@/context/SessionContext';
 import { getSessionStatus, updateSessionState, advanceSessionQueue } from '@/app/actions/session-actions';
-import { recordSinging } from '@/app/actions/user-actions';
+import { VirtualDualAudio } from '@/utils/VirtualDualAudio';
 
 interface PlayerBlock {
   lw: string[];
@@ -102,7 +102,6 @@ function ChordsView({ chords, songTitle, artist }: { chords: string, songTitle: 
       
       <div style={{ height: '40vh' }} />
 
-      {/* PLOVOUCÍ OVLÁDÁNÍ - Přesunuto vlevo dolů aby nevadilo menu/zavírání */}
       <div className="mobile-only" style={{ position: 'fixed', bottom: '40px', left: '30px', zIndex: 1000, display: 'flex', gap: '10px' }}>
          <button 
            onClick={(e) => { e.stopPropagation(); toggleScroll(); }}
@@ -124,13 +123,13 @@ function ChordsView({ chords, songTitle, artist }: { chords: string, songTitle: 
 
 export default function PlayerClient({ song }: { song: any }) {
   const isWatchMode = typeof window !== 'undefined' && window.location.search.includes('mode=watch');
-  const { joinCode, sessionData, localMode, isHost, isLoading } = useSession();
+  const { joinCode, sessionData, localMode, isHost } = useSession();
   const isChordsMode = localMode === 'CHORDS' || sessionData?.sessionMode === 'CHORDS';
   const shouldSuppressAudio = (isChordsMode || isWatchMode) && !isHost;
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   const [playbackMode, setPlaybackMode] = useState<'ORIG' | 'INST' | 'V1' | 'V2'>(song.instrumentalUrl ? 'INST' : 'ORIG');
   const [imgLoaded, setImgLoaded] = useState(false);
-  const [renderTick, setRenderTick] = useState(0);
 
   const systemBackgrounds = useMemo(() => [
     '/backgrounds/disco.png', '/backgrounds/rock.png', '/backgrounds/retro_80s.png',
@@ -143,8 +142,8 @@ export default function PlayerClient({ song }: { song: any }) {
   const randomBackground = useMemo(() => {
     return systemBackgrounds[Math.floor(Math.random() * systemBackgrounds.length)];
   }, [systemBackgrounds]);
-  
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const virtualAudioRef = useRef<VirtualDualAudio | null>(null);
   const videoElRef = useRef<HTMLVideoElement | null>(null);
   const wakeLockRef = useRef<any>(null);
   const rafRef = useRef<number | null>(null);
@@ -173,12 +172,14 @@ export default function PlayerClient({ song }: { song: any }) {
     return blocks.some(b => b.v === 1 || b.v === 2 || (b.w && b.w.some((w: any) => w.v === 1 || w.v === 2)));
   }, [blocks]);
 
-  // Vzhledem k agresivním blokacím prohlížečů (zejména iOS), které zakazují dvěma audio stopám
-  // hrát současně, se musíme vrátit k bezpečnému přístupu jedné stopy.
-  // Režimy V1/V2 (plynulé přepínání) zde bohužel fyzicky nefungují spolehlivě bez masivního bufferování paměti.
-  const availableModes = ['INST', 'ORIG'];
+  const availableModes = useMemo(() => {
+    const m: ('INST' | 'ORIG' | 'V1' | 'V2')[] = ['INST', 'ORIG'];
+    if (isDuet) m.push('V1', 'V2');
+    return m;
+  }, [isDuet]);
 
-  // Media Session API - Integrace pro Android Auto / Palubní desky aut
+  const [webAudioLoadingProgress, setWebAudioLoadingProgress] = useState(0);
+
   useEffect(() => {
     if ('mediaSession' in navigator && song) {
       navigator.mediaSession.metadata = new MediaMetadata({
@@ -192,7 +193,6 @@ export default function PlayerClient({ song }: { song: any }) {
       });
 
       navigator.mediaSession.setActionHandler('play', () => {
-         // Vyvoláme stávající logiku Play
          const btn = document.getElementById('main-play-btn');
          if (btn) btn.click();
       });
@@ -244,25 +244,38 @@ export default function PlayerClient({ song }: { song: any }) {
   }, [joinCode, song.id]);
 
   useEffect(() => {
-    const aOrig = audioRef.current;
-    if (!aOrig) return;
+    let p: any = audioRef.current;
 
-    if (shouldSuppressAudio || isMuted) {
-      aOrig.muted = true;
-      aOrig.volume = 0;
+    if (isDuet && song.audioUrl && song.instrumentalUrl) {
+       if (!virtualAudioRef.current) {
+          virtualAudioRef.current = new VirtualDualAudio();
+          virtualAudioRef.current.onloadprogress = (prog) => {
+             setWebAudioLoadingProgress(prog);
+          };
+          virtualAudioRef.current.load(song.audioUrl, song.instrumentalUrl);
+       }
+       p = virtualAudioRef.current;
     }
 
-    // Prvotní nastavení preload
-    aOrig.preload = "auto";
+    if (!p) return;
 
-    if (song.startTime > 0 && aOrig.currentTime === 0) {
-      aOrig.currentTime = song.startTime;
+    if (shouldSuppressAudio || isMuted) {
+      p.muted = true;
+      if (p.volume !== undefined) p.volume = 0;
+    }
+
+    if (p instanceof HTMLAudioElement) {
+       p.preload = "auto";
+    }
+
+    if (song.startTime > 0 && p.currentTime === 0) {
+      p.currentTime = song.startTime;
       if (videoElRef.current) videoElRef.current.currentTime = song.startTime;
     }
 
     const handlePlay = () => {
       if (isChordsMode && !isHost) {
-        aOrig.pause();
+        p.pause();
         return;
       }
       setIsPlaying(true);
@@ -272,7 +285,7 @@ export default function PlayerClient({ song }: { song: any }) {
           status: 'PLAYING', 
           currentSongId: song.id,
           startedAt: new Date().toISOString(),
-          startTimeOffset: aOrig.currentTime
+          startTimeOffset: p.currentTime
         });
       }
     };
@@ -281,7 +294,7 @@ export default function PlayerClient({ song }: { song: any }) {
       setIsPlaying(false);
       releaseWakeLock();
       if (joinCode && !isWatchMode) {
-        updateSessionState(joinCode, { status: 'PAUSED', currentTime: aOrig.currentTime });
+        updateSessionState(joinCode, { status: 'PAUSED', currentTime: p.currentTime });
       }
     };
 
@@ -300,9 +313,9 @@ export default function PlayerClient({ song }: { song: any }) {
       window.location.href = '/';
     };
 
-    aOrig.onplay = handlePlay;
-    aOrig.onpause = handlePause;
-    aOrig.onended = handleEnded;
+    p.onplay = handlePlay;
+    p.onpause = handlePause;
+    p.onended = handleEnded;
 
     const handlePlaying = () => {
       if (!recordHandled.current) {
@@ -314,16 +327,17 @@ export default function PlayerClient({ song }: { song: any }) {
       if (!isWatchMode) toggleFullScreen();
     };
 
-    aOrig.onplaying = handlePlaying;
+    p.onplaying = handlePlaying;
 
     const syncInterval = setInterval(async () => {
-      if (!audioRef.current) return;
+      const currentPlayer = virtualAudioRef.current || audioRef.current;
+      if (!currentPlayer) return;
 
       if (!joinCode) return;
 
       if (!isWatchMode) {
-        if (!audioRef.current.paused) {
-          updateSessionState(joinCode, { currentTime: audioRef.current.currentTime, status: 'PLAYING' });
+        if (!currentPlayer.paused) {
+          updateSessionState(joinCode, { currentTime: currentPlayer.currentTime, status: 'PLAYING' });
         }
       } else {
         const session = await getSessionStatus(joinCode);
@@ -336,93 +350,89 @@ export default function PlayerClient({ song }: { song: any }) {
             serverTime = (now - startedAt) / 1000 + (s.startTimeOffset || 0);
           }
 
-          const diff = serverTime - audioRef.current.currentTime;
+          const diff = serverTime - currentPlayer.currentTime;
           const absDiff = Math.abs(diff);
 
           if (absDiff > 1.2) {
-            aOrig.currentTime = serverTime;
+            currentPlayer.currentTime = serverTime;
             if (videoElRef.current) videoElRef.current.currentTime = serverTime;
           } else if (absDiff > 0.15) {
             const rate = diff > 0 ? 1.05 : 0.95;
-            aOrig.playbackRate = rate;
+            currentPlayer.playbackRate = rate;
           } else {
-            aOrig.playbackRate = 1.0;
+            currentPlayer.playbackRate = 1.0;
           }
 
-          if (s.status === 'PLAYING' && aOrig.paused && !isChordsMode) {
-            aOrig.play().catch(() => {});
-          } else if (s.status === 'PAUSED' && !aOrig.paused) {
-            aOrig.pause();
+          if (s.status === 'PLAYING' && currentPlayer.paused && !isChordsMode) {
+            currentPlayer.play().catch(() => {});
+          } else if (s.status === 'PAUSED' && !currentPlayer.paused) {
+            currentPlayer.pause();
           }
         }
       }
     }, isWatchMode ? 250 : 1000);
 
     if (!isChordsMode || isHost) {
-      aOrig.play().catch(() => {});
+      p.play().catch(() => {});
     }
 
     return () => {
       clearInterval(syncInterval);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      aOrig.pause();
+      p.pause();
       releaseWakeLock();
+      if (virtualAudioRef.current) {
+         virtualAudioRef.current.destroy();
+         virtualAudioRef.current = null;
+      }
     };
-  }, [song.audioUrl, song.instrumentalUrl, joinCode]);
+  }, [song.audioUrl, song.instrumentalUrl, joinCode, isDuet]);
 
   const cyclePlaybackMode = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!audioRef.current || !song.instrumentalUrl) return;
+    if (!song.instrumentalUrl) return;
     
     const currentIndex = availableModes.indexOf(playbackMode);
     const nextIndex = (currentIndex + 1) % availableModes.length;
     const nextMode = availableModes[nextIndex] as any;
     
-    // We only update the state here. The useEffect below will handle the actual audio src change.
     setPlaybackMode(nextMode);
   };
 
-  // Handle src changes when playbackMode changes
   useEffect(() => {
-    if (!audioRef.current) return;
+    const p = virtualAudioRef.current || audioRef.current;
+    if (!p) return;
     
-    const targetSrc = (playbackMode === 'INST' && song.instrumentalUrl) ? song.instrumentalUrl : (song.audioUrl || song.instrumentalUrl || "");
-    
-    // Check if the src actually needs changing (browser returns absolute URL, so check endsWith or includes)
-    if (!audioRef.current.src || !audioRef.current.src.includes(targetSrc)) {
-      const t = audioRef.current.currentTime;
-      const wasPaused = audioRef.current.paused;
-      
-      audioRef.current.src = targetSrc;
-      audioRef.current.load();
-      
-      const onCanPlay = () => {
-         if (audioRef.current) {
-            audioRef.current.currentTime = t;
-            if (!wasPaused) audioRef.current.play().catch(() => {});
-         }
-         audioRef.current?.removeEventListener('canplay', onCanPlay);
-      };
-      audioRef.current.addEventListener('canplay', onCanPlay);
+    if (virtualAudioRef.current) {
+       if (playbackMode === 'INST' || playbackMode === 'ORIG') {
+          virtualAudioRef.current.setTrack(playbackMode);
+       }
+    } else {
+       const targetSrc = (playbackMode === 'INST' && song.instrumentalUrl) ? song.instrumentalUrl : (song.audioUrl || song.instrumentalUrl || "");
+       
+       if (audioRef.current && (!audioRef.current.src || !audioRef.current.src.includes(targetSrc))) {
+         const t = p.currentTime;
+         const wasPaused = p.paused;
+         
+         audioRef.current.src = targetSrc;
+         audioRef.current.load();
+         
+         const onCanPlay = () => {
+            if (audioRef.current) {
+               audioRef.current.currentTime = t;
+               if (!wasPaused) audioRef.current.play().catch(() => {});
+            }
+            audioRef.current?.removeEventListener('canplay', onCanPlay);
+         };
+         audioRef.current?.addEventListener('canplay', onCanPlay);
+       }
     }
   }, [playbackMode, song.audioUrl, song.instrumentalUrl]);
 
-  const [isMuted, setIsMuted] = useState(shouldSuppressAudio);
-  
   useEffect(() => {
-    if (isLoading) return;
-    const savedMute = localStorage.getItem('karacho_mute');
-    if (savedMute !== null) {
-      setIsMuted(savedMute === 'true' || shouldSuppressAudio);
-    } else {
-      setIsMuted(shouldSuppressAudio);
-    }
-  }, [isLoading, shouldSuppressAudio]);
-
-  useEffect(() => {
-    localStorage.setItem('karacho_mute', isMuted.toString());
-    if (audioRef.current) {
-      audioRef.current.muted = isMuted;
+    const p = virtualAudioRef.current || audioRef.current;
+    if (p) {
+      p.muted = isMuted;
     }
   }, [isMuted]);
 
@@ -434,25 +444,25 @@ export default function PlayerClient({ song }: { song: any }) {
   const togglePlay = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (isChordsMode && !isHost) return;
-    if (!audioRef.current) return;
+    const p = virtualAudioRef.current || audioRef.current;
+    if (!p) return;
     toggleFullScreen();
     
-    const isCurrentlyPaused = audioRef.current.paused;
+    const isCurrentlyPaused = p.paused;
     const newStatus = isCurrentlyPaused ? 'PLAYING' : 'PAUSED';
 
     if (isCurrentlyPaused) {
-      audioRef.current?.play();
+      p.play();
       if (videoElRef.current) videoElRef.current.play();
-      startTick();
     } else {
-      audioRef.current?.pause();
+      p.pause();
       if (videoElRef.current) videoElRef.current.pause();
     }
 
     if (joinCode) {
       updateSessionState(joinCode, { 
         status: newStatus, 
-        currentTime: audioRef.current?.currentTime || 0
+        currentTime: p.currentTime || 0
       });
     }
   };
@@ -460,7 +470,8 @@ export default function PlayerClient({ song }: { song: any }) {
   const handleNext = async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    audioRef.current?.pause();
+    const p = virtualAudioRef.current || audioRef.current;
+    if (p) p.pause();
 
     if (joinCode) {
       const next = await advanceSessionQueue(joinCode);
@@ -502,58 +513,59 @@ export default function PlayerClient({ song }: { song: any }) {
 
   const getVoiceState = (t: number, voice: number) => {
     let ci = blocks.findIndex(b => t >= b.bs && t < b.be && isBlockInVoice(b, voice));
-    
     if (ci < 0) {
        const nextFutureIdx = blocks.findIndex(b => b.bs >= t && isBlockInVoice(b, voice));
-       if (nextFutureIdx >= 0) {
-          const futureBlock = blocks[nextFutureIdx];
-          if (futureBlock.bs - t < 8.0) {
-             ci = nextFutureIdx;
-          }
-       }
+       if (nextFutureIdx >= 0 && blocks[nextFutureIdx].bs - t < 8.0) ci = nextFutureIdx;
     }
-
     if (ci < 0) return null;
     const cb = blocks[ci];
     let nc = 0;
-    for (const w of cb.w || []) {
-      if (t >= w.t) nc = w.i + 1;
-    }
-    const nextIdx = blocks.findIndex((b, idx) => idx > ci && isBlockInVoice(b, voice));
-    return {
-      cb, nc, ci,
-      next: nextIdx >= 0 ? blocks[nextIdx] : null
-    };
+    for (const w of cb.w || []) { if (t >= w.t) nc = w.i + 1; }
+    return { cb, nc, ci, next: blocks.find((b, idx) => idx > ci && isBlockInVoice(b, voice)) || null };
   };
 
   const tick = () => {
-    if (!audioRef.current) return;
-    const t = audioRef.current.currentTime;
-    const d = audioRef.current.duration || dur || 1;
+    const p = virtualAudioRef.current || audioRef.current;
+    if (!p) return;
+    const t = p.currentTime;
+    const d = p.duration || dur || 1;
     const visualTime = t + 0.2;
 
     const s1 = getVoiceState(visualTime, 1);
     const s2 = getVoiceState(visualTime, 2);
     const sC = getVoiceState(visualTime, 3);
 
-    renderVoiceState(s1, visualTime, 1);
-    renderVoiceState(s2, visualTime, 2);
-    renderVoiceState(sC, visualTime, 3);
+    if (virtualAudioRef.current && !isMuted) {
+      if (playbackMode === 'V1' || playbackMode === 'V2') {
+        const isV1Active = !!s1;
+        const isV2Active = !!s2;
+        const isBothActive = !!sC;
+        let activeTrack: 'INST' | 'ORIG' = 'INST';
+        if (playbackMode === 'V1') {
+          if (isBothActive) activeTrack = 'ORIG';
+          else if (isV1Active) activeTrack = 'INST';
+          else if (isV2Active) activeTrack = 'ORIG';
+        } else {
+          if (isBothActive) activeTrack = 'ORIG';
+          else if (isV2Active) activeTrack = 'INST';
+          else if (isV1Active) activeTrack = 'ORIG';
+        }
+        virtualAudioRef.current.setTrack(activeTrack);
+      }
+    }
+
+    renderVoiceState(s1, visualTime, 1, curLineEl1, nextLineEl1, lastBlock1);
+    renderVoiceState(s2, visualTime, 2, curLineEl2, nextLineEl2, lastBlock2);
+    renderVoiceState(sC, visualTime, 3, curLineElC, nextLineElC, lastBlockC);
 
     if (pbarEl.current) pbarEl.current.style.width = `${(t / d) * 100}%`;
-    if (videoElRef.current) {
-        const diffInput = Math.abs(videoElRef.current.currentTime - t);
-        if (diffInput > 0.5) videoElRef.current.currentTime = t;
-    }
     if (timeEl.current) {
         const fmt = (s: number) => `${Math.floor(s/60)}:${Math.floor(s%60).toString().padStart(2,'0')}`;
         timeEl.current.textContent = `${fmt(t)} / ${fmt(d)}`;
     }
 
     if (countEl.current && countBarEl.current) {
-        const countdownPoints = (data as any).countdowns && (data as any).countdowns.length > 0
-            ? (data as any).countdowns
-            : (blocks.length > 0 && blocks[0].w.length > 0 ? [blocks[0].w[0].t] : []);
+        const countdownPoints = (data as any).countdowns || [];
         const targetPoint = countdownPoints.find((pt: number) => (pt > t && pt - t < 3.5));
         if (targetPoint !== undefined) {
             const diff = targetPoint - t;
@@ -561,74 +573,59 @@ export default function PlayerClient({ song }: { song: any }) {
             countEl.current.style.opacity = '1';
             const valEl = countEl.current.querySelector('.cnt-v');
             if (valEl) valEl.textContent = Math.ceil(diff) > 0 ? `${Math.ceil(diff)}` : '';
-            const progress = (Math.max(0, diff) / 3) * 100;
-            countBarEl.current.style.width = `${Math.min(100, progress)}%`;
-            if (diff < 0.2) countEl.current.style.opacity = (diff / 0.2).toString();
+            countBarEl.current.style.width = `${Math.min(100, (Math.max(0, diff) / 3) * 100)}%`;
         } else {
             countEl.current.style.display = 'none';
         }
     }
 
-    if (audioRef.current && !audioRef.current.paused) {
+    if (!p.paused) {
       rafRef.current = requestAnimationFrame(tick);
     }
   };
 
-  const renderVoiceState = (state: any, t: number, voice: number) => {
-    const cur = voice === 1 ? curLineEl1.current : (voice === 2 ? curLineEl2.current : curLineElC.current);
-    const nextText = voice === 1 ? nextLineEl1.current : (voice === 2 ? nextLineEl2.current : nextLineElC.current);
-    const lastBlkRef = voice === 1 ? lastBlock1 : (voice === 2 ? lastBlock2 : lastBlockC);
-
+  const renderVoiceState = (state: any, t: number, voice: number, curEl: any, nextEl: any, lastRef: any) => {
     if (!state) {
-      if (cur) cur.innerHTML = '';
-      if (nextText) nextText.innerHTML = '';
-      lastBlkRef.current = -1;
+      if (curEl.current) curEl.current.innerHTML = '';
+      if (nextEl.current) nextEl.current.innerHTML = '';
+      lastRef.current = -1;
       return;
     }
     const { cb, ci, next: nb } = state;
 
-    if (nextText) {
+    if (nextEl.current) {
        if (nb) {
-          nextText.innerHTML = nb.lw.map((w: string, i: number) => {
-             const wordV = nb.w && nb.w[i] ? (nb.w[i] as any).v : null;
-             const targetV = wordV || nb.v || 3;
+          nextEl.current.innerHTML = nb.lw.map((w: string, i: number) => {
+             const targetV = nb.w?.[i]?.v || nb.v || 3;
              let isHidden = (voice !== 3 && voice !== targetV && targetV !== 3);
              return isHidden ? `<span style="visibility: hidden;">${w}</span>` : w;
           }).join(' ');
        } else {
-          nextText.innerHTML = '';
+          nextEl.current.innerHTML = '';
        }
     }
     
-    if (ci !== lastBlkRef.current) {
-      if (cur) {
-        let maxBe = 0;
-        for(let j = 0; j < ci; j++) {
-           if (blocks[j].be > maxBe) maxBe = blocks[j].be;
-        }
-        cur.innerHTML = cb.lw.map((w: string, i: number) => {
-          const wordV = cb.w && cb.w[i] ? (cb.w[i] as any).v : null;
-          const targetV = wordV || cb.v || 3;
-          
+    if (ci !== lastRef.current) {
+      if (curEl.current) {
+        curEl.current.innerHTML = cb.lw.map((w: string, i: number) => {
+          const targetV = cb.w?.[i]?.v || cb.v || 3;
           let fillColor = '#ffd700'; 
           if (targetV === 1) fillColor = '#ff4b2b'; 
           if (targetV === 2) fillColor = '#00d2ff'; 
-          if (targetV === 3) fillColor = '#ffd700'; 
-
           let isHidden = (voice !== 3 && voice !== targetV && targetV !== 3);
-
           const wrapStyle = isHidden ? "visibility: hidden;" : "";
           return `<span class="w-wrap" style="${wrapStyle}"><span class="w-off">${w}</span><span class="w-on" style="color: ${fillColor}; text-shadow: 0 0 15px ${fillColor}66">${w}</span></span>`;
         }).join(' ');
         
-        cur.classList.remove('block-new');
-        void cur.offsetWidth; 
-        cur.classList.add('block-new');
+        curEl.current.classList.remove('block-new');
+        void curEl.current.offsetWidth; 
+        curEl.current.classList.add('block-new');
       }
-      lastBlkRef.current = ci;
+      lastRef.current = ci;
     }
-    if (cur) {
-      const firstWordT = cb.w && cb.w[0] ? cb.w[0].t : cb.bs;
+
+    if (curEl.current) {
+      const firstWordT = cb.w?.[0]?.t || cb.bs;
       const realTimeToStartLine = firstWordT - (t - 0.2); 
 
       let lastBe = 0;
@@ -638,14 +635,11 @@ export default function PlayerClient({ song }: { song: any }) {
       const gap = (ci === 0) ? firstWordT : (firstWordT - lastBe);
       const shouldFlash = gap >= 5.0;
 
-      const wraps = cur.querySelectorAll('.w-wrap');
+      const wraps = curEl.current.querySelectorAll('.w-wrap');
       wraps.forEach((wrap: any, i: number) => {
         const off = wrap.querySelector('.w-off');
         const on = wrap.querySelector('.w-on');
         if (!on || !off) return;
-        
-        const wordStart = cb.w[i].t;
-        const wordEnd = (i < cb.w.length - 1) ? cb.w[i+1].t : cb.be;
         
         if (shouldFlash && realTimeToStartLine <= 1.5 && realTimeToStartLine > 0.2) {
            off.style.color = '#ff8c00'; 
@@ -656,8 +650,15 @@ export default function PlayerClient({ song }: { song: any }) {
         }
 
         let p = 0;
-        if (t >= wordStart && t < wordEnd) p = (t - wordStart) / (wordEnd - wordStart);
-        else if (t >= wordEnd) p = 1;
+        if (cb.w && cb.w[i]) {
+           const wordStart = cb.w[i].t;
+           const wordEnd = (i < cb.w.length - 1) ? cb.w[i+1].t : cb.be;
+           if (t >= wordStart && t < wordEnd) p = (t - wordStart) / (wordEnd - wordStart);
+           else if (t >= wordEnd) p = 1;
+        } else {
+           if (t >= cb.bs && t < cb.be) p = (t - cb.bs) / (cb.be - cb.bs);
+           else if (t >= cb.be) p = 1;
+        }
         on.style.clipPath = `inset(0 ${100 - (p * 100)}% 0 0)`;
       });
     }
@@ -665,9 +666,11 @@ export default function PlayerClient({ song }: { song: any }) {
 
   const handleSeek = (e: React.MouseEvent) => {
     e.stopPropagation();
+    const p = virtualAudioRef.current || audioRef.current;
+    if (!p) return;
     const r = e.currentTarget.getBoundingClientRect();
-    const t = ((e.clientX - r.left) / r.width) * (audioRef.current?.duration || 0);
-    if (audioRef.current) audioRef.current.currentTime = t;
+    const t = ((e.clientX - r.left) / r.width) * (p.duration || 0);
+    p.currentTime = t;
     if (videoElRef.current) videoElRef.current.currentTime = t;
   };
 
@@ -676,6 +679,15 @@ export default function PlayerClient({ song }: { song: any }) {
   return (
     <div className="player-root" style={{ position: 'fixed', inset: 0, background: '#000', color: '#fff', fontFamily: 'Inter, sans-serif', overflow: 'hidden' }}>
       <audio ref={audioRef} preload="auto" crossOrigin="anonymous" />
+      
+      {/* Loading pro Web Audio */}
+      {isDuet && webAudioLoadingProgress > 0 && webAudioLoadingProgress < 100 && (
+         <div style={{ position: 'absolute', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.8)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="spinner" style={{ width: '50px', height: '50px', border: '5px solid #333', borderTopColor: 'var(--color-gold)', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+            <div style={{ marginTop: '20px', fontSize: '14px', fontWeight: 700 }}>Načítání zvuku v profesionální kvalitě...</div>
+            <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
+         </div>
+      )}
       
       <style dangerouslySetInnerHTML={{ __html: `
         .player-root { --glow: rgba(255, 215, 0, 0.55); }
@@ -829,10 +841,14 @@ export default function PlayerClient({ song }: { song: any }) {
                     <span style={{ fontSize: '16px' }}>
                       {playbackMode === 'INST' && '🎹'}
                       {playbackMode === 'ORIG' && '🎤'}
+                      {playbackMode === 'V1' && '🔴'}
+                      {playbackMode === 'V2' && '🔵'}
                     </span>
                     <span className="footer-title-hide">
                       {playbackMode === 'INST' && 'INSTRUMENTÁL'}
                       {playbackMode === 'ORIG' && 'ORIGINÁL'}
+                      {playbackMode === 'V1' && '1. HLAS (TY)'}
+                      {playbackMode === 'V2' && '2. HLAS (TY)'}
                     </span>
                   </button>
                 )}
