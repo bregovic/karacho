@@ -592,7 +592,7 @@ export default function PlayerClient({ song }: { song: any }) {
         }
     }
 
-    if (!audioOrigRef.current.paused) {
+    if (audioRef.current && !audioRef.current.paused) {
       rafRef.current = requestAnimationFrame(tick);
     }
   };
