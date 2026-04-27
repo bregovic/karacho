@@ -35,10 +35,15 @@ export class VirtualDualAudio {
   async load(origUrl: string, instUrl: string) {
     this.onloadprogress(10);
     
-    const fetchAndDecode = async (url: string) => {
+    const fetchAndDecode = async (url: string): Promise<AudioBuffer> => {
       const res = await fetch(url);
       const arrayBuffer = await res.arrayBuffer();
-      return await this.context.decodeAudioData(arrayBuffer);
+      return new Promise((resolve, reject) => {
+         this.context.decodeAudioData(arrayBuffer, 
+           (buffer) => resolve(buffer), 
+           (err) => reject(err)
+         );
+      });
     };
 
     try {
