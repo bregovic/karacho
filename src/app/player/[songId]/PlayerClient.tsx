@@ -415,9 +415,9 @@ export default function PlayerClient({ song }: { song: any }) {
     const newStatus = isCurrentlyPaused ? 'PLAYING' : 'PAUSED';
 
     if (isCurrentlyPaused) {
-      p.play();
-      audioInstRef.current?.play();
-      if (videoElRef.current) videoElRef.current.play();
+      p.play().catch(() => {});
+      audioInstRef.current?.play().catch(() => {});
+      if (videoElRef.current) videoElRef.current.play().catch(() => {});
     } else {
       p.pause();
       audioInstRef.current?.pause();
@@ -495,7 +495,7 @@ export default function PlayerClient({ song }: { song: any }) {
      if (!block) {
         const upcomingBlock = blocks.find(b => b.bs > t && b.bs - t < 0.5);
         if (upcomingBlock) {
-           return upcomingBlock.w?.[0]?.v || upcomingBlock.v || 3;
+           return Number(upcomingBlock.w?.[0]?.v || upcomingBlock.v || 3);
         }
         return null; 
      }
@@ -504,14 +504,14 @@ export default function PlayerClient({ song }: { song: any }) {
            const wStart = block.w[i].t;
            const wEnd = (i < block.w.length - 1) ? block.w[i+1].t : block.be;
            if (i === 0 && t < wStart) {
-              return block.w[0].v || block.v || 3;
+              return Number(block.w[0].v || block.v || 3);
            }
            if (t >= wStart && t < wEnd) {
-              return block.w[i].v || block.v || 3;
+              return Number(block.w[i].v || block.v || 3);
            }
         }
      }
-     return block.v || 3;
+     return Number(block.v || 3);
   };
 
   const tick = () => {
