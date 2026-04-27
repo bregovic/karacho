@@ -128,7 +128,7 @@ export default function PlayerClient({ song }: { song: any }) {
   const isChordsMode = localMode === 'CHORDS' || sessionData?.sessionMode === 'CHORDS';
   const shouldSuppressAudio = (isChordsMode || isWatchMode) && !isHost;
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isInstrumental, setIsInstrumental] = useState(!!song.instrumentalUrl);
+  const [playbackMode, setPlaybackMode] = useState<'ORIG' | 'INST' | 'V1' | 'V2'>(song.instrumentalUrl ? 'INST' : 'ORIG');
   const [imgLoaded, setImgLoaded] = useState(false);
   const [renderTick, setRenderTick] = useState(0);
 
@@ -144,7 +144,9 @@ export default function PlayerClient({ song }: { song: any }) {
     return systemBackgrounds[Math.floor(Math.random() * systemBackgrounds.length)];
   }, [systemBackgrounds]);
   
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null); // Master audio (vždy ten, co zrovna hraje nebo udává čas)
+  const audioInstRef = useRef<HTMLAudioElement | null>(null);
+  const audioOrigRef = useRef<HTMLAudioElement | null>(null);
   const videoElRef = useRef<HTMLVideoElement | null>(null);
   const wakeLockRef = useRef<any>(null);
   const rafRef = useRef<number | null>(null);
@@ -235,57 +237,58 @@ export default function PlayerClient({ song }: { song: any }) {
   }, [joinCode, song.id]);
 
   useEffect(() => {
-    const a = new Audio();
-    a.crossOrigin = "anonymous";
+    const aOrig = new Audio();
+    const aInst = new Audio();
     
-    // AGRESIVNÍ STOPKA PRO AKORDY A PASIVNÍ REŽIM (POUZE PRO NON-HOST)
+    aOrig.crossOrigin = "anonymous";
+    aInst.crossOrigin = "anonymous";
+
     if (shouldSuppressAudio || isMuted) {
-      a.muted = true;
-      a.volume = 0;
+      aOrig.muted = true; aOrig.volume = 0;
+      aInst.muted = true; aInst.volume = 0;
     }
 
-    const initialSrc = (!!song.instrumentalUrl) ? song.instrumentalUrl : song.audioUrl;
-    a.src = initialSrc;
-    a.preload = (isChordsMode || isWatchMode) ? "none" : "auto";
-    
-    a.onplay = () => { 
+    aOrig.src = song.audioUrl || "";
+    aInst.src = song.instrumentalUrl || song.audioUrl || "";
+
+    if (song.startTime > 0) {
+      aOrig.currentTime = song.startTime;
+      aInst.currentTime = song.startTime;
+      if (videoElRef.current) videoElRef.current.currentTime = song.startTime;
+    }
+
+    aOrig.preload = (isChordsMode || isWatchMode) ? "none" : "auto";
+    aInst.preload = (isChordsMode || isWatchMode) ? "none" : "auto";
+
+    const handlePlay = () => {
       if (isChordsMode && !isHost) {
-        a.pause();
+        aOrig.pause(); aInst.pause();
         return;
       }
-      setIsPlaying(true); 
-      requestWakeLock(); 
+      setIsPlaying(true);
+      requestWakeLock();
       if (joinCode && !isWatchMode) {
-          updateSessionState(joinCode, { 
-              status: 'PLAYING', 
-              currentSongId: song.id,
-              startedAt: new Date().toISOString(),
-              startTimeOffset: a.currentTime
-          });
+        updateSessionState(joinCode, { 
+          status: 'PLAYING', 
+          currentSongId: song.id,
+          startedAt: new Date().toISOString(),
+          startTimeOffset: aOrig.currentTime
+        });
       }
     };
-    a.onpause = () => { 
-      setIsPlaying(false); 
-      releaseWakeLock(); 
+
+    const handlePause = () => {
+      setIsPlaying(false);
+      releaseWakeLock();
       if (joinCode && !isWatchMode) {
-          updateSessionState(joinCode, { status: 'PAUSED', currentTime: a.currentTime });
+        updateSessionState(joinCode, { status: 'PAUSED', currentTime: aOrig.currentTime });
       }
     };
-    a.onplaying = () => {
-      if (!recordHandled.current) {
-        incrementPlayCount(song.id);
-        recordSinging(song.id);
-        recordHandled.current = true;
-      }
-      startTick();
-      if (!isWatchMode) toggleFullScreen();
-    };
-    a.onended = async () => { 
-      setIsPlaying(false); 
-      lastBlock1.current = -1; 
-      lastBlock2.current = -1;
-      lastBlockC.current = -1;
-      releaseWakeLock(); 
+
+    const handleEnded = async () => {
+      setIsPlaying(false);
+      lastBlock1.current = -1; lastBlock2.current = -1; lastBlockC.current = -1;
+      releaseWakeLock();
       if (isWatchMode) return;
       if (joinCode) {
         const next = await advanceSessionQueue(joinCode);
@@ -294,103 +297,106 @@ export default function PlayerClient({ song }: { song: any }) {
           return;
         }
       }
-      window.location.href = '/'; 
+      window.location.href = '/';
     };
-    audioRef.current = a;
+
+    aOrig.onplay = handlePlay; aInst.onplay = handlePlay;
+    aOrig.onpause = handlePause; aInst.onpause = handlePause;
+    aOrig.onended = handleEnded;
+
+    aOrig.onplaying = () => {
+      if (!recordHandled.current) {
+        incrementPlayCount(song.id);
+        recordSinging(song.id);
+        recordHandled.current = true;
+      }
+      startTick();
+      if (!isWatchMode) toggleFullScreen();
+    };
+
+    audioOrigRef.current = aOrig;
+    audioInstRef.current = aInst;
+    audioRef.current = aOrig;
 
     const syncInterval = setInterval(async () => {
-       if (!joinCode || !audioRef.current) return;
-       
-       if (!isWatchMode) {
-          // Master logic (Spreading updates)
-          if (!audioRef.current.paused) {
-             updateSessionState(joinCode, { currentTime: audioRef.current.currentTime, status: 'PLAYING' });
+      if (!joinCode || !audioRef.current) return;
+      
+      if (!aOrig.paused && !aInst.paused) {
+        const diff = Math.abs(aOrig.currentTime - aInst.currentTime);
+        if (diff > 0.1) {
+          aInst.currentTime = aOrig.currentTime;
+        }
+      }
+
+      if (!isWatchMode) {
+        if (!audioRef.current.paused) {
+          updateSessionState(joinCode, { currentTime: audioRef.current.currentTime, status: 'PLAYING' });
+        }
+      } else {
+        const session = await getSessionStatus(joinCode);
+        if (session) {
+          const s = session as any;
+          let serverTime = s.currentTime || 0;
+          if (s.status === 'PLAYING' && s.startedAt) {
+            const now = Date.now();
+            const startedAt = new Date(s.startedAt).getTime();
+            serverTime = (now - startedAt) / 1000 + (s.startTimeOffset || 0);
           }
-       } else {
-          // Slave logic (Following Master)
-          const session = await getSessionStatus(joinCode);
-          if (session) {
-             const s = session as any;
-             let serverTime = s.currentTime || 0;
-             if (s.status === 'PLAYING' && s.startedAt) {
-                const now = Date.now();
-                const startedAt = new Date(s.startedAt).getTime();
-                serverTime = (now - startedAt) / 1000 + (s.startTimeOffset || 0);
-             }
 
-             const diff = serverTime - audioRef.current.currentTime; // kladné = jsme pozadu, záporné = jsme napřed
-             const absDiff = Math.abs(diff);
+          const diff = serverTime - audioRef.current.currentTime;
+          const absDiff = Math.abs(diff);
 
-             // SMART SYNC LOGIC
-             if (absDiff > 1.2) {
-                // Velký skok - musíme seeknout
-                audioRef.current.currentTime = serverTime;
-                if (videoElRef.current) videoElRef.current.currentTime = serverTime;
-                audioRef.current.playbackRate = 1.0;
-             } else if (absDiff > 0.15) {
-                // Malý drift - plynulé srovnání pomocí rychlosti přehrávání (není tolik slyšet jako skok)
-                if (diff > 0) {
-                   audioRef.current.playbackRate = 1.05; // Mírně zrychlíme
-                } else {
-                   audioRef.current.playbackRate = 0.95; // Mírně zpomalíme
-                }
-             } else {
-                // Jsme v toleranci, hrajeme normálně
-                audioRef.current.playbackRate = 1.0;
-             }
-
-             if (s.status === 'PLAYING' && audioRef.current.paused && !isChordsMode) {
-                audioRef.current.play().catch(() => {});
-             } else if (s.status === 'PAUSED' && !audioRef.current.paused) {
-                audioRef.current.pause();
-                audioRef.current.playbackRate = 1.0;
-             }
+          if (absDiff > 1.2) {
+            aOrig.currentTime = serverTime;
+            aInst.currentTime = serverTime;
+            if (videoElRef.current) videoElRef.current.currentTime = serverTime;
+          } else if (absDiff > 0.15) {
+            const rate = diff > 0 ? 1.05 : 0.95;
+            aOrig.playbackRate = rate;
+            aInst.playbackRate = rate;
+          } else {
+            aOrig.playbackRate = 1.0;
+            aInst.playbackRate = 1.0;
           }
-       }
-    }, isWatchMode ? 250 : 1000); // watch režim "tepe" 4x za sekundu pro lepší plynulost
+
+          if (s.status === 'PLAYING' && aOrig.paused && !isChordsMode) {
+            aOrig.play().catch(() => {});
+            aInst.play().catch(() => {});
+          } else if (s.status === 'PAUSED' && !aOrig.paused) {
+            aOrig.pause();
+            aInst.pause();
+          }
+        }
+      }
+    }, isWatchMode ? 250 : 1000);
 
     if (!isChordsMode || isHost) {
-      const playAttempt = a.play();
-      if (playAttempt !== undefined) {
-        playAttempt.catch(err => {
-          console.log("Autoplay blocked by browser");
-        });
-      }
+      aOrig.play().catch(() => {});
+      aInst.play().catch(() => {});
     }
 
     return () => {
       clearInterval(syncInterval);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      if (audioRef.current) audioRef.current.pause();
+      aOrig.pause(); aInst.pause();
       releaseWakeLock();
     };
   }, [song.audioUrl, song.instrumentalUrl, joinCode]);
 
-  const toggleTrack = (e: React.MouseEvent) => {
+  const cyclePlaybackMode = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!audioRef.current || !song.instrumentalUrl) return;
-    const t = audioRef.current.currentTime;
-    const paused = audioRef.current.paused;
-    const nextMode = !isInstrumental;
-    audioRef.current.src = nextMode ? song.instrumentalUrl : song.audioUrl;
-    audioRef.current.currentTime = t;
-    if (videoElRef.current) videoElRef.current.currentTime = t;
-    if (!paused) {
-      audioRef.current.play();
-      if (videoElRef.current) videoElRef.current.play();
-      startTick();
-    }
-    setIsInstrumental(nextMode);
+    const modes: ('INST' | 'ORIG' | 'V1' | 'V2')[] = ['INST', 'ORIG', 'V1', 'V2'];
+    const currentIndex = modes.indexOf(playbackMode);
+    const nextIndex = (currentIndex + 1) % modes.length;
+    setPlaybackMode(modes[nextIndex]);
   };
 
   const [isMuted, setIsMuted] = useState(shouldSuppressAudio);
   
-  // Načtení/Uložení mute preferencí - s respektem k isHost
   useEffect(() => {
     if (isLoading) return;
     const savedMute = localStorage.getItem('karacho_mute');
     if (savedMute !== null) {
-      // Pokud jsme host, ignorujeme uložené ztlumení pokud je automatické
       setIsMuted(savedMute === 'true' || shouldSuppressAudio);
     } else {
       setIsMuted(shouldSuppressAudio);
@@ -399,9 +405,9 @@ export default function PlayerClient({ song }: { song: any }) {
 
   useEffect(() => {
     localStorage.setItem('karacho_mute', isMuted.toString());
-    if (audioRef.current) {
-      audioRef.current.muted = isMuted;
-      audioRef.current.volume = isMuted ? 0 : 1;
+    if (audioOrigRef.current && audioInstRef.current) {
+      audioOrigRef.current.muted = isMuted;
+      audioInstRef.current.muted = isMuted;
     }
   }, [isMuted]);
 
@@ -412,28 +418,28 @@ export default function PlayerClient({ song }: { song: any }) {
 
   const togglePlay = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (isChordsMode && !isHost) return; // V režimu akordů nehraje hudba (pokud nejsme host)
+    if (isChordsMode && !isHost) return;
     if (!audioRef.current) return;
     toggleFullScreen();
     
-    // Lokální akce
     const isCurrentlyPaused = audioRef.current.paused;
     const newStatus = isCurrentlyPaused ? 'PLAYING' : 'PAUSED';
 
     if (isCurrentlyPaused) {
-      audioRef.current.play();
+      audioOrigRef.current?.play();
+      audioInstRef.current?.play();
       if (videoElRef.current) videoElRef.current.play();
       startTick();
     } else {
-      audioRef.current.pause();
+      audioOrigRef.current?.pause();
+      audioInstRef.current?.pause();
       if (videoElRef.current) videoElRef.current.pause();
     }
 
-    // Synchronizace do relace
     if (joinCode) {
       updateSessionState(joinCode, { 
         status: newStatus, 
-        currentTime: audioRef.current.currentTime 
+        currentTime: audioRef.current?.currentTime || 0
       });
     }
   };
@@ -441,7 +447,8 @@ export default function PlayerClient({ song }: { song: any }) {
   const handleNext = async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    if (audioRef.current) audioRef.current.pause();
+    audioOrigRef.current?.pause();
+    audioInstRef.current?.pause();
 
     if (joinCode) {
       const next = await advanceSessionQueue(joinCode);
@@ -469,7 +476,6 @@ export default function PlayerClient({ song }: { song: any }) {
         if (v === 3) has3 = true;
      }
 
-     // Pokud blok zatím nemá oťukaná slova (NextText náhledy), bereme globální barvu bloku
      if (wordCount === 0) {
         const v = b.v || 3;
         return v === containerVoice;
@@ -485,13 +491,11 @@ export default function PlayerClient({ song }: { song: any }) {
   const getVoiceState = (t: number, voice: number) => {
     let ci = blocks.findIndex(b => t >= b.bs && t < b.be && isBlockInVoice(b, voice));
     
-    // PAUSE HANDLING: Pokud zrovna žádný text do t nehraje (ticho v písni),
-    // chceme na obrazovce ukázat BLÍŽÍCÍ se text jako přípravu, ať se nehledí do tmy.
     if (ci < 0) {
        const nextFutureIdx = blocks.findIndex(b => b.bs >= t && isBlockInVoice(b, voice));
        if (nextFutureIdx >= 0) {
           const futureBlock = blocks[nextFutureIdx];
-          if (futureBlock.bs - t < 8.0) { // objeví text až 8s předem
+          if (futureBlock.bs - t < 8.0) {
              ci = nextFutureIdx;
           }
        }
@@ -519,6 +523,42 @@ export default function PlayerClient({ song }: { song: any }) {
     const s1 = getVoiceState(visualTime, 1);
     const s2 = getVoiceState(visualTime, 2);
     const sC = getVoiceState(visualTime, 3);
+
+    if (audioOrigRef.current && audioInstRef.current && !isMuted) {
+      let activeTrack: 'INST' | 'ORIG' = 'INST';
+      
+      if (playbackMode === 'INST') activeTrack = 'INST';
+      else if (playbackMode === 'ORIG') activeTrack = 'ORIG';
+      else if (playbackMode === 'V1') {
+        const isV1Active = !!s1;
+        const isV2Active = !!s2;
+        const isBothActive = !!sC;
+
+        if (isBothActive) activeTrack = 'ORIG';
+        else if (isV1Active) activeTrack = 'INST';
+        else if (isV2Active) activeTrack = 'ORIG';
+        else activeTrack = 'INST';
+      }
+      else if (playbackMode === 'V2') {
+        const isV1Active = !!s1;
+        const isV2Active = !!s2;
+        const isBothActive = !!sC;
+
+        if (isBothActive) activeTrack = 'ORIG';
+        else if (isV2Active) activeTrack = 'INST';
+        else if (isV1Active) activeTrack = 'ORIG';
+        else activeTrack = 'INST';
+      }
+
+      if (activeTrack === 'INST') {
+        audioInstRef.current.volume = 1;
+        audioOrigRef.current.volume = 0;
+      } else {
+        audioInstRef.current.volume = 0;
+        audioOrigRef.current.volume = 1;
+      }
+    }
+
     renderVoiceState(s1, visualTime, 1);
     renderVoiceState(s2, visualTime, 2);
     renderVoiceState(sC, visualTime, 3);
@@ -552,7 +592,7 @@ export default function PlayerClient({ song }: { song: any }) {
         }
     }
 
-    if (!audioRef.current.paused) {
+    if (!audioOrigRef.current.paused) {
       rafRef.current = requestAnimationFrame(tick);
     }
   };
@@ -585,20 +625,18 @@ export default function PlayerClient({ song }: { song: any }) {
     
     if (ci !== lastBlkRef.current) {
       if (cur) {
-        // Zjistíme, jestli bylo ticho víc jak 5 vteřin
         let maxBe = 0;
         for(let j = 0; j < ci; j++) {
            if (blocks[j].be > maxBe) maxBe = blocks[j].be;
         }
         cur.innerHTML = cb.lw.map((w: string, i: number) => {
-          // Zjistíme hlas konkrétního slova (pokud je v datech)
           const wordV = cb.w && cb.w[i] ? (cb.w[i] as any).v : null;
           const targetV = wordV || cb.v || 3;
           
-          let fillColor = '#ffd700'; // Default Gold/Both (S)
-          if (targetV === 1) fillColor = '#ff4b2b'; // Voice 1 - Red (A)
-          if (targetV === 2) fillColor = '#00d2ff'; // Voice 2 - Blue (D)
-          if (targetV === 3) fillColor = '#ffd700'; // Both - Gold (S)
+          let fillColor = '#ffd700'; 
+          if (targetV === 1) fillColor = '#ff4b2b'; 
+          if (targetV === 2) fillColor = '#00d2ff'; 
+          if (targetV === 3) fillColor = '#ffd700'; 
 
           let isHidden = (voice !== 3 && voice !== targetV && targetV !== 3);
 
@@ -613,11 +651,9 @@ export default function PlayerClient({ song }: { song: any }) {
       lastBlkRef.current = ci;
     }
     if (cur) {
-      // Zpřesnění: Čas do začátku PRVNÍHO SLOVA v řádku (místo začátku bloku bs)
       const firstWordT = cb.w && cb.w[0] ? cb.w[0].t : cb.bs;
       const realTimeToStartLine = firstWordT - (t - 0.2); 
 
-      // Výpočet mezery od předchozího bloku pro tento hlas
       let lastBe = 0;
       for (let j = 0; j < ci; j++) {
         if (isBlockInVoice(blocks[j], voice) && blocks[j].be > lastBe) lastBe = blocks[j].be;
@@ -634,9 +670,8 @@ export default function PlayerClient({ song }: { song: any }) {
         const wordStart = cb.w[i].t;
         const wordEnd = (i < cb.w.length - 1) ? cb.w[i+1].t : cb.be;
         
-        // ORANŽOVÉ BLIKNUTÍ - Pouze při pauze > 5s nebo na začátku
         if (shouldFlash && realTimeToStartLine <= 1.5 && realTimeToStartLine > 0.2) {
-           off.style.color = '#ff8c00'; // Oranžová upozorňovačka
+           off.style.color = '#ff8c00'; 
            off.style.textShadow = '0 0 15px #ff8c00aa';
         } else {
            off.style.color = '';
@@ -653,14 +688,13 @@ export default function PlayerClient({ song }: { song: any }) {
 
   const handleSeek = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!audioRef.current || !audioRef.current.duration) return;
     const r = e.currentTarget.getBoundingClientRect();
-    const t = ((e.clientX - r.left) / r.width) * audioRef.current.duration;
-    audioRef.current.currentTime = t;
+    const t = ((e.clientX - r.left) / r.width) * (audioRef.current?.duration || 0);
+    if (audioOrigRef.current) audioOrigRef.current.currentTime = t;
+    if (audioInstRef.current) audioInstRef.current.currentTime = t;
     if (videoElRef.current) videoElRef.current.currentTime = t;
   };
 
-  const [userInteracted, setUserInteracted] = useState(true);
   const hasVideo = !!song.videoUrl;
 
   return (
@@ -717,19 +751,16 @@ export default function PlayerClient({ song }: { song: any }) {
               </div>
             </div>
             
-            {/* HLAS 1 (Top) */}
             <div id="voice1" style={{ position: 'absolute', top: '15%', left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3vh', padding: '0 5vw' }}>
               <div id="cur-line-1" ref={curLineEl1} style={{ color: 'white' }}></div>
               <div className="ln-ctx" ref={nextLineEl1} style={{ opacity: 0.4 }}></div>
             </div>
     
-            {/* HLAS CENTER (Standard W) */}
             <div id="voice3" style={{ position: 'absolute', top: '50%', left: 0, right: 0, transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3vh', padding: '0 5vw' }}>
               <div id="cur-line-C" ref={curLineElC} style={{ color: 'white' }}></div>
               <div className="ln-ctx" ref={nextLineElC} style={{ opacity: 0.4 }}></div>
             </div>
     
-            {/* HLAS 2 (Bottom) */}
             <div id="voice2" style={{ position: 'absolute', bottom: '25%', left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3vh', padding: '0 5vw' }}>
               <div id="cur-line-2" ref={curLineEl2} style={{ color: 'white' }}></div>
               <div className="ln-ctx" ref={nextLineEl2} style={{ opacity: 0.4 }}></div>
@@ -749,13 +780,12 @@ export default function PlayerClient({ song }: { song: any }) {
            backdropFilter: 'blur(10px)'
          }}>
             
-            {/* PROGRESS BAR - FULL WIDTH & BIG TOUCH AREA */}
             {!isChordsMode && (
                <div className="progress-section" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <div 
                     onClick={handleSeek} 
                     style={{ 
-                      height: '32px', // Větší plocha pro dotyk dle pravidel
+                      height: '32px', 
                       display: 'flex',
                       alignItems: 'center',
                       cursor: 'pointer',
@@ -810,8 +840,29 @@ export default function PlayerClient({ song }: { song: any }) {
 
               <div className="btn-group-right" style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
                 {!isChordsMode && song.instrumentalUrl && (
-                  <button onClick={toggleTrack} style={{ height: '46px', padding: '0 16px', borderRadius: '14px', background: isInstrumental ? 'rgba(0,177,64,0.15)' : 'rgba(255,255,255,0.08)', border: isInstrumental ? '1px solid #00B140' : '1px solid rgba(255,255,255,0.1)', color: isInstrumental ? '#00ffa0' : 'white', cursor: 'pointer', fontWeight: 800, fontSize: '11px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    {isInstrumental ? '🎻 KARAOKE' : '👤 ORIGINÁL'}
+                  <button 
+                    onClick={cyclePlaybackMode} 
+                    style={{ 
+                      padding: '0 15px', height: '46px', borderRadius: '14px', 
+                      background: playbackMode !== 'ORIG' ? 'rgba(0,255,160,0.1)' : 'rgba(255,255,255,0.08)', 
+                      border: `1px solid ${playbackMode !== 'ORIG' ? '#00ffa0aa' : 'rgba(255,255,255,0.1)'}`, 
+                      color: playbackMode !== 'ORIG' ? '#00ffa0' : 'white', 
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                      fontSize: '11px', fontWeight: 900, gap: '8px'
+                    }}
+                  >
+                    <span style={{ fontSize: '16px' }}>
+                      {playbackMode === 'INST' && '🎹'}
+                      {playbackMode === 'ORIG' && '🎤'}
+                      {playbackMode === 'V1' && '🔴'}
+                      {playbackMode === 'V2' && '🔵'}
+                    </span>
+                    <span className="footer-title-hide">
+                      {playbackMode === 'INST' && 'INSTRUMENTÁL'}
+                      {playbackMode === 'ORIG' && 'ORIGINÁL'}
+                      {playbackMode === 'V1' && '1. HLAS (TY)'}
+                      {playbackMode === 'V2' && '2. HLAS (TY)'}
+                    </span>
                   </button>
                 )}
                 <Link href="/" style={{ height: '46px', padding: '0 16px', background: 'rgba(255,255,255,0.1)', color: 'white', borderRadius: '14px', textDecoration: 'none', fontSize: '13px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', fontWeight: 700 }} onClick={e=>e.stopPropagation()}>ZAVŘÍT</Link>

@@ -184,6 +184,16 @@ export default function SongEditModal({
 
             <label style={{ fontSize: '11px', color: '#888', fontWeight: 800, letterSpacing: '0.05em' }}>ŠTÍTKY</label>
             <input className="input-field" value={(formData.tags || []).join(', ')} onChange={e => setFormData({ ...formData, tags: e.target.value.split(',').map((s: string) => s.trim()) })} onBlur={(e) => autoSave({ tags: e.target.value.split(',').map((s: string) => s.trim()) })} />
+            
+            <label style={{ fontSize: '11px', color: '#888', fontWeight: 800, letterSpacing: '0.05em' }}>ČAS ZAČÁTKU (S)</label>
+            <input 
+              type="number" 
+              step="0.1" 
+              className="input-field" 
+              value={formData.startTime || 0} 
+              onChange={e => setFormData({ ...formData, startTime: parseFloat(e.target.value) || 0 })} 
+              onBlur={(e) => autoSave({ startTime: parseFloat(e.target.value) || 0 })} 
+            />
 
             <div style={{ marginTop: '0.5rem', background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.05)' }}>
                <label style={{ fontSize: '11px', color: 'var(--color-teal)', fontWeight: 800, letterSpacing: '0.05em', marginBottom: '0.75rem', display: 'block' }}>NAHRÁVKY (MP3/WAV)</label>
