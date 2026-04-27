@@ -213,11 +213,22 @@ export default function SongEditModal({
                  <button type="button" onClick={handleCreateHelper} className="btn-secondary" style={{ width: '100%', padding: '10px', fontSize: '11px', fontWeight: 800, border: '1px dashed #00d2ff' }}>
                     1️⃣ Vytvořit pomocnou stopu ([HLAS 2] i se sdíleným audiem)
                  </button>
-                 <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ display: 'flex', gap: '8px', width: '100%', alignItems: 'stretch' }}>
                     <select 
                        value={mergeSourceId} 
                        onChange={e => setMergeSourceId(e.target.value)}
-                       style={{ flex: 1, padding: '10px', borderRadius: '8px', background: 'rgba(0,0,0,0.5)', color: 'white', border: '1px solid rgba(0,210,255,0.3)', fontSize: '11px', outline: 'none' }}
+                       style={{ 
+                         flex: 1, 
+                         minWidth: 0, 
+                         padding: '10px', 
+                         borderRadius: '8px', 
+                         background: 'rgba(0,0,0,0.5)', 
+                         color: 'white', 
+                         border: '1px solid rgba(0,210,255,0.3)', 
+                         fontSize: '11px', 
+                         outline: 'none',
+                         cursor: 'pointer'
+                       }}
                     >
                        <option value="">-- Vyber připravený stín [HLAS 2] k připojení --</option>
                        
@@ -264,10 +275,23 @@ export default function SongEditModal({
                           <option key={s.id} value={s.id}>{s.artist || '?'} - {s.title}</option>
                        ))}
                     </select>
-                    <button type="button" onClick={handleMergeDuet} disabled={!mergeSourceId} className="btn-secondary" style={{ padding: '10px 14px', fontSize: '11px', fontWeight: 800, opacity: !mergeSourceId ? 0.3 : 1 }}>
+                    <button 
+                      type="button" 
+                      onClick={handleMergeDuet} 
+                      disabled={!mergeSourceId} 
+                      className="btn-secondary" 
+                      style={{ 
+                        padding: '10px 14px', 
+                        fontSize: '11px', 
+                        fontWeight: 800, 
+                        opacity: !mergeSourceId ? 0.3 : 1,
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0
+                      }}
+                    >
                        2️⃣ PŘILEPIT
                     </button>
-                 </div>
+                  </div>
                </div>
                <div style={{ fontSize: '10px', color: '#888', marginTop: '10px', textAlign: 'center' }}>
                  Nehledáš už žádné složité ID. Prostě rozbal roletku a nalep ten správný [HLAS 2] z katalogu přímo na tenhle originál.
