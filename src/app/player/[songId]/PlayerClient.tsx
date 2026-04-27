@@ -132,8 +132,8 @@ export default function PlayerClient({ song }: { song: any }) {
   const [imgLoaded, setImgLoaded] = useState(false);
 
   const systemBackgrounds = useMemo(() => [
-    '/backgrounds/disco.png', '/backgrounds/rock.png', '/backgrounds/retro_80s.png',
-    '/backgrounds/jazz.png', '/backgrounds/pop.png', '/backgrounds/country.png',
+    '/backgrounds/pop.png', '/backgrounds/rock.png', '/backgrounds/disco.png',
+    '/backgrounds/retro_80s.png', '/backgrounds/jazz.png', '/backgrounds/country.png',
     '/backgrounds/hiphop.png', '/backgrounds/jungle.png', '/backgrounds/rocknroll.png',
     '/backgrounds/opera.png', '/backgrounds/hightech.png', '/backgrounds/matrix.png',
     '/backgrounds/tekkno.png', '/backgrounds/funk.png'
@@ -746,9 +746,12 @@ export default function PlayerClient({ song }: { song: any }) {
           <video ref={videoElRef} src={song.videoUrl || ''} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
           <img 
+            ref={(el) => { if (el?.complete) setImgLoaded(true); }}
             src={song.backgroundUrl || randomBackground}
             onLoad={() => setImgLoaded(true)}
+            onError={() => setImgLoaded(true)}
             style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(0.35) saturate(1.2)', opacity: imgLoaded ? 1 : 0, transition: 'opacity 0.8s ease-in-out' }} 
+            alt="background"
           />
         )}
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 40%, transparent 60%, rgba(0,0,0,0.8) 100%)' }} />
