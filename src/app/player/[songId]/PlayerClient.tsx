@@ -258,7 +258,8 @@ export default function PlayerClient({ song }: { song: any }) {
       aInst.muted = true; aInst.volume = 0;
     }
 
-    aOrig.src = song.audioUrl || "";
+    // Fallbacky křížem - pokud jedno chybí, použije se to druhé, aby se předešlo selhání masteru
+    aOrig.src = song.audioUrl || song.instrumentalUrl || "";
     aInst.src = song.instrumentalUrl || song.audioUrl || "";
 
     aOrig.preload = "auto";
@@ -333,8 +334,9 @@ export default function PlayerClient({ song }: { song: any }) {
     audioRef.current = aOrig; // Originál je vždy master časomíra
 
     const syncInterval = setInterval(async () => {
-      if (!joinCode || !audioRef.current) return;
+      if (!audioRef.current) return;
       
+      // LOKÁLNÍ SYNC OBOU STOP (musí běžet vždy, i bez joinCode)
       if (aOrig.paused !== aInst.paused) {
         if (aOrig.paused) {
           aInst.pause();
@@ -347,6 +349,9 @@ export default function PlayerClient({ song }: { song: any }) {
           aInst.currentTime = aOrig.currentTime;
         }
       }
+
+      // Následuje session logika (pouze pokud je joinCode)
+      if (!joinCode) return;
 
       if (!isWatchMode) {
         if (!audioRef.current.paused) {
@@ -622,8 +627,10 @@ export default function PlayerClient({ song }: { song: any }) {
         }
     }
 
-    if (audioRef.current && !audioRef.current.paused) {
-      rafRef.current = requestAnimationFrame(tick);
+    if (audioOrigRef.current && audioInstRef.current) {
+      if (!audioOrigRef.current.paused || !audioInstRef.current.paused) {
+        rafRef.current = requestAnimationFrame(tick);
+      }
     }
   };
 
