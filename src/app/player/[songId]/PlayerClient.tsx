@@ -524,8 +524,11 @@ export default function PlayerClient({ song }: { song: any }) {
     const sC = getVoiceState(visualTime, 3);
 
     if (audioInstRef.current && audioRef.current) {
-        if (Math.abs(audioInstRef.current.currentTime - audioRef.current.currentTime) > 0.1) {
-            audioInstRef.current.currentTime = audioRef.current.currentTime;
+        if (audioInstRef.current.readyState >= 3 && audioRef.current.readyState >= 3) {
+            const diff = Math.abs(audioInstRef.current.currentTime - audioRef.current.currentTime);
+            if (diff > 0.25) {
+                audioInstRef.current.currentTime = audioRef.current.currentTime;
+            }
         }
     }
 
@@ -552,9 +555,15 @@ export default function PlayerClient({ song }: { song: any }) {
        }
        
        if (!isMuted) {
-           audioRef.current.muted = activeTrack === 'INST';
+           const muteOrig = activeTrack === 'INST';
+           const muteInst = activeTrack === 'ORIG';
+           
+           audioRef.current.muted = muteOrig;
+           audioRef.current.volume = muteOrig ? 0 : 1;
+           
            if (audioInstRef.current) {
-               audioInstRef.current.muted = activeTrack === 'ORIG';
+               audioInstRef.current.muted = muteInst;
+               audioInstRef.current.volume = muteInst ? 0 : 1;
            }
        }
     }
