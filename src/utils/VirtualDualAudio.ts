@@ -100,17 +100,26 @@ export class VirtualDualAudio {
 
   _updateGains() {
      const t = this.context.currentTime;
+     this.origGain.gain.cancelScheduledValues(t);
+     this.instGain.gain.cancelScheduledValues(t);
+
      if (this._muted) {
-       this.origGain.gain.setTargetAtTime(0, t, 0.05);
-       this.instGain.gain.setTargetAtTime(0, t, 0.05);
+       this.origGain.gain.value = 0;
+       this.instGain.gain.value = 0;
        return;
      }
+     
+     // Lehká plynulost přes lineární rampu (okamžitá, bezpečná)
      if (this.activeTrack === 'INST') {
-       this.origGain.gain.setTargetAtTime(0, t, 0.05);
-       this.instGain.gain.setTargetAtTime(1, t, 0.05);
+       this.origGain.gain.setValueAtTime(this.origGain.gain.value, t);
+       this.instGain.gain.setValueAtTime(this.instGain.gain.value, t);
+       this.origGain.gain.linearRampToValueAtTime(0, t + 0.05);
+       this.instGain.gain.linearRampToValueAtTime(1, t + 0.05);
      } else if (this.activeTrack === 'ORIG') {
-       this.origGain.gain.setTargetAtTime(1, t, 0.05);
-       this.instGain.gain.setTargetAtTime(0, t, 0.05);
+       this.origGain.gain.setValueAtTime(this.origGain.gain.value, t);
+       this.instGain.gain.setValueAtTime(this.instGain.gain.value, t);
+       this.origGain.gain.linearRampToValueAtTime(1, t + 0.05);
+       this.instGain.gain.linearRampToValueAtTime(0, t + 0.05);
      }
   }
 
