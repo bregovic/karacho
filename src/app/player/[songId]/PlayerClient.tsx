@@ -171,6 +171,16 @@ export default function PlayerClient({ song }: { song: any }) {
   const blocks = data.blocks || [];
   const dur = data.dur || 0;
 
+  const isDuet = useMemo(() => {
+    return blocks.some(b => b.v === 1 || b.v === 2 || (b.w && b.w.some((w: any) => w.v === 1 || w.v === 2)));
+  }, [blocks]);
+
+  const availableModes = useMemo(() => {
+    const m: ('INST' | 'ORIG' | 'V1' | 'V2')[] = ['INST', 'ORIG'];
+    if (isDuet) m.push('V1', 'V2');
+    return m;
+  }, [isDuet]);
+
   // Media Session API - Integrace pro Android Auto / Palubní desky aut
   useEffect(() => {
     if ('mediaSession' in navigator && song) {
@@ -304,7 +314,7 @@ export default function PlayerClient({ song }: { song: any }) {
     aOrig.onpause = handlePause; aInst.onpause = handlePause;
     aOrig.onended = handleEnded;
 
-    aOrig.onplaying = () => {
+    const handlePlaying = () => {
       if (!recordHandled.current) {
         incrementPlayCount(song.id);
         recordSinging(song.id);
@@ -313,6 +323,9 @@ export default function PlayerClient({ song }: { song: any }) {
       startTick();
       if (!isWatchMode) toggleFullScreen();
     };
+
+    aOrig.onplaying = handlePlaying;
+    aInst.onplaying = handlePlaying;
 
     audioOrigRef.current = aOrig;
     audioInstRef.current = aInst;
@@ -385,10 +398,9 @@ export default function PlayerClient({ song }: { song: any }) {
 
   const cyclePlaybackMode = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const modes: ('INST' | 'ORIG' | 'V1' | 'V2')[] = ['INST', 'ORIG', 'V1', 'V2'];
-    const currentIndex = modes.indexOf(playbackMode);
-    const nextIndex = (currentIndex + 1) % modes.length;
-    setPlaybackMode(modes[nextIndex]);
+    const currentIndex = availableModes.indexOf(playbackMode);
+    const nextIndex = (currentIndex + 1) % availableModes.length;
+    setPlaybackMode(availableModes[nextIndex]);
   };
 
   const [isMuted, setIsMuted] = useState(shouldSuppressAudio);
@@ -551,12 +563,16 @@ export default function PlayerClient({ song }: { song: any }) {
       }
 
       if (activeTrack === 'INST') {
-        audioInstRef.current.volume = 1;
-        audioOrigRef.current.volume = 0;
+        if (audioInstRef.current.volume !== 1) audioInstRef.current.volume = 1;
+        if (audioOrigRef.current.volume !== 0) audioOrigRef.current.volume = 0;
       } else {
-        audioInstRef.current.volume = 0;
-        audioOrigRef.current.volume = 1;
+        if (audioInstRef.current.volume !== 0) audioInstRef.current.volume = 0;
+        if (audioOrigRef.current.volume !== 1) audioOrigRef.current.volume = 1;
       }
+    } else if (isMuted && audioOrigRef.current && audioInstRef.current) {
+       // Ujistíme se, že v mute jsou oba na nule (pro jistotu, i když jsou muted)
+       audioOrigRef.current.volume = 0;
+       audioInstRef.current.volume = 0;
     }
 
     renderVoiceState(s1, visualTime, 1);
