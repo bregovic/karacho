@@ -404,12 +404,49 @@ export default function PlayerClient({ song }: { song: any }) {
     setIsMuted(!isMuted);
   };
 
+  const audioCtxRef = useRef<any>(null);
+  const origGainRef = useRef<any>(null);
+  const instGainRef = useRef<any>(null);
+
+  const initWebAudio = () => {
+     if (!audioCtxRef.current && window.AudioContext) {
+         try {
+             const ctx = new AudioContext();
+             audioCtxRef.current = ctx;
+             
+             const origGain = ctx.createGain();
+             const instGain = ctx.createGain();
+             
+             origGain.connect(ctx.destination);
+             instGain.connect(ctx.destination);
+             
+             origGainRef.current = origGain;
+             instGainRef.current = instGain;
+             
+             if (audioRef.current) {
+                 const origSource = ctx.createMediaElementSource(audioRef.current);
+                 origSource.connect(origGain);
+             }
+             if (audioInstRef.current) {
+                 const instSource = ctx.createMediaElementSource(audioInstRef.current);
+                 instSource.connect(instGain);
+             }
+         } catch (e) {
+             console.error("WebAudio init error:", e);
+         }
+     }
+     if (audioCtxRef.current?.state === 'suspended') {
+         audioCtxRef.current.resume();
+     }
+  };
+
   const togglePlay = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (isChordsMode && !isHost) return;
     const p = audioRef.current;
     if (!p) return;
     toggleFullScreen();
+    initWebAudio();
     
     const isCurrentlyPaused = p.paused;
     const newStatus = isCurrentlyPaused ? 'PLAYING' : 'PAUSED';
@@ -563,10 +600,16 @@ export default function PlayerClient({ song }: { song: any }) {
            const muteOrig = activeTrack === 'INST';
            const muteInst = activeTrack === 'ORIG';
            
-           audioRef.current.muted = muteOrig;
-           audioRef.current.volume = muteOrig ? 0 : 1;
+           if (origGainRef.current) {
+               origGainRef.current.gain.value = muteOrig ? 0 : 1;
+           } else {
+               audioRef.current.muted = muteOrig;
+               audioRef.current.volume = muteOrig ? 0 : 1;
+           }
            
-           if (audioInstRef.current) {
+           if (instGainRef.current) {
+               instGainRef.current.gain.value = muteInst ? 0 : 1;
+           } else if (audioInstRef.current) {
                audioInstRef.current.muted = muteInst;
                audioInstRef.current.volume = muteInst ? 0 : 1;
            }
