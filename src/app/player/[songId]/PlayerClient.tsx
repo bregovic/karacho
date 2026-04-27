@@ -526,6 +526,9 @@ export default function PlayerClient({ song }: { song: any }) {
     const sC = getVoiceState(visualTime, 3);
 
     if (audioInstRef.current && audioRef.current) {
+        if (audioInstRef.current.paused && !audioRef.current.paused) {
+            audioInstRef.current.play().catch(() => {});
+        }
         if (audioInstRef.current.readyState >= 3 && audioRef.current.readyState >= 3) {
             const diff = Math.abs(audioInstRef.current.currentTime - audioRef.current.currentTime);
             if (diff > 0.25) {
@@ -536,13 +539,13 @@ export default function PlayerClient({ song }: { song: any }) {
 
     if (audioRef.current) {
        let activeTrack: 'INST' | 'ORIG' = 'ORIG';
+       const currentVoice = getCurrentVoice(t);
        
        if (playbackMode === 'INST') {
            activeTrack = 'INST';
        } else if (playbackMode === 'ORIG') {
            activeTrack = 'ORIG';
        } else if (playbackMode === 'V1' || playbackMode === 'V2') {
-           const currentVoice = getCurrentVoice(t);
            if (playbackMode === 'V1') {
               if (currentVoice === 1) activeTrack = 'INST'; 
               else if (currentVoice === 2) activeTrack = 'ORIG'; 
@@ -568,6 +571,9 @@ export default function PlayerClient({ song }: { song: any }) {
                audioInstRef.current.volume = muteInst ? 0 : 1;
            }
        }
+       
+       const dbg = document.getElementById('debug-overlay');
+       if (dbg) dbg.innerText = `[DEBUG] Mode: ${playbackMode} | V: ${currentVoice} | Trk: ${activeTrack} | O-St: ${audioRef.current.readyState} O-Vol: ${audioRef.current.volume} | I-St: ${audioInstRef.current?.readyState} I-Vol: ${audioInstRef.current?.volume}`;
     }
 
     renderVoiceState(s1, visualTime, 1, curLineEl1, nextLineEl1, lastBlock1);
@@ -696,6 +702,7 @@ export default function PlayerClient({ song }: { song: any }) {
     <div className="player-root" style={{ position: 'fixed', inset: 0, background: '#000', color: '#fff', fontFamily: 'Inter, sans-serif', overflow: 'hidden' }}>
       <audio ref={audioRef} preload="auto" crossOrigin="anonymous" />
       <audio ref={audioInstRef} preload="auto" crossOrigin="anonymous" />
+      <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 9999, background: 'rgba(0,0,0,0.8)', color: 'lime', fontSize: '10px', padding: '4px', pointerEvents: 'none' }} id="debug-overlay"></div>
       
       <style dangerouslySetInnerHTML={{ __html: `
         .player-root { --glow: rgba(255, 215, 0, 0.55); }
