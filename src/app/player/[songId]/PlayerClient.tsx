@@ -576,7 +576,10 @@ export default function PlayerClient({ song }: { song: any }) {
             else if (currentVoice === 3) activeTrack = 'ORIG'; 
             else activeTrack = 'INST'; 
          }
-         virtualAudioRef.current.setTrack(activeTrack);
+         
+         if (virtualAudioRef.current.activeTrack !== activeTrack) {
+            virtualAudioRef.current.setTrack(activeTrack);
+         }
       }
     }
 
