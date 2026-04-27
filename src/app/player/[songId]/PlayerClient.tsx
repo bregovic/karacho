@@ -143,6 +143,7 @@ export default function PlayerClient({ song }: { song: any }) {
     return systemBackgrounds[Math.floor(Math.random() * systemBackgrounds.length)];
   }, [systemBackgrounds]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioInstRef = useRef<HTMLAudioElement | null>(null);
   const videoElRef = useRef<HTMLVideoElement | null>(null);
   const wakeLockRef = useRef<any>(null);
   const rafRef = useRef<number | null>(null);
@@ -243,10 +244,13 @@ export default function PlayerClient({ song }: { song: any }) {
   useEffect(() => {
     let p: any = audioRef.current;
     if (!p) return;
+    
+    if (audioRef.current && song.audioUrl) audioRef.current.src = song.audioUrl;
+    if (audioInstRef.current && song.instrumentalUrl) audioInstRef.current.src = song.instrumentalUrl;
 
     if (shouldSuppressAudio || isMuted) {
       p.muted = true;
-      if (p.volume !== undefined) p.volume = 0;
+      if (audioInstRef.current) audioInstRef.current.muted = true;
     }
 
     if (p instanceof HTMLAudioElement) {
@@ -350,8 +354,10 @@ export default function PlayerClient({ song }: { song: any }) {
 
           if (s.status === 'PLAYING' && currentPlayer.paused && !isChordsMode) {
             currentPlayer.play().catch(() => {});
+            audioInstRef.current?.play().catch(() => {});
           } else if (s.status === 'PAUSED' && !currentPlayer.paused) {
             currentPlayer.pause();
+            audioInstRef.current?.pause();
           }
         }
       }
@@ -359,12 +365,14 @@ export default function PlayerClient({ song }: { song: any }) {
 
     if (!isChordsMode || isHost) {
       p.play().catch(() => {});
+      audioInstRef.current?.play().catch(() => {});
     }
 
     return () => {
       clearInterval(syncInterval);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       p.pause();
+      audioInstRef.current?.pause();
       releaseWakeLock();
     };
   }, [song.audioUrl, song.instrumentalUrl, joinCode, isDuet]);
@@ -381,36 +389,12 @@ export default function PlayerClient({ song }: { song: any }) {
   };
 
   useEffect(() => {
-    const p = audioRef.current;
-    if (!p) return;
-    
-    if (playbackMode === 'INST' || playbackMode === 'ORIG') {
-       const targetSrc = (playbackMode === 'INST' && song.instrumentalUrl) ? song.instrumentalUrl : (song.audioUrl || song.instrumentalUrl || "");
-       
-       if (audioRef.current && (!audioRef.current.src || !audioRef.current.src.includes(targetSrc))) {
-         const t = p.currentTime;
-         const wasPaused = p.paused;
-         
-         audioRef.current.src = targetSrc;
-         audioRef.current.load();
-         
-         const onCanPlay = () => {
-            if (audioRef.current) {
-               audioRef.current.currentTime = t;
-               if (!wasPaused) audioRef.current.play().catch(() => {});
-            }
-            audioRef.current?.removeEventListener('canplay', onCanPlay);
-         };
-         audioRef.current?.addEventListener('canplay', onCanPlay);
-       }
-    }
+     // No longer needed, switching is handled natively by muting the two parallel audio tags in tick()
   }, [playbackMode, song.audioUrl, song.instrumentalUrl]);
 
   useEffect(() => {
-    const p = audioRef.current;
-    if (p) {
-      p.muted = isMuted;
-    }
+    if (audioRef.current) audioRef.current.muted = isMuted;
+    if (audioInstRef.current) audioInstRef.current.muted = isMuted;
   }, [isMuted]);
 
   const toggleMute = (e: React.MouseEvent) => {
@@ -430,9 +414,11 @@ export default function PlayerClient({ song }: { song: any }) {
 
     if (isCurrentlyPaused) {
       p.play();
+      audioInstRef.current?.play();
       if (videoElRef.current) videoElRef.current.play();
     } else {
       p.pause();
+      audioInstRef.current?.pause();
       if (videoElRef.current) videoElRef.current.pause();
     }
 
@@ -449,6 +435,7 @@ export default function PlayerClient({ song }: { song: any }) {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     const p = audioRef.current;
     if (p) p.pause();
+    if (audioInstRef.current) audioInstRef.current.pause();
 
     if (joinCode) {
       const next = await advanceSessionQueue(joinCode);
@@ -536,40 +523,40 @@ export default function PlayerClient({ song }: { song: any }) {
     const s2 = getVoiceState(visualTime, 2);
     const sC = getVoiceState(visualTime, 3);
 
-    if (audioRef.current && !isMuted) {
-      if (playbackMode === 'V1' || playbackMode === 'V2') {
-         const currentVoice = getCurrentVoice(t);
-         let activeTrack: 'INST' | 'ORIG' = 'INST';
-         
-         if (playbackMode === 'V1') {
-            if (currentVoice === 1) activeTrack = 'INST'; 
-            else if (currentVoice === 2) activeTrack = 'ORIG'; 
-            else if (currentVoice === 3) activeTrack = 'ORIG'; 
-            else activeTrack = 'INST'; 
-         } else if (playbackMode === 'V2') {
-            if (currentVoice === 2) activeTrack = 'INST'; 
-            else if (currentVoice === 1) activeTrack = 'ORIG'; 
-            else if (currentVoice === 3) activeTrack = 'ORIG'; 
-            else activeTrack = 'INST'; 
-         }
-         
-         const targetSrc = activeTrack === 'INST' ? song.instrumentalUrl : song.audioUrl;
-         if (targetSrc && audioRef.current.src && !audioRef.current.src.includes(targetSrc)) {
-             const cTime = audioRef.current.currentTime;
-             const wasPaused = audioRef.current.paused;
-             audioRef.current.src = targetSrc;
-             audioRef.current.load();
-             
-             const onCanPlayTick = () => {
-                if (audioRef.current) {
-                   audioRef.current.currentTime = cTime;
-                   if (!wasPaused) audioRef.current.play().catch(() => {});
-                }
-                audioRef.current?.removeEventListener('canplay', onCanPlayTick);
-             };
-             audioRef.current.addEventListener('canplay', onCanPlayTick);
-         }
-      }
+    if (audioInstRef.current && audioRef.current) {
+        if (Math.abs(audioInstRef.current.currentTime - audioRef.current.currentTime) > 0.1) {
+            audioInstRef.current.currentTime = audioRef.current.currentTime;
+        }
+    }
+
+    if (audioRef.current) {
+       let activeTrack: 'INST' | 'ORIG' = 'ORIG';
+       
+       if (playbackMode === 'INST') {
+           activeTrack = 'INST';
+       } else if (playbackMode === 'ORIG') {
+           activeTrack = 'ORIG';
+       } else if (playbackMode === 'V1' || playbackMode === 'V2') {
+           const currentVoice = getCurrentVoice(t);
+           if (playbackMode === 'V1') {
+              if (currentVoice === 1) activeTrack = 'INST'; 
+              else if (currentVoice === 2) activeTrack = 'ORIG'; 
+              else if (currentVoice === 3) activeTrack = 'ORIG'; 
+              else activeTrack = 'INST'; 
+           } else if (playbackMode === 'V2') {
+              if (currentVoice === 2) activeTrack = 'INST'; 
+              else if (currentVoice === 1) activeTrack = 'ORIG'; 
+              else if (currentVoice === 3) activeTrack = 'ORIG'; 
+              else activeTrack = 'INST'; 
+           }
+       }
+       
+       if (!isMuted) {
+           audioRef.current.muted = activeTrack === 'INST';
+           if (audioInstRef.current) {
+               audioInstRef.current.muted = activeTrack === 'ORIG';
+           }
+       }
     }
 
     renderVoiceState(s1, visualTime, 1, curLineEl1, nextLineEl1, lastBlock1);
@@ -697,6 +684,7 @@ export default function PlayerClient({ song }: { song: any }) {
   return (
     <div className="player-root" style={{ position: 'fixed', inset: 0, background: '#000', color: '#fff', fontFamily: 'Inter, sans-serif', overflow: 'hidden' }}>
       <audio ref={audioRef} preload="auto" crossOrigin="anonymous" />
+      <audio ref={audioInstRef} preload="auto" crossOrigin="anonymous" />
       
       <style dangerouslySetInnerHTML={{ __html: `
         .player-root { --glow: rgba(255, 215, 0, 0.55); }
