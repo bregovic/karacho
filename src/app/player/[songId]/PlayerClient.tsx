@@ -144,9 +144,7 @@ export default function PlayerClient({ song }: { song: any }) {
     return systemBackgrounds[Math.floor(Math.random() * systemBackgrounds.length)];
   }, [systemBackgrounds]);
   
-  const audioRef = useRef<HTMLAudioElement | null>(null); // Master audio (vždy ten, co zrovna hraje nebo udává čas)
-  const audioInstRef = useRef<HTMLAudioElement | null>(null);
-  const audioOrigRef = useRef<HTMLAudioElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const videoElRef = useRef<HTMLVideoElement | null>(null);
   const wakeLockRef = useRef<any>(null);
   const rafRef = useRef<number | null>(null);
@@ -175,11 +173,10 @@ export default function PlayerClient({ song }: { song: any }) {
     return blocks.some(b => b.v === 1 || b.v === 2 || (b.w && b.w.some((w: any) => w.v === 1 || w.v === 2)));
   }, [blocks]);
 
-  const availableModes = useMemo(() => {
-    const m: ('INST' | 'ORIG' | 'V1' | 'V2')[] = ['INST', 'ORIG'];
-    if (isDuet) m.push('V1', 'V2');
-    return m;
-  }, [isDuet]);
+  // Vzhledem k agresivním blokacím prohlížečů (zejména iOS), které zakazují dvěma audio stopám
+  // hrát současně, se musíme vrátit k bezpečnému přístupu jedné stopy.
+  // Režimy V1/V2 (plynulé přepínání) zde bohužel fyzicky nefungují spolehlivě bez masivního bufferování paměti.
+  const availableModes = ['INST', 'ORIG'];
 
   // Media Session API - Integrace pro Android Auto / Palubní desky aut
   useEffect(() => {
@@ -247,25 +244,26 @@ export default function PlayerClient({ song }: { song: any }) {
   }, [joinCode, song.id]);
 
   useEffect(() => {
+    const aOrig = audioRef.current;
+    if (!aOrig) return;
+
     if (shouldSuppressAudio || isMuted) {
-      if (audioOrigRef.current) { audioOrigRef.current.muted = true; audioOrigRef.current.volume = 0; }
-      if (audioInstRef.current) { audioInstRef.current.muted = true; audioInstRef.current.volume = 0; }
+      aOrig.muted = true;
+      aOrig.volume = 0;
     }
 
-    const aOrig = audioOrigRef.current;
-    const aInst = audioInstRef.current;
-    
-    if (!aOrig || !aInst) return;
+    // Prvotní nastavení podle vybraného módu
+    aOrig.src = (playbackMode === 'INST' && song.instrumentalUrl) ? song.instrumentalUrl : (song.audioUrl || song.instrumentalUrl || "");
+    aOrig.preload = "auto";
 
     if (song.startTime > 0 && aOrig.currentTime === 0) {
       aOrig.currentTime = song.startTime;
-      aInst.currentTime = song.startTime;
       if (videoElRef.current) videoElRef.current.currentTime = song.startTime;
     }
 
     const handlePlay = () => {
       if (isChordsMode && !isHost) {
-        aOrig.pause(); aInst.pause();
+        aOrig.pause();
         return;
       }
       setIsPlaying(true);
@@ -303,10 +301,9 @@ export default function PlayerClient({ song }: { song: any }) {
       window.location.href = '/';
     };
 
-    aOrig.onplay = handlePlay; aInst.onplay = handlePlay;
-    aOrig.onpause = handlePause; aInst.onpause = handlePause;
+    aOrig.onplay = handlePlay;
+    aOrig.onpause = handlePause;
     aOrig.onended = handleEnded;
-    aInst.onended = handleEnded;
 
     const handlePlaying = () => {
       if (!recordHandled.current) {
@@ -319,28 +316,10 @@ export default function PlayerClient({ song }: { song: any }) {
     };
 
     aOrig.onplaying = handlePlaying;
-    aInst.onplaying = handlePlaying;
-
-    audioRef.current = aOrig; // Originál je vždy master časomíra
 
     const syncInterval = setInterval(async () => {
       if (!audioRef.current) return;
-      
-      // LOKÁLNÍ SYNC OBOU STOP (musí běžet vždy, i bez joinCode)
-      if (aOrig.paused !== aInst.paused) {
-        if (aOrig.paused) {
-          aInst.pause();
-        } else {
-          aInst.play().catch(() => {});
-        }
-      } else if (!aOrig.paused && !aInst.paused) {
-        const diff = Math.abs(aOrig.currentTime - aInst.currentTime);
-        if (diff > 0.1) {
-          aInst.currentTime = aOrig.currentTime;
-        }
-      }
 
-      // Následuje session logika (pouze pokud je joinCode)
       if (!joinCode) return;
 
       if (!isWatchMode) {
@@ -363,23 +342,18 @@ export default function PlayerClient({ song }: { song: any }) {
 
           if (absDiff > 1.2) {
             aOrig.currentTime = serverTime;
-            aInst.currentTime = serverTime;
             if (videoElRef.current) videoElRef.current.currentTime = serverTime;
           } else if (absDiff > 0.15) {
             const rate = diff > 0 ? 1.05 : 0.95;
             aOrig.playbackRate = rate;
-            aInst.playbackRate = rate;
           } else {
             aOrig.playbackRate = 1.0;
-            aInst.playbackRate = 1.0;
           }
 
           if (s.status === 'PLAYING' && aOrig.paused && !isChordsMode) {
             aOrig.play().catch(() => {});
-            aInst.play().catch(() => {});
           } else if (s.status === 'PAUSED' && !aOrig.paused) {
             aOrig.pause();
-            aInst.pause();
           }
         }
       }
@@ -387,22 +361,36 @@ export default function PlayerClient({ song }: { song: any }) {
 
     if (!isChordsMode || isHost) {
       aOrig.play().catch(() => {});
-      aInst.play().catch(() => {});
     }
 
     return () => {
       clearInterval(syncInterval);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      aOrig.pause(); aInst.pause();
+      aOrig.pause();
       releaseWakeLock();
     };
   }, [song.audioUrl, song.instrumentalUrl, joinCode]);
 
   const cyclePlaybackMode = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!audioRef.current || !song.instrumentalUrl) return;
+    
     const currentIndex = availableModes.indexOf(playbackMode);
     const nextIndex = (currentIndex + 1) % availableModes.length;
-    setPlaybackMode(availableModes[nextIndex]);
+    const nextMode = availableModes[nextIndex];
+    
+    // Hard swap of src pro maximální spolehlivost
+    const t = audioRef.current.currentTime;
+    const wasPaused = audioRef.current.paused;
+    
+    audioRef.current.src = (nextMode === 'INST') ? song.instrumentalUrl : (song.audioUrl || song.instrumentalUrl);
+    audioRef.current.currentTime = t;
+    
+    if (!wasPaused) {
+       audioRef.current.play().catch(() => {});
+    }
+    
+    setPlaybackMode(nextMode as any);
   };
 
   const [isMuted, setIsMuted] = useState(shouldSuppressAudio);
@@ -419,10 +407,8 @@ export default function PlayerClient({ song }: { song: any }) {
 
   useEffect(() => {
     localStorage.setItem('karacho_mute', isMuted.toString());
-    // Mute řešíme dynamicky v ticku, ale pro okamžitou reakci při pauze:
-    if (isMuted && audioOrigRef.current && audioInstRef.current) {
-      audioOrigRef.current.muted = true;
-      audioInstRef.current.muted = true;
+    if (audioRef.current) {
+      audioRef.current.muted = isMuted;
     }
   }, [isMuted]);
 
@@ -441,13 +427,11 @@ export default function PlayerClient({ song }: { song: any }) {
     const newStatus = isCurrentlyPaused ? 'PLAYING' : 'PAUSED';
 
     if (isCurrentlyPaused) {
-      audioOrigRef.current?.play();
-      audioInstRef.current?.play();
+      audioRef.current?.play();
       if (videoElRef.current) videoElRef.current.play();
       startTick();
     } else {
-      audioOrigRef.current?.pause();
-      audioInstRef.current?.pause();
+      audioRef.current?.pause();
       if (videoElRef.current) videoElRef.current.pause();
     }
 
@@ -539,51 +523,6 @@ export default function PlayerClient({ song }: { song: any }) {
     const s2 = getVoiceState(visualTime, 2);
     const sC = getVoiceState(visualTime, 3);
 
-    if (audioOrigRef.current && audioInstRef.current && !isMuted) {
-      let activeTrack: 'INST' | 'ORIG' = 'INST';
-      
-      if (playbackMode === 'INST') activeTrack = 'INST';
-      else if (playbackMode === 'ORIG') activeTrack = 'ORIG';
-      else if (playbackMode === 'V1') {
-        const isV1Active = !!s1;
-        const isV2Active = !!s2;
-        const isBothActive = !!sC;
-
-        if (isBothActive) activeTrack = 'ORIG';
-        else if (isV1Active) activeTrack = 'INST';
-        else if (isV2Active) activeTrack = 'ORIG';
-        else activeTrack = 'INST';
-      }
-      else if (playbackMode === 'V2') {
-        const isV1Active = !!s1;
-        const isV2Active = !!s2;
-        const isBothActive = !!sC;
-
-        if (isBothActive) activeTrack = 'ORIG';
-        else if (isV2Active) activeTrack = 'INST';
-        else if (isV1Active) activeTrack = 'ORIG';
-        else activeTrack = 'INST';
-      }
-
-      if (activeTrack === 'INST') {
-        audioInstRef.current.volume = 1;
-        audioOrigRef.current.volume = 0;
-      } else {
-        audioInstRef.current.volume = 0;
-        audioOrigRef.current.volume = 1;
-      }
-      
-      // Mute pojistka
-      audioInstRef.current.muted = isMuted;
-      audioOrigRef.current.muted = isMuted;
-
-    } else if (isMuted && audioOrigRef.current && audioInstRef.current) {
-       audioOrigRef.current.volume = 0;
-       audioInstRef.current.volume = 0;
-       audioOrigRef.current.muted = true;
-       audioInstRef.current.muted = true;
-    }
-
     renderVoiceState(s1, visualTime, 1);
     renderVoiceState(s2, visualTime, 2);
     renderVoiceState(sC, visualTime, 3);
@@ -617,10 +556,8 @@ export default function PlayerClient({ song }: { song: any }) {
         }
     }
 
-    if (audioOrigRef.current && audioInstRef.current) {
-      if (!audioOrigRef.current.paused || !audioInstRef.current.paused) {
-        rafRef.current = requestAnimationFrame(tick);
-      }
+    if (audioRef.current && !audioRef.current.paused) {
+      rafRef.current = requestAnimationFrame(tick);
     }
   };
 
@@ -717,8 +654,7 @@ export default function PlayerClient({ song }: { song: any }) {
     e.stopPropagation();
     const r = e.currentTarget.getBoundingClientRect();
     const t = ((e.clientX - r.left) / r.width) * (audioRef.current?.duration || 0);
-    if (audioOrigRef.current) audioOrigRef.current.currentTime = t;
-    if (audioInstRef.current) audioInstRef.current.currentTime = t;
+    if (audioRef.current) audioRef.current.currentTime = t;
     if (videoElRef.current) videoElRef.current.currentTime = t;
   };
 
@@ -830,41 +766,42 @@ export default function PlayerClient({ song }: { song: any }) {
                </div>
             )}
 
-            <div className="bottom-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+            <div className="bottom-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', width: '100%' }}>
               
-              <div className="btn-group-left" style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+              <div className="btn-group-left" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.8rem', justifyContent: 'flex-start' }}>
                 {!isChordsMode && (
                   <button 
                     onClick={toggleMute} 
                     style={{ 
                       width: '46px', height: '46px', borderRadius: '14px', background: 'rgba(255,255,255,0.08)', 
                       border: '1px solid rgba(255,255,255,0.1)', color: isMuted ? '#ff4b2b' : 'white', 
-                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' 
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px',
+                      flexShrink: 0
                     }}
                   >
                     {isMuted ? '🔇' : '🔊'}
                   </button>
                 )}
 
-                <button onClick={(e) => { e.stopPropagation(); toggleFullScreen(); }} style={{ width: '46px', height: '46px', borderRadius: '14px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
+                <button onClick={(e) => { e.stopPropagation(); toggleFullScreen(); }} style={{ flexShrink: 0, width: '46px', height: '46px', borderRadius: '14px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
                    ⛶
                 </button>
               </div>
 
-              <div className="btn-group-center" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div className="btn-group-center" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'center' }}>
                 {!isChordsMode && (
-                  <button id="main-play-btn" onClick={togglePlay} style={{ width: '68px', height: '68px', borderRadius: '50%', background: 'var(--color-gold)', border: 'none', color: '#000', fontSize: '30px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 40px rgba(255,215,0,0.4)', transition: 'transform 0.2s', zIndex: 100 }}>
+                  <button id="main-play-btn" onClick={togglePlay} style={{ flexShrink: 0, width: '68px', height: '68px', borderRadius: '50%', background: 'var(--color-gold)', border: 'none', color: '#000', fontSize: '30px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 40px rgba(255,215,0,0.4)', transition: 'transform 0.2s', zIndex: 100 }}>
                     {isPlaying ? '⏸' : '▶'}
                   </button>
                 )}
                 {joinCode && (
-                  <button id="main-next-btn" onClick={handleNext} style={{ width: '46px', height: '46px', borderRadius: '14px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }} title="Další ve frontě">
+                  <button id="main-next-btn" onClick={handleNext} style={{ flexShrink: 0, width: '46px', height: '46px', borderRadius: '14px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }} title="Další ve frontě">
                     ⏭️
                   </button>
                 )}
               </div>
 
-              <div className="btn-group-right" style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+              <div className="btn-group-right" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.8rem', justifyContent: 'flex-end' }}>
                 {!isChordsMode && song.instrumentalUrl && (
                   <button 
                     onClick={cyclePlaybackMode} 
@@ -876,22 +813,19 @@ export default function PlayerClient({ song }: { song: any }) {
                       cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', 
                       fontSize: '11px', fontWeight: 900, gap: '8px'
                     }}
-                  >
-                    <span style={{ fontSize: '16px' }}>
-                      {playbackMode === 'INST' && '🎹'}
+                         {playbackMode === 'INST' && '🎹'}
                       {playbackMode === 'ORIG' && '🎤'}
-                      {playbackMode === 'V1' && '🔴'}
-                      {playbackMode === 'V2' && '🔵'}
                     </span>
                     <span className="footer-title-hide">
                       {playbackMode === 'INST' && 'INSTRUMENTÁL'}
                       {playbackMode === 'ORIG' && 'ORIGINÁL'}
-                      {playbackMode === 'V1' && '1. HLAS (TY)'}
-                      {playbackMode === 'V2' && '2. HLAS (TY)'}
                     </span>
                   </button>
                 )}
-                <Link href="/" style={{ height: '46px', padding: '0 16px', background: 'rgba(255,255,255,0.1)', color: 'white', borderRadius: '14px', textDecoration: 'none', fontSize: '13px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', fontWeight: 700 }} onClick={e=>e.stopPropagation()}>ZAVŘÍT</Link>
+                <Link href="/" style={{ flexShrink: 0, height: '46px', padding: '0 16px', background: 'rgba(255,255,255,0.1)', color: 'white', borderRadius: '14px', textDecoration: 'none', fontSize: '13px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', fontWeight: 700 }} onClick={e=>e.stopPropagation()}>ZAVŘÍT</Link>
+              </div>
+            </div>
+nClick={e=>e.stopPropagation()}>ZAVŘÍT</Link>
               </div>
 
             </div>
