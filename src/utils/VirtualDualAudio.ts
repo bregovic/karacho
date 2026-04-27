@@ -94,17 +94,18 @@ export class VirtualDualAudio {
   }
 
   _updateGains() {
+     const t = this.context.currentTime;
      if (this._muted) {
-       this.origGain.gain.value = 0;
-       this.instGain.gain.value = 0;
+       this.origGain.gain.setTargetAtTime(0, t, 0.05);
+       this.instGain.gain.setTargetAtTime(0, t, 0.05);
        return;
      }
      if (this.activeTrack === 'INST') {
-       this.origGain.gain.value = 0;
-       this.instGain.gain.value = 1;
+       this.origGain.gain.setTargetAtTime(0, t, 0.05);
+       this.instGain.gain.setTargetAtTime(1, t, 0.05);
      } else if (this.activeTrack === 'ORIG') {
-       this.origGain.gain.value = 1;
-       this.instGain.gain.value = 0;
+       this.origGain.gain.setTargetAtTime(1, t, 0.05);
+       this.instGain.gain.setTargetAtTime(0, t, 0.05);
      }
   }
 
