@@ -177,8 +177,6 @@ export default function PlayerClient({ song }: { song: any }) {
     return m;
   }, [isDuet]);
 
-  }, [isDuet]);
-
   useEffect(() => {
     if ('mediaSession' in navigator && song) {
       navigator.mediaSession.metadata = new MediaMetadata({
