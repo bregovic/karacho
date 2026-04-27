@@ -377,20 +377,28 @@ export default function PlayerClient({ song }: { song: any }) {
     
     const currentIndex = availableModes.indexOf(playbackMode);
     const nextIndex = (currentIndex + 1) % availableModes.length;
-    const nextMode = availableModes[nextIndex];
+    const nextMode = availableModes[nextIndex] as any;
     
-    // Hard swap of src pro maximální spolehlivost
-    const t = audioRef.current.currentTime;
-    const wasPaused = audioRef.current.paused;
+    setPlaybackMode(nextMode);
     
-    audioRef.current.src = (nextMode === 'INST') ? song.instrumentalUrl : (song.audioUrl || song.instrumentalUrl);
-    audioRef.current.currentTime = t;
+    const targetSrc = (nextMode === 'INST') ? song.instrumentalUrl : (song.audioUrl || song.instrumentalUrl);
     
-    if (!wasPaused) {
-       audioRef.current.play().catch(() => {});
+    if (audioRef.current.src !== targetSrc) {
+      const t = audioRef.current.currentTime;
+      const wasPaused = audioRef.current.paused;
+      
+      audioRef.current.src = targetSrc;
+      audioRef.current.load();
+      
+      const onCanPlay = () => {
+         if (audioRef.current) {
+            audioRef.current.currentTime = t;
+            if (!wasPaused) audioRef.current.play().catch(() => {});
+         }
+         audioRef.current?.removeEventListener('canplay', onCanPlay);
+      };
+      audioRef.current.addEventListener('canplay', onCanPlay);
     }
-    
-    setPlaybackMode(nextMode as any);
   };
 
   const [isMuted, setIsMuted] = useState(shouldSuppressAudio);
@@ -446,8 +454,7 @@ export default function PlayerClient({ song }: { song: any }) {
   const handleNext = async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    audioOrigRef.current?.pause();
-    audioInstRef.current?.pause();
+    audioRef.current?.pause();
 
     if (joinCode) {
       const next = await advanceSessionQueue(joinCode);
