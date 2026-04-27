@@ -525,6 +525,30 @@ export default function PlayerClient({ song }: { song: any }) {
     return { cb, nc, ci, next: blocks.find((b, idx) => idx > ci && isBlockInVoice(b, voice)) || null };
   };
 
+  const getCurrentVoice = (t: number) => {
+     const block = blocks.find(b => t >= b.bs && t <= b.be);
+     if (!block) {
+        const upcomingBlock = blocks.find(b => b.bs > t && b.bs - t < 0.5);
+        if (upcomingBlock) {
+           return upcomingBlock.w?.[0]?.v || upcomingBlock.v || 3;
+        }
+        return null; 
+     }
+     if (block.w && block.w.length > 0) {
+        for (let i = 0; i < block.w.length; i++) {
+           const wStart = block.w[i].t;
+           const wEnd = (i < block.w.length - 1) ? block.w[i+1].t : block.be;
+           if (i === 0 && t < wStart) {
+              return block.w[0].v || block.v || 3;
+           }
+           if (t >= wStart && t < wEnd) {
+              return block.w[i].v || block.v || 3;
+           }
+        }
+     }
+     return block.v || 3;
+  };
+
   const tick = () => {
     const p = virtualAudioRef.current || audioRef.current;
     if (!p) return;
@@ -538,32 +562,21 @@ export default function PlayerClient({ song }: { song: any }) {
 
     if (virtualAudioRef.current && !isMuted) {
       if (playbackMode === 'V1' || playbackMode === 'V2') {
-        const isV1ActiveNow = s1 && t >= s1.cb.bs && t <= s1.cb.be;
-        const isV2ActiveNow = s2 && t >= s2.cb.bs && t <= s2.cb.be;
-        const isBothActiveNow = sC && t >= sC.cb.bs && t <= sC.cb.be;
-
-        const isV1Coming = s1 && !isV1ActiveNow;
-        const isV2Coming = s2 && !isV2ActiveNow;
-        const isBothComing = sC && !isBothActiveNow;
-
-        let activeTrack: 'INST' | 'ORIG' = 'INST';
-        
-        if (playbackMode === 'V1') {
-           if (isBothActiveNow) activeTrack = 'ORIG';
-           else if (isV2ActiveNow) activeTrack = 'ORIG'; // Kolega zpívá, slyším ho
-           else if (isV1ActiveNow) activeTrack = 'INST'; // Zpívám já, tlumíme originál
-           else if (isBothComing) activeTrack = 'ORIG';
-           else if (isV2Coming) activeTrack = 'ORIG';
-           else if (isV1Coming) activeTrack = 'INST';
-        } else {
-           if (isBothActiveNow) activeTrack = 'ORIG';
-           else if (isV1ActiveNow) activeTrack = 'ORIG'; // Kolega zpívá, slyším ho
-           else if (isV2ActiveNow) activeTrack = 'INST'; // Zpívám já, tlumíme originál
-           else if (isBothComing) activeTrack = 'ORIG';
-           else if (isV1Coming) activeTrack = 'ORIG';
-           else if (isV2Coming) activeTrack = 'INST';
-        }
-        virtualAudioRef.current.setTrack(activeTrack);
+         const currentVoice = getCurrentVoice(t);
+         let activeTrack: 'INST' | 'ORIG' = 'INST';
+         
+         if (playbackMode === 'V1') {
+            if (currentVoice === 1) activeTrack = 'INST'; 
+            else if (currentVoice === 2) activeTrack = 'ORIG'; 
+            else if (currentVoice === 3) activeTrack = 'ORIG'; 
+            else activeTrack = 'INST'; 
+         } else if (playbackMode === 'V2') {
+            if (currentVoice === 2) activeTrack = 'INST'; 
+            else if (currentVoice === 1) activeTrack = 'ORIG'; 
+            else if (currentVoice === 3) activeTrack = 'ORIG'; 
+            else activeTrack = 'INST'; 
+         }
+         virtualAudioRef.current.setTrack(activeTrack);
       }
     }
 
