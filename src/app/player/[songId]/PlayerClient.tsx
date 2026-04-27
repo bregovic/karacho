@@ -256,19 +256,17 @@ export default function PlayerClient({ song }: { song: any }) {
     if (shouldSuppressAudio || isMuted) {
       aOrig.muted = true; aOrig.volume = 0;
       aInst.muted = true; aInst.volume = 0;
-    }
-
     aOrig.src = song.audioUrl || "";
     aInst.src = song.instrumentalUrl || song.audioUrl || "";
+
+    aOrig.preload = "auto";
+    aInst.preload = "auto";
 
     if (song.startTime > 0) {
       aOrig.currentTime = song.startTime;
       aInst.currentTime = song.startTime;
       if (videoElRef.current) videoElRef.current.currentTime = song.startTime;
     }
-
-    aOrig.preload = (isChordsMode || isWatchMode) ? "none" : "auto";
-    aInst.preload = (isChordsMode || isWatchMode) ? "none" : "auto";
 
     const handlePlay = () => {
       if (isChordsMode && !isHost) {
@@ -310,9 +308,12 @@ export default function PlayerClient({ song }: { song: any }) {
       window.location.href = '/';
     };
 
-    aOrig.onplay = handlePlay; aInst.onplay = handlePlay;
-    aOrig.onpause = handlePause; aInst.onpause = handlePause;
+    aOrig.onplay = () => { aInst.play().catch(() => {}); handlePlay(); };
+    aInst.onplay = () => { aOrig.play().catch(() => {}); handlePlay(); };
+    aOrig.onpause = () => { aInst.pause(); handlePause(); };
+    aInst.onpause = () => { aOrig.pause(); handlePause(); };
     aOrig.onended = handleEnded;
+    aInst.onended = handleEnded;
 
     const handlePlaying = () => {
       if (!recordHandled.current) {
@@ -329,8 +330,7 @@ export default function PlayerClient({ song }: { song: any }) {
 
     audioOrigRef.current = aOrig;
     audioInstRef.current = aInst;
-    // Jako master časomíru použijeme Instrumental (pokud je), protože ten hraje většinou celou dobu
-    audioRef.current = song.instrumentalUrl ? aInst : aOrig;
+    audioRef.current = aOrig; // Originál je vždy master časomíra
 
     const syncInterval = setInterval(async () => {
       if (!joinCode || !audioRef.current) return;
@@ -565,18 +565,20 @@ export default function PlayerClient({ song }: { song: any }) {
       }
 
       if (activeTrack === 'INST') {
-        audioInstRef.current.muted = isMuted;
-        audioOrigRef.current.muted = true;
+        audioInstRef.current.volume = 1;
+        audioOrigRef.current.volume = 0;
       } else {
-        audioInstRef.current.muted = true;
-        audioOrigRef.current.muted = isMuted;
+        audioInstRef.current.volume = 0;
+        audioOrigRef.current.volume = 1;
       }
       
-      // Volume pojistka (vždy 1, když hrají)
-      if (audioInstRef.current.volume !== 1) audioInstRef.current.volume = 1;
-      if (audioOrigRef.current.volume !== 1) audioOrigRef.current.volume = 1;
+      // Mute pojistka
+      audioInstRef.current.muted = isMuted;
+      audioOrigRef.current.muted = isMuted;
 
     } else if (isMuted && audioOrigRef.current && audioInstRef.current) {
+       audioOrigRef.current.volume = 0;
+       audioInstRef.current.volume = 0;
        audioOrigRef.current.muted = true;
        audioInstRef.current.muted = true;
     }
