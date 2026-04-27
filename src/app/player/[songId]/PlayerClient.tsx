@@ -128,7 +128,7 @@ export default function PlayerClient({ song }: { song: any }) {
   const shouldSuppressAudio = (isChordsMode || isWatchMode) && !isHost;
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const [playbackMode, setPlaybackMode] = useState<'ORIG' | 'INST' | 'V1' | 'V2'>(song.instrumentalUrl ? 'INST' : 'ORIG');
+  const [playbackMode, setPlaybackMode] = useState<'ORIG' | 'INST'>(song.instrumentalUrl ? 'INST' : 'ORIG');
   const [imgLoaded, setImgLoaded] = useState(false);
 
   const systemBackgrounds = useMemo(() => [
@@ -169,14 +169,11 @@ export default function PlayerClient({ song }: { song: any }) {
   const dur = data.dur || 0;
 
   const availableModes = useMemo(() => {
-    const m: ('INST' | 'ORIG' | 'V1' | 'V2')[] = [];
+    const m: ('INST' | 'ORIG')[] = [];
     if (song.instrumentalUrl) {
        m.push('INST');
     }
     m.push('ORIG');
-    if (song.instrumentalUrl) {
-       m.push('V1', 'V2');
-    }
     return m;
   }, [song.instrumentalUrl]);
 
@@ -575,26 +572,7 @@ export default function PlayerClient({ song }: { song: any }) {
     }
 
     if (audioRef.current) {
-       let activeTrack: 'INST' | 'ORIG' = 'ORIG';
-       const currentVoice = getCurrentVoice(t);
-       
-       if (playbackMode === 'INST') {
-           activeTrack = 'INST';
-       } else if (playbackMode === 'ORIG') {
-           activeTrack = 'ORIG';
-       } else if (playbackMode === 'V1' || playbackMode === 'V2') {
-           if (playbackMode === 'V1') {
-              if (currentVoice === 1) activeTrack = 'INST'; 
-              else if (currentVoice === 2) activeTrack = 'ORIG'; 
-              else if (currentVoice === 3) activeTrack = 'ORIG'; 
-              else activeTrack = 'INST'; 
-           } else if (playbackMode === 'V2') {
-              if (currentVoice === 2) activeTrack = 'INST'; 
-              else if (currentVoice === 1) activeTrack = 'ORIG'; 
-              else if (currentVoice === 3) activeTrack = 'ORIG'; 
-              else activeTrack = 'INST'; 
-           }
-       }
+       let activeTrack: 'INST' | 'ORIG' = playbackMode === 'INST' ? 'INST' : 'ORIG';
        
        if (!isMuted) {
            const muteOrig = activeTrack === 'INST';
@@ -616,7 +594,7 @@ export default function PlayerClient({ song }: { song: any }) {
        }
        
        const dbg = document.getElementById('debug-overlay');
-       if (dbg) dbg.innerText = `[DEBUG] Mode: ${playbackMode} | V: ${currentVoice} | Trk: ${activeTrack} | O-St: ${audioRef.current.readyState} O-Vol: ${audioRef.current.volume} | I-St: ${audioInstRef.current?.readyState} I-Vol: ${audioInstRef.current?.volume}`;
+       if (dbg) dbg.innerText = `[DEBUG] Mode: ${playbackMode} | Trk: ${activeTrack} | O-St: ${audioRef.current.readyState} O-Vol: ${audioRef.current.volume} | I-St: ${audioInstRef.current?.readyState} I-Vol: ${audioInstRef.current?.volume}`;
     }
 
     renderVoiceState(s1, visualTime, 1, curLineEl1, nextLineEl1, lastBlock1);
@@ -899,14 +877,10 @@ export default function PlayerClient({ song }: { song: any }) {
                     <span style={{ fontSize: '16px' }}>
                       {playbackMode === 'INST' && '🎹'}
                       {playbackMode === 'ORIG' && '🎤'}
-                      {playbackMode === 'V1' && '🔴'}
-                      {playbackMode === 'V2' && '🔵'}
                     </span>
                     <span className="footer-title-hide">
-                      {playbackMode === 'INST' && 'INSTRUMENTÁL (KLIKNI)'}
+                      {playbackMode === 'INST' && 'INSTRUMENTÁL'}
                       {playbackMode === 'ORIG' && 'ORIGINÁL'}
-                      {playbackMode === 'V1' && '1. HLAS (TY)'}
-                      {playbackMode === 'V2' && '2. HLAS (TY)'}
                     </span>
                   </button>
                 )}
