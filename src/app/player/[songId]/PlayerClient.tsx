@@ -247,25 +247,17 @@ export default function PlayerClient({ song }: { song: any }) {
   }, [joinCode, song.id]);
 
   useEffect(() => {
-    const aOrig = new Audio();
-    const aInst = new Audio();
-    
-    aOrig.crossOrigin = "anonymous";
-    aInst.crossOrigin = "anonymous";
-
     if (shouldSuppressAudio || isMuted) {
-      aOrig.muted = true; aOrig.volume = 0;
-      aInst.muted = true; aInst.volume = 0;
+      if (audioOrigRef.current) { audioOrigRef.current.muted = true; audioOrigRef.current.volume = 0; }
+      if (audioInstRef.current) { audioInstRef.current.muted = true; audioInstRef.current.volume = 0; }
     }
 
-    // Fallbacky křížem - pokud jedno chybí, použije se to druhé, aby se předešlo selhání masteru
-    aOrig.src = song.audioUrl || song.instrumentalUrl || "";
-    aInst.src = song.instrumentalUrl || song.audioUrl || "";
+    const aOrig = audioOrigRef.current;
+    const aInst = audioInstRef.current;
+    
+    if (!aOrig || !aInst) return;
 
-    aOrig.preload = "auto";
-    aInst.preload = "auto";
-
-    if (song.startTime > 0) {
+    if (song.startTime > 0 && aOrig.currentTime === 0) {
       aOrig.currentTime = song.startTime;
       aInst.currentTime = song.startTime;
       if (videoElRef.current) videoElRef.current.currentTime = song.startTime;
@@ -329,8 +321,6 @@ export default function PlayerClient({ song }: { song: any }) {
     aOrig.onplaying = handlePlaying;
     aInst.onplaying = handlePlaying;
 
-    audioOrigRef.current = aOrig;
-    audioInstRef.current = aInst;
     audioRef.current = aOrig; // Originál je vždy master časomíra
 
     const syncInterval = setInterval(async () => {
@@ -735,10 +725,9 @@ export default function PlayerClient({ song }: { song: any }) {
   const hasVideo = !!song.videoUrl;
 
   return (
-    <div className="player-root" style={{ 
-      position: 'fixed', inset: 0, background: '#000', color: '#fff', 
-      fontFamily: 'Inter, sans-serif', overflow: 'hidden' 
-    }}>
+    <div className="player-root" style={{ position: 'fixed', inset: 0, background: '#000', color: '#fff', fontFamily: 'Inter, sans-serif', overflow: 'hidden' }}>
+      <audio ref={audioOrigRef} src={song.audioUrl || song.instrumentalUrl || ""} preload="auto" crossOrigin="anonymous" />
+      <audio ref={audioInstRef} src={song.instrumentalUrl || song.audioUrl || ""} preload="auto" crossOrigin="anonymous" />
       
       <style dangerouslySetInnerHTML={{ __html: `
         .player-root { --glow: rgba(255, 215, 0, 0.55); }
