@@ -214,7 +214,7 @@ export async function updateSong(songId: string, data: any) {
   const allowedFields = [
     'title', 'artist', 'genre', 'tags', 'lyrics', 'chords', 
     'audioUrl', 'instrumentalUrl', 'backgroundUrl', 'jsonUrl', 
-    'videoUrl', 'videoSize', 'animationStyle', 'state', 'timingData'
+    'videoUrl', 'videoSize', 'animationStyle', 'state', 'timingData', 'startTime'
   ];
   
   const filteredData: any = {};
