@@ -168,15 +168,17 @@ export default function PlayerClient({ song }: { song: any }) {
   const blocks = data.blocks || [];
   const dur = data.dur || 0;
 
-  const isDuet = useMemo(() => {
-    return blocks.some(b => b.v === 1 || b.v === 2 || (b.w && b.w.some((w: any) => w.v === 1 || w.v === 2)));
-  }, [blocks]);
-
   const availableModes = useMemo(() => {
-    const m: ('INST' | 'ORIG' | 'V1' | 'V2')[] = ['INST', 'ORIG'];
-    if (isDuet) m.push('V1', 'V2');
+    const m: ('INST' | 'ORIG' | 'V1' | 'V2')[] = [];
+    if (song.instrumentalUrl) {
+       m.push('INST');
+    }
+    m.push('ORIG');
+    if (song.instrumentalUrl) {
+       m.push('V1', 'V2');
+    }
     return m;
-  }, [isDuet]);
+  }, [song.instrumentalUrl]);
 
   useEffect(() => {
     if ('mediaSession' in navigator && song) {
@@ -375,7 +377,7 @@ export default function PlayerClient({ song }: { song: any }) {
       audioInstRef.current?.pause();
       releaseWakeLock();
     };
-  }, [song.audioUrl, song.instrumentalUrl, joinCode, isDuet]);
+  }, [song.audioUrl, song.instrumentalUrl, joinCode]);
 
   const cyclePlaybackMode = (e: React.MouseEvent) => {
     e.stopPropagation();
