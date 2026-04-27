@@ -252,8 +252,7 @@ export default function PlayerClient({ song }: { song: any }) {
       aOrig.volume = 0;
     }
 
-    // Prvotní nastavení podle vybraného módu
-    aOrig.src = (playbackMode === 'INST' && song.instrumentalUrl) ? song.instrumentalUrl : (song.audioUrl || song.instrumentalUrl || "");
+    // Prvotní nastavení preload
     aOrig.preload = "auto";
 
     if (song.startTime > 0 && aOrig.currentTime === 0) {
@@ -379,11 +378,18 @@ export default function PlayerClient({ song }: { song: any }) {
     const nextIndex = (currentIndex + 1) % availableModes.length;
     const nextMode = availableModes[nextIndex] as any;
     
+    // We only update the state here. The useEffect below will handle the actual audio src change.
     setPlaybackMode(nextMode);
+  };
+
+  // Handle src changes when playbackMode changes
+  useEffect(() => {
+    if (!audioRef.current) return;
     
-    const targetSrc = (nextMode === 'INST') ? song.instrumentalUrl : (song.audioUrl || song.instrumentalUrl);
+    const targetSrc = (playbackMode === 'INST' && song.instrumentalUrl) ? song.instrumentalUrl : (song.audioUrl || song.instrumentalUrl || "");
     
-    if (audioRef.current.src !== targetSrc) {
+    // Check if the src actually needs changing (browser returns absolute URL, so check endsWith or includes)
+    if (!audioRef.current.src || !audioRef.current.src.includes(targetSrc)) {
       const t = audioRef.current.currentTime;
       const wasPaused = audioRef.current.paused;
       
@@ -399,7 +405,7 @@ export default function PlayerClient({ song }: { song: any }) {
       };
       audioRef.current.addEventListener('canplay', onCanPlay);
     }
-  };
+  }, [playbackMode, song.audioUrl, song.instrumentalUrl]);
 
   const [isMuted, setIsMuted] = useState(shouldSuppressAudio);
   
@@ -669,8 +675,7 @@ export default function PlayerClient({ song }: { song: any }) {
 
   return (
     <div className="player-root" style={{ position: 'fixed', inset: 0, background: '#000', color: '#fff', fontFamily: 'Inter, sans-serif', overflow: 'hidden' }}>
-      <audio ref={audioOrigRef} src={song.audioUrl || song.instrumentalUrl || ""} preload="auto" crossOrigin="anonymous" />
-      <audio ref={audioInstRef} src={song.instrumentalUrl || song.audioUrl || ""} preload="auto" crossOrigin="anonymous" />
+      <audio ref={audioRef} preload="auto" crossOrigin="anonymous" />
       
       <style dangerouslySetInnerHTML={{ __html: `
         .player-root { --glow: rgba(255, 215, 0, 0.55); }
