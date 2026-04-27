@@ -1,9 +1,10 @@
 'use client';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { incrementPlayCount, recordSinging } from '@/app/actions/stats-actions';
+import { incrementPlayCount } from '@/app/admin/actions';
 import { useSession } from '@/context/SessionContext';
 import { getSessionStatus, updateSessionState, advanceSessionQueue } from '@/app/actions/session-actions';
+import { recordSinging } from '@/app/actions/user-actions';
 import { VirtualDualAudio } from '@/utils/VirtualDualAudio';
 
 interface PlayerBlock {
