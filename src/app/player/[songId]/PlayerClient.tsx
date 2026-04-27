@@ -538,18 +538,30 @@ export default function PlayerClient({ song }: { song: any }) {
 
     if (virtualAudioRef.current && !isMuted) {
       if (playbackMode === 'V1' || playbackMode === 'V2') {
-        const isV1Active = !!s1;
-        const isV2Active = !!s2;
-        const isBothActive = !!sC;
+        const isV1ActiveNow = s1 && t >= s1.cb.bs && t <= s1.cb.be;
+        const isV2ActiveNow = s2 && t >= s2.cb.bs && t <= s2.cb.be;
+        const isBothActiveNow = sC && t >= sC.cb.bs && t <= sC.cb.be;
+
+        const isV1Coming = s1 && !isV1ActiveNow;
+        const isV2Coming = s2 && !isV2ActiveNow;
+        const isBothComing = sC && !isBothActiveNow;
+
         let activeTrack: 'INST' | 'ORIG' = 'INST';
+        
         if (playbackMode === 'V1') {
-          if (isBothActive) activeTrack = 'ORIG';
-          else if (isV1Active) activeTrack = 'INST';
-          else if (isV2Active) activeTrack = 'ORIG';
+           if (isBothActiveNow) activeTrack = 'ORIG';
+           else if (isV2ActiveNow) activeTrack = 'ORIG'; // Kolega zpívá, slyším ho
+           else if (isV1ActiveNow) activeTrack = 'INST'; // Zpívám já, tlumíme originál
+           else if (isBothComing) activeTrack = 'ORIG';
+           else if (isV2Coming) activeTrack = 'ORIG';
+           else if (isV1Coming) activeTrack = 'INST';
         } else {
-          if (isBothActive) activeTrack = 'ORIG';
-          else if (isV2Active) activeTrack = 'INST';
-          else if (isV1Active) activeTrack = 'ORIG';
+           if (isBothActiveNow) activeTrack = 'ORIG';
+           else if (isV1ActiveNow) activeTrack = 'ORIG'; // Kolega zpívá, slyším ho
+           else if (isV2ActiveNow) activeTrack = 'INST'; // Zpívám já, tlumíme originál
+           else if (isBothComing) activeTrack = 'ORIG';
+           else if (isV1Coming) activeTrack = 'ORIG';
+           else if (isV2Coming) activeTrack = 'INST';
         }
         virtualAudioRef.current.setTrack(activeTrack);
       }
