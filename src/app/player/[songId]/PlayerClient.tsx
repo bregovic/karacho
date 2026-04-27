@@ -860,7 +860,7 @@ export default function PlayerClient({ song }: { song: any }) {
                       {playbackMode === 'V2' && '🔵'}
                     </span>
                     <span className="footer-title-hide">
-                      {playbackMode === 'INST' && 'INSTRUMENTÁL'}
+                      {playbackMode === 'INST' && 'INSTRUMENTÁL (KLIKNI)'}
                       {playbackMode === 'ORIG' && 'ORIGINÁL'}
                       {playbackMode === 'V1' && '1. HLAS (TY)'}
                       {playbackMode === 'V2' && '2. HLAS (TY)'}
