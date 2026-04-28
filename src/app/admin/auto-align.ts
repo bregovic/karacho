@@ -17,26 +17,24 @@ function normalize(str: string) {
 
 export async function autoAlignSong(songId: string) {
   try {
-    console.log("AI-Align: Starting Turbo alignment for", songId);
+    console.log("AI-Align: Starting Rhythmic Alignment for", songId);
     
     const song = await db.song.findUnique({ where: { id: songId } });
     if (!song || !song.audioUrl || !song.lyrics) {
       throw new Error("Chybí audio nebo text písně.");
     }
 
-    // 1. Stáhneme audio
     const audioRes = await fetch(song.audioUrl);
     const audioBlob = await audioRes.blob();
     const file = new File([audioBlob], "audio.mp3", { type: "audio/mpeg" });
 
-    // 2. Whisper s nápovědou (Prompting extrémně pomáhá s přesností začátků)
-    console.log("AI-Align: Fetching word-level timestamps with prompt...");
+    console.log("AI-Align: Transcribing with Whisper...");
     const transcription = await openai.audio.transcriptions.create({
       file,
       model: "whisper-1",
       response_format: "verbose_json",
       timestamp_granularities: ["word"],
-      prompt: song.lyrics.slice(0, 1000), // Prvních 1000 znaků jako nápověda pro AI
+      prompt: song.lyrics.slice(0, 1000),
     });
 
     const vJson = transcription as any;
@@ -46,7 +44,6 @@ export async function autoAlignSong(songId: string) {
       throw new Error("Whisper nevrátil žádná slova.");
     }
 
-    // 3. Rozstříháme text na bloky (řádky)
     const sourceLines = song.lyrics.split('\n')
       .map(l => l.trim())
       .filter(l => l.length > 0);
@@ -54,71 +51,74 @@ export async function autoAlignSong(songId: string) {
     const blocks: any[] = [];
     let whisperPointer = 0;
 
-    // Funkce pro nalezení nejlepší shody řádku v přepisu od určitého místa
-    const findBestLineMatch = (words: string[], startIdx: number) => {
-      if (words.length === 0) return null;
-      const target = words.map(normalize).join('');
-      
-      let bestIdx = -1;
-      let bestScore = 0;
-      
-      // Prohledáme okolí (max 30 slov dopředu)
-      for (let i = startIdx; i < Math.min(startIdx + 30, whisperWords.length); i++) {
-        let currentText = "";
-        let score = 0;
-        for (let j = 0; j < words.length; j++) {
-           if (i + j >= whisperWords.length) break;
-           const wWord = normalize(whisperWords[i+j].word);
-           if (wWord === normalize(words[j])) score++;
-        }
-        if (score > bestScore) {
-          bestScore = score;
-          bestIdx = i;
-        }
-        if (bestScore === words.length) break; // Perfektní shoda
-      }
-      
-      if (bestScore >= Math.ceil(words.length * 0.4)) { // Aspoň 40% shoda slov
-        return bestIdx;
-      }
-      return null;
-    };
-
-    // 4. CHYTRÉ PÁROVÁNÍ (Strukturální detekce)
     for (let li = 0; li < sourceLines.length; li++) {
       const lineText = sourceLines[li];
       const lineWords = lineText.split(/\s+/).filter(w => w.length > 0);
       
-      const matchIdx = findBestLineMatch(lineWords, whisperPointer);
+      // 1. Najdeme KOTVY (slova, která AI v řádku bezpečně poznala)
+      const foundAnchors: { wordIdx: number, time: number }[] = [];
+      let lastCheckedIdx = whisperPointer;
 
-      if (matchIdx !== null) {
-        const bWords: any[] = [];
-        const lw: string[] = [];
-        
+      for (let wi = 0; wi < lineWords.length; wi++) {
+        const target = normalize(lineWords[wi]);
+        // Koukáme se v přepisu v rozumném okně (cca 40 slov od posledního bodu)
+        for (let j = 0; j < 40; j++) {
+          const checkIdx = lastCheckedIdx + j;
+          if (checkIdx >= whisperWords.length) break;
+          const wWord = normalize(whisperWords[checkIdx].word);
+          
+          if (wWord === target || wWord.includes(target) || target.includes(wWord)) {
+            foundAnchors.push({ wordIdx: wi, time: whisperWords[checkIdx].start });
+            lastCheckedIdx = checkIdx + 1;
+            break;
+          }
+        }
+      }
+
+      // 2. RYTMICKÉ DOPRESEKÁNÍ (Interpolace)
+      const bWords: any[] = [];
+      
+      if (foundAnchors.length > 0) {
+        // Máme aspoň jednu kotvu - rozpočítáme zbytek kolem nich
         for (let wi = 0; wi < lineWords.length; wi++) {
-           const wIdx = matchIdx + wi;
-           if (wIdx < whisperWords.length) {
-             const found = whisperWords[wIdx];
-             bWords.push({ t: found.start, i: wi, v: 3 });
-             lw.push(lineWords[wi]);
-           }
+          // Najdeme nejbližší kotvy (levou a pravou)
+          const leftAnchor = [...foundAnchors].reverse().find(a => a.wordIdx <= wi);
+          const rightAnchor = foundAnchors.find(a => a.wordIdx >= wi);
+
+          let time = 0;
+          if (leftAnchor && rightAnchor && leftAnchor.wordIdx !== rightAnchor.wordIdx) {
+            // Jsme mezi dvěma kotvami - lineární rozdělení
+            const ratio = (wi - leftAnchor.wordIdx) / (rightAnchor.wordIdx - leftAnchor.wordIdx);
+            time = leftAnchor.time + (rightAnchor.time - leftAnchor.time) * ratio;
+          } else if (leftAnchor) {
+            // Máme jen levou kotvu - odhadneme čas podle ní (+0.4s na slovo)
+            time = leftAnchor.time + (wi - leftAnchor.wordIdx) * 0.4;
+          } else if (rightAnchor) {
+            // Máme jen pravou kotvu - odhadneme čas před ní (-0.4s na slovo)
+            time = rightAnchor.time - (rightAnchor.wordIdx - wi) * 0.4;
+          }
+          
+          bWords.push({ t: time, i: wi, v: 3 });
         }
-        
-        if (bWords.length > 0) {
-          blocks.push({
-            li: blocks.length, // Použijeme inkrementální ID pro případné opakování
-            v: 3,
-            bs: Math.max(0, bWords[0].t - 1.5), // Preroll 1.5s (aby se řádek objevil dřív)
-            be: bWords[bWords.length - 1].t + 1.5,
-            lw,
-            w: bWords
-          });
-          whisperPointer = matchIdx + lineWords.length;
-        }
+        whisperPointer = lastCheckedIdx;
       } else {
-        // Pokud řádek nenajdeme, zkusíme se posunout kousek dál v čase
-        // (Mohlo by to být instrumental nebo přeslechnutá pasáž)
-        console.log(`AI-Align: Line "${lineText}" not found in audio, skipping or estimating...`);
+        // Nenašli jsme žádnou kotvu - odhadneme celý řádek za ten předchozí
+        const lastBlockEnd = blocks.length > 0 ? blocks[blocks.length - 1].be : 0;
+        const startTime = lastBlockEnd + 1.0;
+        for (let wi = 0; wi < lineWords.length; wi++) {
+          bWords.push({ t: startTime + (wi * 0.4), i: wi, v: 3 });
+        }
+      }
+
+      if (bWords.length > 0) {
+        blocks.push({
+          li: blocks.length,
+          v: 3,
+          bs: Math.max(0, bWords[0].t - 1.5),
+          be: bWords[bWords.length - 1].t + 1.5,
+          lw: lineWords,
+          w: bWords
+        });
       }
     }
 
