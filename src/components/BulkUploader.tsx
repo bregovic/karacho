@@ -1,8 +1,8 @@
 import { useState, useRef } from 'react';
-import { createSong, updateSongInstrumental } from '@/app/admin/actions';
+import { createSong, updateSongInstrumental, findSongForInstrumentalAction } from '@/app/admin/actions';
 
 export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) {
-  const [localSongs, setLocalSongs] = useState<any[]>(initialSongs);
+  // const [localSongs, setLocalSongs] = useState<any[]>(initialSongs); // Už nepotřebujeme lokální seznam
   const [uploading, setUploading] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [log, setLog] = useState<{msg: string, status: 'info'|'success'|'error'}[]>([]);
@@ -38,12 +38,12 @@ export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) 
     if (pendingFiles.length === 0) return;
     
     setUploading(true);
-    setLog([]); // Vyčištění logu při novém startu
+    setLog([]); 
     addLog(`🚀 Startuji hromadný import ${pendingFiles.length} souborů (${mode === 'ORIGINAL' ? 'Originály' : 'Instrumentálky'})...`, 'info');
 
     for (const file of pendingFiles) {
       try {
-        const rawName = file.name.replace(/\.[^/.]+$/, ""); // Odstraní příponu
+        const rawName = file.name.replace(/\.[^/.]+$/, ""); 
         
         let artist = "Neznámý";
         let title = rawName;
@@ -54,12 +54,8 @@ export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) 
           title = parts.slice(1).join('-').trim();
         }
 
-        const normArtist = normalizeName(artist);
-        const normTitle = normalizeName(title);
-
         addLog(`Zpracovávám: ${artist} - ${title}...`);
 
-        // 1. Nahrání souboru na R2
         const formData = new FormData();
         formData.append('file', file);
         
@@ -79,26 +75,10 @@ export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) 
           songData.append('audioUrl', fileUrl);
           
           const newSong = await createSong(songData);
-          setLocalSongs(prev => [newSong, ...prev]);
-          addLog(`✅ Píseň "${title}" vytvořena.`, 'success');
+          addLog(`✅ Píseň "${title}" vytvořena. Text se stahuje na pozadí.`, 'success');
         } else {
-          // Režim INSTRUMENTAL - inteligentní shoda
-          const existing = localSongs.find(s => {
-            const dbArtist = normalizeName(s.artist || '');
-            const dbTitle = normalizeName(s.title || '');
-            
-            // Shoda názvu musí být přesná (po normalizaci)
-            if (dbTitle !== normTitle) return false;
-
-            // Shoda interpreta: buď přesná, nebo jeden obsahuje druhého, nebo je jeden z nich neznámý
-            const matchArtist = 
-              dbArtist === normArtist || 
-              !dbArtist || !normArtist || 
-              dbArtist === 'neznámý' || normArtist === 'neznámý' ||
-              (dbArtist.length > 3 && normArtist.length > 3 && (dbArtist.includes(normArtist) || normArtist.includes(dbArtist)));
-
-            return matchArtist;
-          });
+          // Režim INSTRUMENTAL - hledáme na serveru v reálném čase
+          const existing = await findSongForInstrumentalAction(title, artist);
 
           if (existing) {
             await updateSongInstrumental(existing.id, fileUrl);
@@ -119,10 +99,12 @@ export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) 
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  };
+
   return (
     <>
       <button 
-        onClick={() => { setShowModal(true); setPendingFiles([]); setLog([]); setLocalSongs(initialSongs); }}
+        onClick={() => { setShowModal(true); setPendingFiles([]); setLog([]); }}
         className="btn-secondary"
         style={{ padding: '10px 20px', borderRadius: '14px', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}
       >

@@ -126,6 +126,44 @@ export async function manuallyCleanLyricsAction(songId: string, currentContent: 
   }
 }
 
+export async function findSongForInstrumentalAction(title: string, artist: string) {
+  await ensureAdmin();
+  const songs = await db.song.findMany({
+    select: { id: true, title: true, artist: true }
+  });
+
+  const normTitle = normalizeForMatching(title);
+  const normArtist = normalizeForMatching(artist);
+
+  const match = songs.find(s => {
+    const dbTitle = normalizeForMatching(s.title || '');
+    const dbArtist = normalizeForMatching(s.artist || '');
+
+    if (dbTitle !== normTitle) return false;
+
+    return (
+      dbArtist === normArtist || 
+      !dbArtist || !normArtist || 
+      dbArtist === 'neznámý' || normArtist === 'neznámý' ||
+      (dbArtist.length > 3 && normArtist.length > 3 && (dbArtist.includes(normArtist) || normArtist.includes(dbArtist)))
+    );
+  });
+
+  return match;
+}
+
+function normalizeForMatching(str: string) {
+  if (!str) return '';
+  let s = str.toLowerCase();
+  s = s.replace(/^[0-9]+[\._\s-]/, '');
+  s = s.replace(/[\(\[]\s*[^\]\)]*(official|video|lyrics?|audio|hd|4k|hq|remastered|live|feat\.|ft\.|karaoke|instrumental|vhs|retro|píseň|pieseň|wmv|mp4|avi|mpg|mpeg)[^\]\)]*\s*[\)\]]/gi, '');
+  s = s.replace(/[-–—|]\s*(official|video|lyrics?|audio|hd|4k|hq|remastered|live|karaoke|instrumental|wmv|mp4|avi|mpg|mpeg)$/gi, '');
+  s = s.replace(/[\s-_]*\(?instrumental\)?[\s-_]*/gi, '');
+  s = s.replace(/[\s-_]*instr[\s-_]*/gi, '');
+  s = s.replace(/\.[a-z0-9]{3,4}$/i, '');
+  return s.replace(/\s{2,}/g, ' ').trim();
+}
+
 export async function updateSongAudio(songId: string, audioUrl: string, audioHash?: string) {
   await ensureAdmin();
   await db.song.update({ 
