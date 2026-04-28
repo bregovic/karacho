@@ -494,6 +494,23 @@ export default function PlayerClient({ song }: { song: any }) {
     }
     if (ci < 0) return null;
     const cb = blocks[ci];
+
+    // If the first word is more than 5s away, don't show this block as active yet
+    // Instead, show it only as the "next" preview
+    const firstWordTime = cb.w?.[0]?.t ?? cb.bs;
+    if (firstWordTime - t > 5.0) {
+       // Find the previous block in this voice to keep showing as active
+       const prevIdx = blocks.slice(0, ci).reverse().findIndex(b => isBlockInVoice(b, voice));
+       if (prevIdx >= 0) {
+          const realPrevIdx = ci - 1 - prevIdx;
+          const prevBlock = blocks[realPrevIdx];
+          let nc = 0;
+          for (const w of prevBlock.w || []) { if (t >= w.t) nc = w.i + 1; }
+          return { cb: prevBlock, nc, ci: realPrevIdx, next: cb };
+       }
+       return null;
+    }
+
     let nc = 0;
     for (const w of cb.w || []) { if (t >= w.t) nc = w.i + 1; }
     return { cb, nc, ci, next: blocks.find((b, idx) => idx > ci && isBlockInVoice(b, voice)) || null };
