@@ -990,18 +990,33 @@ export async function auditSongsAction() {
 
 export async function batchFixSongsAction(fixes: { songId: string; title?: string; artist?: string }[]) {
   await ensureAdmin();
-  let fixed = 0;
+  
+  // Merge fixes per songId (a song might have multiple issues)
+  const merged = new Map<string, { title?: string; artist?: string }>();
   for (const fix of fixes) {
-    const data: any = {};
-    if (fix.title !== undefined) data.title = fix.title;
-    if (fix.artist !== undefined) data.artist = fix.artist;
-    if (Object.keys(data).length > 0) {
-      await db.song.update({ where: { id: fix.songId }, data });
+    const existing = merged.get(fix.songId) || {};
+    if (fix.title !== undefined) existing.title = fix.title;
+    if (fix.artist !== undefined) existing.artist = fix.artist;
+    merged.set(fix.songId, existing);
+  }
+
+  let fixed = 0;
+  const errors: string[] = [];
+  for (const [songId, data] of merged) {
+    if (Object.keys(data).length === 0) continue;
+    try {
+      await db.song.update({ where: { id: songId }, data });
       fixed++;
+    } catch (e: any) {
+      errors.push(`${songId}: ${e.message}`);
     }
   }
-  await logAdminAction('BATCH_FIX', `Hromadná oprava ${fixed} písní`, 'Song');
+  
+  try {
+    await logAdminAction('BATCH_FIX', `Hromadná oprava ${fixed} písní${errors.length ? `, ${errors.length} chyb` : ''}`, 'Song');
+  } catch (_) {}
+  
   revalidatePath('/admin');
   revalidatePath('/');
-  return { fixed };
+  return { fixed, errors };
 }

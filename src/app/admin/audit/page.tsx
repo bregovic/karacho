@@ -75,25 +75,32 @@ export default function AuditPage() {
     if (!confirm(`Opravit ${selected.size} vybraných položek?`)) return;
     setFixing(true);
     try {
-      const fixes = Array.from(selected).map(idx => {
-        const issue = issues[idx];
-        return {
-          songId: issue.songId,
-          title: issue.suggestedTitle,
-          artist: issue.suggestedArtist,
-        };
-      });
+      const fixes = Array.from(selected)
+        .filter(idx => issues[idx]?.autoFixable)
+        .map(idx => {
+          const issue = issues[idx];
+          return {
+            songId: issue.songId,
+            title: issue.suggestedTitle,
+            artist: issue.suggestedArtist,
+          };
+        });
       const res = await batchFixSongsAction(fixes);
-      setDone(true);
-      alert(`✅ Opraveno ${res.fixed} písní!`);
-      // Re-run audit
-      const updated = await auditSongsAction();
-      setIssues(updated);
+      alert(`✅ Opraveno ${res.fixed} písní!${res.errors?.length ? ` (${res.errors.length} chyb)` : ''}`);
       setSelected(new Set());
+      setDone(true);
+      // Re-run audit after a short delay to let revalidation settle
+      setTimeout(async () => {
+        try {
+          const updated = await auditSongsAction();
+          setIssues(updated);
+        } catch (_) {}
+        setFixing(false);
+      }, 1000);
     } catch (e: any) {
-      alert('Chyba: ' + e.message);
+      alert('Chyba při opravě: ' + (e.message || 'Neznámá chyba'));
+      setFixing(false);
     }
-    setFixing(false);
   };
 
   const getFiltered = () => {
