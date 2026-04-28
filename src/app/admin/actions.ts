@@ -30,8 +30,19 @@ export async function checkDuplicateSong(title: string, artist: string) {
 export async function createSong(formData: FormData) {
   const session = await ensureAdmin();
 
-  const title = (formData.get('title') as string || '').trim();
-  const artist = (formData.get('artist') as string || '').trim();
+  const titleRaw = (formData.get('title') as string || '').trim();
+  const artistRaw = (formData.get('artist') as string || '').trim();
+  
+  // AUTOMATICKÉ ČIŠTĚNÍ PŘI IMPORTU
+  let title = cleanTitle(titleRaw);
+  let artist = artistRaw;
+
+  // Pokud je v názvu pomlčka a interpret je prázdný, zkusíme to rozdělit
+  if (title.includes(' - ') && !artist) {
+    const parts = title.split(' - ');
+    artist = parts[0].trim();
+    title = parts.slice(1).join(' - ').trim();
+  }
   
   if (!title) return { error: 'Chybí název písně' };
 
@@ -41,7 +52,9 @@ export async function createSong(formData: FormData) {
     throw new Error(`Tato píseň už v katalogu je: ${duplicate.title} (${duplicate.artist})`);
   }
 
-  const lyrics = formData.get('lyrics') as string;
+  const lyricsRaw = formData.get('lyrics') as string || '';
+  const cleanedLyrics = cleanLyrics(lyricsRaw);
+  
   const genre = formData.get('genre') as string;
   const audioUrl = formData.get('audioUrl') as string;
   const tagsString = formData.get('tags') as string;
@@ -54,7 +67,7 @@ export async function createSong(formData: FormData) {
       artist: artist || null,
       genre: genre || null,
       tags,
-      lyrics: lyrics || null,
+      lyrics: cleanedLyrics || null,
       audioUrl: audioUrl || null,
       animationStyle: 'karaoke-classic',
       createdById: session.user.id
@@ -613,6 +626,25 @@ export async function researchSongDataAction(songId: string) {
   }
 }
 
+export async function getInternetSuggestionsAction(title: string, artist: string) {
+  await ensureAdmin();
+  const suggestions: { title?: string; artist?: string } = {};
+
+  try {
+    // VAGALUME (hledáme hlavně správný case a název)
+    const vRes = await fetch(`https://api.vagalume.com.br/search.php?art=${encodeURIComponent(artist)}&mus=${encodeURIComponent(title)}&apikey=666a658e7948d9d20233d31c36006c9a`);
+    if (vRes.ok) {
+      const vData = await vRes.json();
+      if (vData.mus && vData.mus[0]) {
+        suggestions.title = vData.mus[0].name;
+        if (vData.art) suggestions.artist = vData.art.name;
+      }
+    }
+  } catch (e) {}
+
+  return suggestions;
+}
+
 export async function bulkUpdateState(songIds: string[], newState: string) {
   await db.song.updateMany({
     where: { id: { in: songIds } },
@@ -965,27 +997,81 @@ export async function auditSongsAction() {
     }
   }
 
-  // 10. Duplicate detection (same title+artist)
+  // 10. Duplicate detection (same title+artist OR same CLEANED title+artist)
   const titleArtistMap = new Map<string, typeof songs>();
+  const potentialDuplicateMap = new Map<string, string[]>(); // key -> songIds
+
   for (const s of songs) {
-    const key = `${(s.title || '').toLowerCase().trim()}|||${(s.artist || '').toLowerCase().trim()}`;
-    if (!titleArtistMap.has(key)) titleArtistMap.set(key, []);
-    titleArtistMap.get(key)!.push(s);
+    const rawKey = `${(s.title || '').toLowerCase().trim()}|||${(s.artist || '').toLowerCase().trim()}`;
+    if (!titleArtistMap.has(rawKey)) titleArtistMap.set(rawKey, []);
+    titleArtistMap.get(rawKey)!.push(s);
+
+    const cleanKey = `${cleanTitle(s.title || '').toLowerCase().trim()}|||${(s.artist || '').toLowerCase().trim()}`;
+    if (!potentialDuplicateMap.has(cleanKey)) potentialDuplicateMap.set(cleanKey, []);
+    potentialDuplicateMap.get(cleanKey)!.push(s.id);
   }
+
+  // Real duplicates (exact same string)
   for (const [, group] of titleArtistMap) {
     if (group.length > 1) {
       for (const s of group) {
         issues.push({
           songId: s.id, title: s.title, artist: s.artist || '',
           issueType: 'DUPLICATE',
-          description: `Duplicitní píseň (${group.length}x)`,
+          description: `Identická duplicita (${group.length}x)`,
           autoFixable: false,
         });
       }
     }
   }
 
+  // Potential collisions (would be same after cleaning)
+  for (const [cleanKey, ids] of potentialDuplicateMap) {
+    if (ids.length > 1) {
+      // Check if they aren't already flagged as real duplicates
+      const uniqueRawTitles = new Set(songs.filter(s => ids.includes(s.id)).map(s => `${s.title}|||${s.artist}`));
+      if (uniqueRawTitles.size > 1) {
+        for (const id of ids) {
+          const s = songs.find(x => x.id === id)!;
+          issues.push({
+            songId: s.id, title: s.title, artist: s.artist || '',
+            issueType: 'DUPLICATE',
+            description: `Potenciální kolize po vyčištění názvu`,
+            autoFixable: false,
+          });
+        }
+      }
+    }
+  }
+
   return issues;
+}
+
+async function findMatchingInstrumental(title: string, artist?: string) {
+  try {
+    const list = await r2.send(new ListObjectsV2Command({
+      Bucket: BUCKET_NAME,
+      Prefix: 'instrumentals/', // Předpokládáme složku instrumentals/
+    }));
+
+    if (!list.Contents) return null;
+
+    const searchTerm = `${artist || ''} ${title}`.toLowerCase().replace(/[^a-z0-9]/g, '');
+    
+    // Hledáme nejlepší shodu v názvu souboru
+    const match = list.Contents.find(obj => {
+      if (!obj.Key) return false;
+      const key = obj.Key.toLowerCase().replace(/[^a-z0-9]/g, '');
+      return key.includes(searchTerm) || (artist && key.includes(artist.toLowerCase().replace(/[^a-z0-9]/g, '')) && key.includes(title.toLowerCase().replace(/[^a-z0-9]/g, '')));
+    });
+
+    if (match && match.Key) {
+      return `${PUBLIC_URL}/${match.Key}`;
+    }
+  } catch (e) {
+    console.error('Error finding matching instrumental:', e);
+  }
+  return null;
 }
 
 export async function batchFixSongsAction(fixes: { songId: string; title?: string; artist?: string }[]) {
@@ -1005,6 +1091,17 @@ export async function batchFixSongsAction(fixes: { songId: string; title?: strin
   for (const [songId, data] of merged) {
     if (Object.keys(data).length === 0) continue;
     try {
+      // Před updatem zkontrolujeme, jestli píseň už nemá instrumentálku
+      const current = await db.song.findUnique({ where: { id: songId }, select: { instrumentalUrl: true, title: true, artist: true } });
+      
+      // Pokud se mění název/interpret a chybí instrumentálka, zkusíme ji najít
+      if (current && !current.instrumentalUrl && (data.title || data.artist)) {
+        const matchedUrl = await findMatchingInstrumental(data.title || current.title, data.artist || current.artist || '');
+        if (matchedUrl) {
+          (data as any).instrumentalUrl = matchedUrl;
+        }
+      }
+
       await db.song.update({ where: { id: songId }, data });
       fixed++;
     } catch (e: any) {

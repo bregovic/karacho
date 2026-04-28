@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { auditSongsAction, batchFixSongsAction } from '@/app/admin/actions';
+import { auditSongsAction, batchFixSongsAction, getInternetSuggestionsAction } from '@/app/admin/actions';
 
 type AuditIssue = {
   songId: string;
@@ -116,6 +116,40 @@ export default function AuditPage() {
   const filtered = getFiltered();
   const fixableCount = filtered.filter(i => i.autoFixable).length;
 
+  const validateAgainstInternet = async () => {
+    setLoading(true);
+    const updatedIssues = [...issues];
+    let found = 0;
+
+    for (let i = 0; i < updatedIssues.length; i++) {
+      const issue = updatedIssues[i];
+      // Hledáme jen pro ty, co nemají suggestion nebo jsou chybějící interpret
+      if (!issue.suggestedTitle && !issue.suggestedArtist) {
+        try {
+          const sug = await getInternetSuggestionsAction(issue.title, issue.artist);
+          if ((sug.title && sug.title !== issue.title) || (sug.artist && sug.artist !== issue.artist)) {
+            updatedIssues[i] = {
+              ...issue,
+              suggestedTitle: sug.title,
+              suggestedArtist: sug.artist,
+              autoFixable: true,
+              description: issue.description + ' (Ověřeno z internetu)'
+            };
+            found++;
+          }
+        } catch (e) {}
+      }
+    }
+    
+    if (found > 0) {
+      setIssues(updatedIssues);
+      alert(`🔎 Našel jsem ${found} návrhů z internetu!`);
+    } else {
+      alert('🔎 Internet nevrátil žádné lepší návrhy pro tyto položky.');
+    }
+    setLoading(false);
+  };
+
   return (
     <div style={{ minHeight: '100vh', background: '#050505', color: 'white', padding: '6rem 2rem 2rem' }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
@@ -125,18 +159,31 @@ export default function AuditPage() {
             <Link href="/admin" style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', fontSize: '13px' }}>← Zpět do Adminu</Link>
             <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: 'var(--color-gold)', margin: '0.5rem 0 0' }}>🔍 Audit dat katalogu</h1>
           </div>
-          <button 
-            onClick={runAudit} 
-            disabled={loading}
-            style={{ 
-              padding: '16px 32px', borderRadius: '50px', border: 'none',
-              background: loading ? '#333' : 'linear-gradient(45deg, var(--color-gold), #FFA500)',
-              color: '#000', fontWeight: 900, fontSize: '15px', cursor: loading ? 'wait' : 'pointer',
-              boxShadow: '0 10px 30px rgba(255,215,0,0.2)'
-            }}
-          >
-            {loading ? '⏳ Analyzuji...' : '🔬 SPUSTIT AUDIT'}
-          </button>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <button 
+              onClick={validateAgainstInternet} 
+              disabled={loading || issues.length === 0}
+              style={{ 
+                padding: '16px 24px', borderRadius: '50px', border: '1px solid #00d2ff',
+                background: 'rgba(0,210,255,0.1)',
+                color: '#00d2ff', fontWeight: 800, fontSize: '13px', cursor: (loading || issues.length === 0) ? 'wait' : 'pointer'
+              }}
+            >
+              🌐 VALIDOVAT Z INTERNETU
+            </button>
+            <button 
+              onClick={runAudit} 
+              disabled={loading}
+              style={{ 
+                padding: '16px 32px', borderRadius: '50px', border: 'none',
+                background: loading ? '#333' : 'linear-gradient(45deg, var(--color-gold), #FFA500)',
+                color: '#000', fontWeight: 900, fontSize: '15px', cursor: loading ? 'wait' : 'pointer',
+                boxShadow: '0 10px 30px rgba(255,215,0,0.2)'
+              }}
+            >
+              {loading ? '⏳ Analyzuji...' : '🔬 SPUSTIT AUDIT'}
+            </button>
+          </div>
         </div>
 
         {issues.length > 0 && (
