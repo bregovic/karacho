@@ -61,23 +61,33 @@ export async function createSong(formData: FormData) {
   
   const tags = tagsString ? tagsString.split(',').map(t => t.trim()).filter(Boolean) : [];
 
-  const song = await db.song.create({
-    data: {
-      title,
-      artist: artist || null,
-      genre: genre || null,
-      tags,
-      lyrics: cleanedLyrics || null,
-      audioUrl: audioUrl || null,
-      animationStyle: 'karaoke-classic',
-      createdById: session.user.id
-    },
+  const songData = {
+    title,
+    artist: artist || null,
+    genre: genre || null,
+    tags,
+    lyrics: cleanedLyrics || null,
+    audioUrl: audioUrl || null,
+    animationStyle: 'karaoke-classic',
+    createdById: session.user.id
+  };
+
+  const newSong = await db.song.create({
+    data: songData
   });
 
-  await logAdminAction('CREATE_SONG', `Vytvořena píseň: ${title} (${artist})`, 'Song', song.id);
+  // Pokud chybí text, zkusíme ho rovnou stáhnout na pozadí
+  if (!newSong.lyrics) {
+    try {
+      // Spustíme fetchLyricsAction asynchronně (nebudeme na ni čekat v hlavní odpovědi, aby byl upload rychlý)
+      fetchLyricsAction(newSong.id).catch(err => console.error('Auto-fetch lyrics failed:', err));
+    } catch (e) {}
+  }
+
+  await logAdminAction('CREATE_SONG', `Vytvořena píseň: ${title} (${artist})`, 'Song', newSong.id);
 
   revalidatePath('/admin');
-  return song;
+  return newSong;
 }
 
 export async function manuallyCleanLyricsAction(songId: string, currentContent: string, customBlacklist: string[] = []) {

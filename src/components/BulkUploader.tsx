@@ -15,15 +15,18 @@ export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) 
   };
 
   const normalizeName = (str: string) => {
-    return str
-      .toLowerCase()
-      // Odstranění prefixů jako 1_07. nebo 07.
-      .replace(/^[0-9]+_[0-9]+[\.\s-_]*/, '') 
-      .replace(/^[0-9]+[\.\s-_]*/, '')
-      // Odstranění postfixů jako (Instrumental), - instrumental atd.
-      .replace(/[\s-_]*\(?instrumental\)?[\s-_]*/gi, '')
-      .replace(/[\s-_]*instr[\s-_]*/gi, '')
-      .trim();
+    if (!str) return '';
+    let s = str.toLowerCase();
+    // Odstranění prefixů jako 1_07. nebo 07.
+    s = s.replace(/^[0-9]+_[0-9]+[\.\s-_]*/, '').replace(/^[0-9]+[\.\s-_]*/, '');
+    // YouTube Junk & Suffixes (agresivně)
+    s = s.replace(/[\(\[]\s*[^\]\)]*(official|video|lyrics?|audio|hd|4k|hq|remastered|live|feat\.|ft\.|karaoke|instrumental|vhs|retro|píseň|pieseň|wmv|mp4|avi|mpg|mpeg)[^\]\)]*\s*[\)\]]/gi, '');
+    s = s.replace(/[-–—|]\s*(official|video|lyrics?|audio|hd|4k|hq|remastered|live|karaoke|instrumental|wmv|mp4|avi|mpg|mpeg)$/gi, '');
+    // Čištění konců
+    s = s.replace(/[\s-_]*\(?instrumental\)?[\s-_]*/gi, '');
+    s = s.replace(/[\s-_]*instr[\s-_]*/gi, '');
+    s = s.replace(/\.[a-z0-9]{3,4}$/i, ''); // Odstranění přípony pro jistotu
+    return s.replace(/\s{2,}/g, ' ').trim();
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
