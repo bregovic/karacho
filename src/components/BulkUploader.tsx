@@ -76,7 +76,11 @@ export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) 
           songData.append('importName', rawName); // Posíláme surový název souboru
           
           const newSong = await createSong(songData);
-          addLog(`✅ Píseň "${newSong.title}" vytvořena.`, 'success');
+          if ('error' in newSong) {
+            addLog(`❌ Chyba: ${newSong.error}`, 'error');
+          } else {
+            addLog(`✅ Píseň "${newSong.title}" vytvořena.`, 'success');
+          }
         } else {
           // Režim INSTRUMENTAL - hledáme na serveru podle názvu i surového jména
           const existing = await findSongForInstrumentalAction(title, artist, rawName);
