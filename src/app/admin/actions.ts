@@ -144,8 +144,8 @@ export async function findSongForInstrumentalAction(title: string, artist: strin
     return (
       dbArtist === normArtist || 
       !dbArtist || !normArtist || 
-      dbArtist === 'neznámý' || normArtist === 'neznámý' ||
-      (dbArtist.length > 3 && normArtist.length > 3 && (dbArtist.includes(normArtist) || normArtist.includes(dbArtist)))
+      dbArtist === 'neznamy' || normArtist === 'neznamy' ||
+      dbArtist.includes(normArtist) || normArtist.includes(dbArtist)
     );
   });
 
@@ -155,13 +155,14 @@ export async function findSongForInstrumentalAction(title: string, artist: strin
 function normalizeForMatching(str: string) {
   if (!str) return '';
   let s = str.toLowerCase();
+  // 1. Odstranění prefixů (1_, 01., atd.)
   s = s.replace(/^[0-9]+[\._\s-]/, '');
+  // 2. Odstranění YouTube junk a instrumentálních značek
   s = s.replace(/[\(\[]\s*[^\]\)]*(official|video|lyrics?|audio|hd|4k|hq|remastered|live|feat\.|ft\.|karaoke|instrumental|vhs|retro|píseň|pieseň|wmv|mp4|avi|mpg|mpeg)[^\]\)]*\s*[\)\]]/gi, '');
   s = s.replace(/[-–—|]\s*(official|video|lyrics?|audio|hd|4k|hq|remastered|live|karaoke|instrumental|wmv|mp4|avi|mpg|mpeg)$/gi, '');
-  s = s.replace(/[\s-_]*\(?instrumental\)?[\s-_]*/gi, '');
-  s = s.replace(/[\s-_]*instr[\s-_]*/gi, '');
-  s = s.replace(/\.[a-z0-9]{3,4}$/i, '');
-  return s.replace(/\s{2,}/g, ' ').trim();
+  s = s.replace(/instrumental|instr|karaoke/gi, '');
+  // 3. SUPER-NORMALIZACE: Odstranění všeho kromě písmen a čísel
+  return s.replace(/[^a-z0-9]/gi, '');
 }
 
 export async function updateSongAudio(songId: string, audioUrl: string, audioHash?: string) {
