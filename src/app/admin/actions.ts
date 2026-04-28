@@ -32,10 +32,11 @@ export async function createSong(formData: FormData) {
 
   const titleRaw = (formData.get('title') as string || '').trim();
   const artistRaw = (formData.get('artist') as string || '').trim();
+  const importName = formData.get('importName') as string || null;
   
   // AUTOMATICKÉ ČIŠTĚNÍ PŘI IMPORTU
   let title = cleanTitle(titleRaw);
-  let artist = artistRaw;
+  let artist = cleanTitle(artistRaw);
 
   // Pokud je v názvu pomlčka a interpret je prázdný, zkusíme to rozdělit
   if (title.includes(' - ') && !artist) {
@@ -46,10 +47,12 @@ export async function createSong(formData: FormData) {
   
   if (!title) return { error: 'Chybí název písně' };
 
-  // OCHRANA PROTI DUPLICITÁM
-  const duplicate = await checkDuplicateSong(title, artist);
-  if (duplicate) {
-    throw new Error(`Tato píseň už v katalogu je: ${duplicate.title} (${duplicate.artist})`);
+  // OCHRANA PROTI DUPLICITÁM (pokud neznáme importName, jinak povolíme, AI může čistit názvy)
+  if (!importName) {
+    const duplicate = await checkDuplicateSong(title, artist);
+    if (duplicate) {
+      throw new Error(`Tato píseň už v katalogu je: ${duplicate.title} (${duplicate.artist})`);
+    }
   }
 
   const lyricsRaw = formData.get('lyrics') as string || '';
@@ -68,6 +71,7 @@ export async function createSong(formData: FormData) {
     tags,
     lyrics: cleanedLyrics || null,
     audioUrl: audioUrl || null,
+    importName: importName, // Schováme si původní název souboru
     animationStyle: 'karaoke-classic',
     createdById: session.user.id
   };
@@ -126,16 +130,32 @@ export async function manuallyCleanLyricsAction(songId: string, currentContent: 
   }
 }
 
-export async function findSongForInstrumentalAction(title: string, artist: string) {
+export async function findSongForInstrumentalAction(title: string, artist: string, rawFilename?: string) {
   await ensureAdmin();
+  
+  // 1. NEJJISTĚJŠÍ CESTA: Hledáme podle přesného původního názvu importu
+  if (rawFilename) {
+    const exact = await db.song.findFirst({
+      where: { importName: rawFilename },
+      select: { id: true, title: true, artist: true }
+    });
+    if (exact) return exact;
+  }
+
+  // 2. CESTA ZNALCŮ: Super-Normalizace (pokud se netrefíme přesně)
   const songs = await db.song.findMany({
-    select: { id: true, title: true, artist: true }
+    select: { id: true, title: true, artist: true, importName: true }
   });
 
   const normTitle = normalizeForMatching(title);
   const normArtist = normalizeForMatching(artist);
 
   const match = songs.find(s => {
+    // Pokud má píseň importName, zkusíme normalizovat i ten (jako fallback)
+    if (s.importName && rawFilename) {
+       if (normalizeForMatching(s.importName) === normalizeForMatching(rawFilename)) return true;
+    }
+
     const dbTitle = normalizeForMatching(s.title || '');
     const dbArtist = normalizeForMatching(s.artist || '');
 
@@ -944,6 +964,8 @@ const YOUTUBE_SUFFIX = /\s*([-–—|]\s*)?(Official\s*(Music\s*)?Video|Lyrics?\
 
 function cleanTitle(title: string): string {
   let t = title;
+  // Odstranění prefixů (1_, 01., atd.)
+  t = t.replace(/^[0-9]+[\._\s-]/, '');
   t = t.replace(YOUTUBE_JUNK, '');
   t = t.replace(YOUTUBE_SUFFIX, '');
   // Speciální případ pro nalepené "KARAOKE" na konci bez mezery
