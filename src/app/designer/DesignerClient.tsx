@@ -143,6 +143,44 @@ export default function DesignerClient({ song }: { song: any }) {
     forceUpdate();
   };
 
+  // Smart wrap: break long lines at commas/semicolons/word boundaries
+  const smartWrapText = (text: string, maxLen = 45): string => {
+    return text.split('\n').map(line => {
+      if (line.trim().length <= maxLen) return line;
+      const result: string[] = [];
+      let remaining = line;
+      while (remaining.length > maxLen) {
+        // 1. Prefer comma/semicolon break
+        let breakAt = -1;
+        for (let i = Math.min(maxLen, remaining.length - 1); i >= maxLen * 0.4; i--) {
+          if (remaining[i] === ',' || remaining[i] === ';') {
+            breakAt = i + 1; // keep the comma on this line
+            break;
+          }
+        }
+        // 2. Fallback to last space
+        if (breakAt < 0) {
+          for (let i = Math.min(maxLen, remaining.length - 1); i >= maxLen * 0.3; i--) {
+            if (remaining[i] === ' ') {
+              breakAt = i;
+              break;
+            }
+          }
+        }
+        // 3. Hard break if no good spot found
+        if (breakAt < 0) breakAt = maxLen;
+        result.push(remaining.slice(0, breakAt).trimEnd());
+        remaining = remaining.slice(breakAt).trimStart();
+      }
+      if (remaining.trim()) result.push(remaining.trim());
+      return result.join('\n');
+    }).join('\n');
+  };
+
+  const handleAutoWrap = () => {
+    setRawText(smartWrapText(rawText));
+  };
+
   const handleAutoAlign = async () => {
     if (!confirm("AI automaticky oklíčuje celý text. Stávající časování v timeline bude přepsáno. Pokračovat?")) return;
     setIsAligning(true);
@@ -530,9 +568,20 @@ export default function DesignerClient({ song }: { song: any }) {
             </div>
 
             <div style={{ textAlign: 'left', width: '100%', marginBottom: '1rem' }}>
-              <label style={{ fontSize: '11px', fontWeight: 800, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', marginBottom: '0.5rem', display: 'block' }}>
-                 {viewMode === 'lyrics' ? 'Editor textu & Progress:' : 'Editor akordů (Zdroj pro zpěvník):'}
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '0.5rem' }}>
+                <label style={{ fontSize: '11px', fontWeight: 800, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase' }}>
+                   {viewMode === 'lyrics' ? 'Editor textu & Progress:' : 'Editor akordů (Zdroj pro zpěvník):'}
+                </label>
+                {viewMode === 'lyrics' && (
+                  <button 
+                    onClick={handleAutoWrap}
+                    style={{ padding: '4px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                    title="Automaticky zalamovat dlouhé řádky"
+                  >
+                    ✂️ Zalamovat
+                  </button>
+                )}
+              </div>
               {viewMode === 'lyrics' ? (
                 <div style={{ position: 'relative', width: '100%', minHeight: '300px', resize: 'vertical', overflow: 'hidden', borderRadius: '12px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,180,0,0.3)' }}>
                   {/* BAREVNÝ NÁHLED V POZADÍ (Obarvená slova) */}
@@ -577,6 +626,17 @@ export default function DesignerClient({ song }: { song: any }) {
                   <textarea 
                     value={rawText}
                     onChange={(e) => setRawText(e.target.value)}
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      const pasted = e.clipboardData.getData('text');
+                      const wrapped = smartWrapText(pasted);
+                      setRawText(prev => {
+                        const ta = e.target as HTMLTextAreaElement;
+                        const start = ta.selectionStart;
+                        const end = ta.selectionEnd;
+                        return prev.slice(0, start) + wrapped + prev.slice(end);
+                      });
+                    }}
                     placeholder="Vložte text písně..."
                     spellCheck={false}
                     onScroll={(e) => {
