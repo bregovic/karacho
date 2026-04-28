@@ -901,6 +901,46 @@ function cleanTitle(title: string): string {
   return t;
 }
 
+function smartWrapLyrics(text: string, maxChars: number = 45): string {
+  if (!text) return '';
+  const lines = text.split('\n');
+  const result: string[] = [];
+
+  for (let line of lines) {
+    line = line.trim();
+    if (line.length <= maxChars) {
+      result.push(line);
+      continue;
+    }
+
+    // Inteligentní rozdělení dlouhého řádku
+    let currentLine = line;
+    while (currentLine.length > maxChars) {
+      // Hledáme čárku jako ideální bod rozdělení
+      let splitIdx = currentLine.lastIndexOf(', ', maxChars);
+      // Pokud není čárka, hledáme mezeru
+      if (splitIdx === -1) splitIdx = currentLine.lastIndexOf(' ', maxChars);
+      
+      if (splitIdx === -1 || splitIdx < maxChars * 0.5) {
+        // Pokud jsme nenašli mezeru v rozumném místě, vezmeme první mezeru za limitem
+        splitIdx = currentLine.indexOf(' ', maxChars);
+      }
+
+      if (splitIdx !== -1) {
+        result.push(currentLine.substring(0, splitIdx).trim());
+        currentLine = currentLine.substring(splitIdx).trim();
+      } else {
+        // Nouzovka - rozdělení natvrdo (nemělo by nastat u textů)
+        result.push(currentLine);
+        break;
+      }
+    }
+    if (currentLine) result.push(currentLine);
+  }
+
+  return result.join('\n');
+}
+
 function toTitleCase(str: string): string {
   const smallWords = new Set(['a', 'an', 'the', 'and', 'but', 'or', 'for', 'nor', 'on', 'at', 'to', 'by', 'in', 'of', 'up', 'je', 'se', 'si', 'na', 'do', 'za', 've', 'ke', 'po', 'ze', 'od', 'pro', 'při', 'nad', 'pod', 'o', 'v', 'k', 'z', 's', 'i', 'a']);
   return str.split(' ').map((w, i) => {
@@ -913,7 +953,7 @@ function toTitleCase(str: string): string {
 export async function auditSongsAction() {
   await ensureAdmin();
   const songs = await db.song.findMany({
-    select: { id: true, title: true, artist: true, lyrics: true, state: true },
+    select: { id: true, title: true, artist: true, lyrics: true, state: true, timingData: true },
   });
 
   const issues: AuditIssue[] = [];
@@ -1035,6 +1075,21 @@ export async function auditSongsAction() {
     if (!titleArtistMap.has(rawKey)) titleArtistMap.set(rawKey, []);
     titleArtistMap.get(rawKey)!.push(s);
 
+    // 7. Dlouhé řádky v textu - JEN POKUD NEMÁ KLÍČOVÁNÍ (JSON)
+    if (s.lyrics && !s.timingData) {
+      const lines = s.lyrics.split('\n');
+      const longLines = lines.filter(l => l.trim().length > 55);
+      if (longLines.length > 0) {
+        issues.push({
+          songId: s.id, title: s.title, artist: s.artist || '',
+          issueType: 'LONG_LYRICS_LINES',
+          description: `${longLines.length} řádků je příliš dlouhých (nad 55 znaků)`,
+          suggestedLyrics: smartWrapLyrics(s.lyrics),
+          autoFixable: true,
+        });
+      }
+    }
+
     const cleanKey = `${cleanTitle(s.title || '').toLowerCase().trim()}|||${(s.artist || '').toLowerCase().trim()}`;
     if (!potentialDuplicateMap.has(cleanKey)) potentialDuplicateMap.set(cleanKey, []);
     potentialDuplicateMap.get(cleanKey)!.push(s.id);
@@ -1110,11 +1165,12 @@ export async function batchFixSongsAction(fixes: {
   genre?: string;
   tags?: string[];
   origin?: string;
+  lyrics?: string;
 }[]) {
   await ensureAdmin();
   
   // Merge fixes per songId (a song might have multiple issues)
-  const merged = new Map<string, { title?: string; artist?: string; genre?: string; tags?: string[]; origin?: string }>();
+  const merged = new Map<string, { title?: string; artist?: string; genre?: string; tags?: string[]; origin?: string; lyrics?: string }>();
   for (const fix of fixes) {
     const existing = merged.get(fix.songId) || {};
     if (fix.title !== undefined) existing.title = fix.title;
@@ -1122,6 +1178,7 @@ export async function batchFixSongsAction(fixes: {
     if (fix.genre !== undefined) existing.genre = fix.genre;
     if (fix.tags !== undefined) existing.tags = fix.tags;
     if (fix.origin !== undefined) existing.origin = fix.origin;
+    if (fix.lyrics !== undefined) existing.lyrics = fix.lyrics;
     merged.set(fix.songId, existing);
   }
 

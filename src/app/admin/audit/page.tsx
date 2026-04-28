@@ -15,6 +15,7 @@ type AuditIssue = {
   suggestedGenre?: string;
   suggestedTags?: string[];
   suggestedOrigin?: string;
+  suggestedLyrics?: string;
   autoFixable: boolean;
 };
 
@@ -89,6 +90,7 @@ export default function AuditPage() {
             genre: issue.suggestedGenre,
             tags: issue.suggestedTags,
             origin: issue.suggestedOrigin,
+            lyrics: issue.suggestedLyrics,
           };
         });
       const res = await batchFixSongsAction(fixes);
@@ -335,6 +337,9 @@ export default function AuditPage() {
                         )}
                         {issue.suggestedOrigin && (
                           <div style={{ opacity: 0.7, color: '#ff8c00' }}>→ Původ: {issue.suggestedOrigin}</div>
+                        )}
+                        {issue.suggestedLyrics && (
+                          <div style={{ opacity: 0.7, color: '#ff00ff' }}>→ Text bude automaticky zalomen</div>
                         )}
                       </div>
                     )}
