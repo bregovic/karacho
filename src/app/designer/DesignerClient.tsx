@@ -719,9 +719,9 @@ export default function DesignerClient({ song }: { song: any }) {
             </button>
           </header>
 
-          <div style={{ flex: 1, position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6vw', gap: '2.5vh', pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', top: '60px', left: 0, right: 0, bottom: '280px', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6vw', gap: '2.5vh', pointerEvents: 'none', overflow: 'hidden' }}>
              {/* TEXTOVÁ VRSTVA */}
-             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: '30px', padding: '0 5vw' }}>
+             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: '30px', padding: '0 5vw', width: '100%' }}>
                 {/* Předchozí řádek */}
                 <div ref={prevLineEl} style={{ minHeight: '60px', color: 'rgba(255,255,255,0.15)', fontSize: 'clamp(20px, 4vw, 40px)', fontWeight: 500, letterSpacing: '2px', transition: 'all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)' }} />
                 
@@ -764,7 +764,7 @@ export default function DesignerClient({ song }: { song: any }) {
              </div>
           </div>
 
-          <div className="main-controls" style={{ paddingBottom: '15px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px', zIndex: 100, pointerEvents: 'none', width: '100%' }}>
+          <div className="main-controls" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, paddingBottom: '15px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px', zIndex: 100, pointerEvents: 'none', background: 'linear-gradient(to top, rgba(10,10,20,0.95) 0%, rgba(10,10,20,0.8) 70%, transparent 100%)', paddingTop: '30px' }}>
               {/* PROGRESS BAR - Viditelný pro všechny nezávisle (myš + tah) */}
               <div style={{ width: '100%', maxWidth: '800px', padding: '0 20px', boxSizing: 'border-box', pointerEvents: 'auto' }}>
                   <div 
