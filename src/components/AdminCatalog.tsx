@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AudioUploader from '@/components/AudioUploader';
@@ -296,6 +296,16 @@ export default function AdminCatalog({
 
           {/* Rozbalovací panel nástrojů */}
           <div style={{ display: showTools ? 'flex' : 'none', gap: '10px', background: 'rgba(0,0,0,0.3)', padding: '1.25rem', borderRadius: '24px', marginBottom: '2rem', flexWrap: 'wrap', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <Link href="/admin/exchange" style={{ textDecoration: 'none' }}>
+                <button className="btn-secondary" style={{ padding: '12px 20px', borderRadius: '14px', fontSize: '12px', fontWeight: 800, border: '1px solid #00ffa0', background: 'rgba(0,255,160,0.05)', color: '#00ffa0' }}>
+                  📦 EXPORT/IMPORT KATALOGU
+                </button>
+              </Link>
+              <Link href="/admin/audit" style={{ textDecoration: 'none' }}>
+                <button className="btn-secondary" style={{ padding: '12px 20px', borderRadius: '14px', fontSize: '12px', fontWeight: 800, border: '1px solid #ffcc00', background: 'rgba(255,204,0,0.05)', color: '#ffcc00' }}>
+                  🔍 AUDIT DAT
+                </button>
+              </Link>
               <button onClick={toggleSelectAll} className="btn-secondary" style={{ padding: '12px 20px', borderRadius: '14px', fontSize: '12px', fontWeight: 800 }}>
                   {isAllSelected ? "🔲 ODZNAČIT VŠE ZOBRAZENÉ" : "☑️ OZNAČIT VŠE ZOBRAZENÉ"}
               </button>
