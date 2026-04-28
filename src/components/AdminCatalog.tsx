@@ -333,6 +333,12 @@ export default function AdminCatalog({
                   📊 {loadingStats ? 'POČÍTÁM...' : 'STATISTIKY'}
               </button>
 
+              <Link href="/admin/audit" style={{ textDecoration: 'none' }}>
+                <button className="btn-secondary" style={{ padding: '12px 20px', borderRadius: '14px', fontSize: '12px', fontWeight: 800, border: '1px solid #a855f7', color: '#a855f7', background: 'rgba(168,85,247,0.08)' }}>
+                  🔍 AUDIT DAT
+                </button>
+              </Link>
+
               <div style={{ width: '1px', background: 'rgba(255,255,255,0.08)', margin: '0 8px' }} />
 
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'rgba(255,255,255,0.03)', padding: '6px 14px', borderRadius: '16px' }}>
