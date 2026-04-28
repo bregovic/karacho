@@ -1352,26 +1352,42 @@ export async function importCatalogXmlAction(xmlContent: string) {
     const id = songData.id;
     const updateData: any = {};
 
-    // Čtení dat (včetně CDATA)
+    // Čtení dat (včetně CDATA a různých formátů fast-xml-parseru)
     const getVal = (val: any) => {
-      if (val && typeof val === 'object' && val.__cdata) return val.__cdata;
-      return val;
+      if (val === undefined || val === null) return '';
+      if (typeof val === 'object') {
+        if (val.__cdata) return String(val.__cdata).trim();
+        if (val['#text']) return String(val['#text']).trim();
+        if (Object.keys(val).length === 0) return '';
+        return ''; 
+      }
+      return String(val).trim();
     };
 
-    if (songData.Title !== undefined) updateData.title = String(getVal(songData.Title)).trim();
-    if (songData.Artist !== undefined) updateData.artist = String(getVal(songData.Artist)).trim();
-    if (songData.Origin !== undefined) updateData.origin = String(songData.Origin).trim();
-    if (songData.Genre !== undefined) updateData.genre = String(songData.Genre).trim();
-    if (songData.Tags !== undefined) {
-      updateData.tags = String(songData.Tags).split(',').map((t: string) => t.trim()).filter(Boolean);
+    const title = getVal(songData.Title);
+    const artist = getVal(songData.Artist);
+    const origin = getVal(songData.Origin);
+    const genre = getVal(songData.Genre);
+    const tags = getVal(songData.Tags);
+
+    if (title) updateData.title = title;
+    if (artist) updateData.artist = artist;
+    if (origin !== undefined) updateData.origin = origin || null;
+    if (genre !== undefined) updateData.genre = genre || null;
+    if (tags !== undefined) {
+      updateData.tags = tags ? tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [];
     }
 
     if (Object.keys(updateData).length > 0) {
-      await db.song.update({
-        where: { id },
-        data: updateData
-      });
-      updatedCount++;
+      try {
+        await db.song.update({
+          where: { id },
+          data: updateData
+        });
+        updatedCount++;
+      } catch (err) {
+        console.error(`Chyba při aktualizaci písně ${id}:`, err);
+      }
     }
   }
 
