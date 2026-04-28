@@ -1213,3 +1213,91 @@ export async function batchFixSongsAction(fixes: {
   revalidatePath('/');
   return { fixed, errors };
 }
+
+export async function exportCatalogXmlAction() {
+  await ensureAdmin();
+  const songs = await db.song.findMany({
+    orderBy: { artist: 'asc' }
+  });
+
+  // Získání unikátních žánrů a původů pro číselník
+  const genres = Array.from(new Set(songs.map(s => s.genre).filter(Boolean)));
+  const origins = Array.from(new Set(songs.map(s => s.origin).filter(Boolean)));
+  const allTags = Array.from(new Set(songs.flatMap(s => s.tags || [])));
+
+  const prompt = `Jsi expert na hudební metadata. Tvým úkolem je doplnit chybějící údaje v přiloženém XML seznamu písní.
+POKYNY:
+1. Zaměř se na pole <Origin>, <Genre> a <Tags>.
+2. Pokud je pole prázdné nebo obsahuje "null", doplň ho podle tvých znalostí.
+3. Používej pokud možno existující hodnoty z číselníku (Dictionaries) pro zachování konzistence.
+4. Původ (Origin) uváděj jako ISO kód země (CZ, SK, EN, US, DE, PL atd.).
+5. Tagy (Tags) uváděj jako čárkou oddělený seznam (např. 80s, rock, happy).
+6. Vrať mi zpět POUZE upravené XML ve stejné struktuře, nic jiného nepiš.`;
+
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+  xml += `<KarachoCatalog>\n`;
+  xml += `  <Info>\n`;
+  xml += `    <RecommendedPrompt><![CDATA[${prompt}]]></RecommendedPrompt>\n`;
+  xml += `  </Info>\n`;
+  xml += `  <Dictionaries>\n`;
+  xml += `    <Genres>${genres.join(', ')}</Genres>\n`;
+  xml += `    <Origins>${origins.join(', ')}</Origins>\n`;
+  xml += `    <Tags>${allTags.slice(0, 50).join(', ')}</Tags>\n`;
+  xml += `  </Dictionaries>\n`;
+  xml += `  <Songs>\n`;
+
+  for (const s of songs) {
+    xml += `    <Song id="${s.id}">\n`;
+    xml += `      <Title><![CDATA[${s.title}]]></Title>\n`;
+    xml += `      <Artist><![CDATA[${s.artist || ''}]]></Artist>\n`;
+    xml += `      <Origin>${s.origin || ''}</Origin>\n`;
+    xml += `      <Genre>${s.genre || ''}</Genre>\n`;
+    xml += `      <Tags>${(s.tags || []).join(', ')}</Tags>\n`;
+    xml += `    </Song>\n`;
+  }
+
+  xml += `  </Songs>\n`;
+  xml += `</KarachoCatalog>`;
+
+  return xml;
+}
+
+import { XMLParser } from 'fast-xml-parser';
+
+export async function importCatalogXmlAction(xmlContent: string) {
+  await ensureAdmin();
+  const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "" });
+  const jsonObj = parser.parse(xmlContent);
+
+  if (!jsonObj.KarachoCatalog || !jsonObj.KarachoCatalog.Songs || !jsonObj.KarachoCatalog.Songs.Song) {
+    throw new Error('Neplatný formát XML. Chybí struktura KarachoCatalog > Songs > Song.');
+  }
+
+  const songs = Array.isArray(jsonObj.KarachoCatalog.Songs.Song) 
+    ? jsonObj.KarachoCatalog.Songs.Song 
+    : [jsonObj.KarachoCatalog.Songs.Song];
+
+  let updatedCount = 0;
+
+  for (const songData of songs) {
+    const id = songData.id;
+    const updateData: any = {};
+
+    if (songData.Origin !== undefined) updateData.origin = String(songData.Origin).trim();
+    if (songData.Genre !== undefined) updateData.genre = String(songData.Genre).trim();
+    if (songData.Tags !== undefined) {
+      updateData.tags = String(songData.Tags).split(',').map((t: string) => t.trim()).filter(Boolean);
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      await db.song.update({
+        where: { id },
+        data: updateData
+      });
+      updatedCount++;
+    }
+  }
+
+  revalidatePath('/admin');
+  return { success: true, updatedCount };
+}
