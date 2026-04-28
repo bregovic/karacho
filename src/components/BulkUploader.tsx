@@ -73,12 +73,13 @@ export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) 
           songData.append('title', title);
           songData.append('artist', artist === 'Neznámý' ? '' : artist);
           songData.append('audioUrl', fileUrl);
+          songData.append('importName', rawName); // Posíláme surový název souboru
           
           const newSong = await createSong(songData);
-          addLog(`✅ Píseň "${title}" vytvořena. Text se stahuje na pozadí.`, 'success');
+          addLog(`✅ Píseň "${newSong.title}" vytvořena.`, 'success');
         } else {
-          // Režim INSTRUMENTAL - hledáme na serveru v reálném čase
-          const existing = await findSongForInstrumentalAction(title, artist);
+          // Režim INSTRUMENTAL - hledáme na serveru podle názvu i surového jména
+          const existing = await findSongForInstrumentalAction(title, artist, rawName);
 
           if (existing) {
             await updateSongInstrumental(existing.id, fileUrl);

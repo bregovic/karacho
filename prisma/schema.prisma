@@ -116,6 +116,7 @@ model Song {
   requestedByEmail String?
   createdById     String?
   audioHash       String?   @unique // Hash obsahu MP3 pro detekci duplicitních souborů
+  importName      String?   // Původní surový název souboru pro párování instrumentálek
   startTime       Float     @default(0)
 
   @@unique([artist, title]) // Zamezení duplicitních názvů od stejného interpreta
