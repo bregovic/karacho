@@ -18,7 +18,7 @@ function normalize(str: string) {
 
 export async function autoAlignSong(songId: string) {
   try {
-    console.log("AI-Align: Starting Rhythmic Engine v5.0 for", songId);
+    console.log("AI-Align: Starting Pro Aligner v6.0 for", songId);
     
     const song = await db.song.findUnique({ where: { id: songId } });
     if (!song || !song.audioUrl || !song.lyrics) {
@@ -35,7 +35,7 @@ export async function autoAlignSong(songId: string) {
       model: "whisper-1",
       response_format: "verbose_json",
       timestamp_granularities: ["word"],
-      prompt: song.lyrics.slice(0, 1000),
+      prompt: `Karaoke timing for ${song.artist} - ${song.title}. Lyrics: ${song.lyrics.slice(0, 500)}`,
     });
 
     const vJson = transcription as any;
@@ -52,8 +52,6 @@ export async function autoAlignSong(songId: string) {
     
     const blocks: any[] = [];
     let globalWhisperIdx = 0;
-    
-    // Odhad průměrného tempa (vteřin na slovo)
     let avgPace = 0.35; 
 
     for (let li = 0; li < sourceLines.length; li++) {
@@ -61,18 +59,27 @@ export async function autoAlignSong(songId: string) {
       const foundAnchors: { wordIdx: number, time: number, whisperIdx: number }[] = [];
       let currentLinePointer = globalWhisperIdx;
 
+      // PROGRESIVNÍ OKNO: Na začátku hledáme v širším okně (60 slov), pak už se držíme blíž (40 slov)
+      const searchWindow = li === 0 ? 100 : 40;
+
       for (let wi = 0; wi < lineWords.length; wi++) {
         const target = normalize(lineWords[wi]);
         if (!target) continue;
 
-        for (let j = 0; j < 50; j++) {
+        for (let j = 0; j < searchWindow; j++) {
           const checkIdx = currentLinePointer + j;
           if (checkIdx >= whisperWords.length) break;
           const wWord = normalize(whisperWords[checkIdx].word);
           
           if (wWord === target || wWord.includes(target) || target.includes(wWord)) {
-            const foundTime = Math.min(whisperWords[checkIdx].start, maxDuration);
-            foundAnchors.push({ wordIdx: wi, time: foundTime, whisperIdx: checkIdx });
+            const foundTime = whisperWords[checkIdx].start;
+            
+            // POJISTKA PROTI SKOKŮM: Pokud je nalezený čas o víc než 15s dál než minulý řádek,
+            // ignorujeme to (asi shoda v jiném refrénu) - kromě prvního řádku.
+            const lastEnd = blocks.length > 0 ? blocks[blocks.length-1].be : 0;
+            if (li > 0 && foundTime > lastEnd + 20) continue; 
+
+            foundAnchors.push({ wordIdx: wi, time: Math.min(foundTime, maxDuration), whisperIdx: checkIdx });
             currentLinePointer = checkIdx + 1;
             break; 
           }
@@ -83,11 +90,10 @@ export async function autoAlignSong(songId: string) {
       let lastBlockEnd = blocks.length > 0 ? blocks[blocks.length - 1].be : 0;
       
       if (foundAnchors.length > 0) {
-        // Máme kotvy - vypočítáme lokální tempo pro tento řádek
         if (foundAnchors.length >= 2) {
             const timeDiff = foundAnchors[foundAnchors.length-1].time - foundAnchors[0].time;
             const wordDiff = foundAnchors[foundAnchors.length-1].wordIdx - foundAnchors[0].wordIdx;
-            if (wordDiff > 0) avgPace = (avgPace + (timeDiff / wordDiff)) / 2; // Klouzavý průměr
+            if (wordDiff > 0) avgPace = (avgPace + (timeDiff / wordDiff)) / 2;
         }
 
         for (let wi = 0; wi < lineWords.length; wi++) {
@@ -104,18 +110,23 @@ export async function autoAlignSong(songId: string) {
             time = rightA.time - (rightA.wordIdx - wi) * avgPace;
           }
           
-          // ANTI-ZASEKÁVADLO (De-clumping)
-          if (wi > 0 && time <= bWords[wi-1].t) {
-            time = bWords[wi-1].t + 0.15; // Posunout o aspoň 150ms
-          }
+          // ANTI-SQUASH: Minimální rozestup mezi slovy 200ms
+          if (wi > 0 && time <= bWords[wi-1].t) time = bWords[wi-1].t + 0.2;
           
           time = Math.max(time, lastBlockEnd + 0.1);
           bWords.push({ t: Math.min(time, maxDuration - 0.1), i: wi, v: 3 });
         }
         globalWhisperIdx = Math.max(...foundAnchors.map(a => a.whisperIdx)) + 1;
       } else {
-        // Fallback: Použijeme průměrné tempo písně
-        const startTime = lastBlockEnd + 0.8;
+        // FALLBACK: Pokud AI řádek nepozná, vypočítáme čas rytmicky, 
+        // ale s pojistkou aby nám zbylo místo pro zbytek textu!
+        const remainingLines = sourceLines.length - li;
+        const remainingTime = maxDuration - lastBlockEnd - 5; // 5s rezerva na konec
+        
+        // Pokud zbývá málo času pro hodně textu, zkrátíme mezery mezi bloky
+        const blockGap = remainingTime / (remainingLines + 1) > 2 ? 1.0 : 0.4;
+        const startTime = lastBlockEnd + blockGap;
+        
         for (let wi = 0; wi < lineWords.length; wi++) {
           let time = startTime + (wi * avgPace);
           if (wi > 0 && time <= bWords[wi-1].t) time = bWords[wi-1].t + 0.2;
