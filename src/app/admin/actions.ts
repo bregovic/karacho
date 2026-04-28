@@ -1092,18 +1092,6 @@ export async function auditSongsAction() {
       });
     }
 
-    // 6. Artist/title might be swapped (title is very short, artist is long)
-    if (artist && title.length < artist.length * 0.4 && title.split(' ').length <= 2) {
-      issues.push({
-        songId: s.id, title, artist,
-        issueType: 'POSSIBLE_SWAP',
-        description: `Název je kratší než interpret – možná prohozeno?`,
-        suggestedTitle: artist,
-        suggestedArtist: title,
-        autoFixable: true,
-      });
-    }
-
     // 7. Title contains " - " (artist - title pattern)
     if (title.includes(' - ') && !artist) {
       const parts = title.split(' - ');
@@ -1115,19 +1103,6 @@ export async function auditSongsAction() {
         suggestedTitle: parts.slice(1).join(' - ').trim(),
         autoFixable: true,
       });
-    }
-
-    // 8. Lyrics too long lines (any line > 60 chars)
-    if (s.lyrics) {
-      const longLines = s.lyrics.split('\n').filter(l => l.trim().length > 60);
-      if (longLines.length > 3) {
-        issues.push({
-          songId: s.id, title, artist,
-          issueType: 'LONG_LYRICS_LINES',
-          description: `Text obsahuje ${longLines.length} řádků delších než 60 znaků`,
-          autoFixable: false,
-        });
-      }
     }
 
     // 9. Missing lyrics entirely
