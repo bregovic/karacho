@@ -18,7 +18,7 @@ function normalize(str: string) {
 
 export async function autoAlignSong(songId: string) {
   try {
-    console.log("AI-Align: Starting Master Alignment for", songId);
+    console.log("AI-Align: Starting Ultra-Stable Alignment for", songId);
     
     const song = await db.song.findUnique({ where: { id: songId } });
     if (!song || !song.audioUrl || !song.lyrics) {
@@ -40,6 +40,7 @@ export async function autoAlignSong(songId: string) {
 
     const vJson = transcription as any;
     const whisperWords = vJson.words; 
+    const maxDuration = vJson.duration || 0;
 
     if (!whisperWords || whisperWords.length === 0) {
       throw new Error("Whisper nevrátil žádná slova.");
@@ -50,70 +51,66 @@ export async function autoAlignSong(songId: string) {
       .filter(l => l.length > 0);
     
     const blocks: any[] = [];
-    let whisperPointer = 0;
+    let globalWhisperIdx = 0;
 
     for (let li = 0; li < sourceLines.length; li++) {
       const lineText = sourceLines[li];
       const lineWords = lineText.split(/\s+/).filter(w => w.length > 0);
       
-      // 1. Najdeme KOTVY v širším okně
       const foundAnchors: { wordIdx: number, time: number, whisperIdx: number }[] = [];
-      let lastBlockEnd = blocks.length > 0 ? blocks[blocks.length - 1].be : 0;
-      
-      // Hledáme kotvy v transkripci (omezené okno pro zachování chronologie)
-      const searchWindow = 60; // Prohledáme 60 slov od konce posledního bloku
-      
+      let currentLinePointer = globalWhisperIdx;
+
       for (let wi = 0; wi < lineWords.length; wi++) {
         const target = normalize(lineWords[wi]);
         if (!target) continue;
 
-        for (let j = 0; j < searchWindow; j++) {
-          const checkIdx = whisperPointer + j;
+        // Hledáme kotvu pro KONKRÉTNÍ slovo, ale VŽDY jen dopředu (searchWindow 50 slov)
+        for (let j = 0; j < 50; j++) {
+          const checkIdx = currentLinePointer + j;
           if (checkIdx >= whisperWords.length) break;
           const wWord = normalize(whisperWords[checkIdx].word);
           
           if (wWord === target || wWord.includes(target) || target.includes(wWord)) {
-            foundAnchors.push({ 
-              wordIdx: wi, 
-              time: whisperWords[checkIdx].start,
-              whisperIdx: checkIdx
-            });
+            const foundTime = Math.min(whisperWords[checkIdx].start, maxDuration);
+            foundAnchors.push({ wordIdx: wi, time: foundTime, whisperIdx: checkIdx });
+            // KLÍČOVÁ OPRAVA: Po nalezení slova posuneme pointer pro DALŠÍ slovo v tomto řádku!
+            currentLinePointer = checkIdx + 1;
             break; 
           }
         }
       }
 
-      // 2. Interpolace se zohledněním délky slov (vážená)
       const bWords: any[] = [];
+      let lastBlockEnd = blocks.length > 0 ? blocks[blocks.length - 1].be : 0;
       
       if (foundAnchors.length > 0) {
-        // Posuneme pointer za poslední nalezenou kotvu v tomto řádku
-        const maxWhisperIdx = Math.max(...foundAnchors.map(a => a.whisperIdx));
-        whisperPointer = maxWhisperIdx + 1;
-
+        // Máme kotvy - interpolujeme
         for (let wi = 0; wi < lineWords.length; wi++) {
-          const leftAnchor = [...foundAnchors].reverse().find(a => a.wordIdx <= wi);
-          const rightAnchor = foundAnchors.find(a => a.wordIdx >= wi);
+          const leftA = [...foundAnchors].reverse().find(a => a.wordIdx <= wi);
+          const rightA = foundAnchors.find(a => a.wordIdx >= wi);
 
           let time = 0;
-          if (leftAnchor && rightAnchor && leftAnchor.wordIdx !== rightAnchor.wordIdx) {
-            // Lineární rozdělení mezi kotvami
-            const ratio = (wi - leftAnchor.wordIdx) / (rightAnchor.wordIdx - leftAnchor.wordIdx);
-            time = leftAnchor.time + (rightAnchor.time - leftAnchor.time) * ratio;
-          } else if (leftAnchor) {
-            // Jen levá - odhad
-            time = leftAnchor.time + (wi - leftAnchor.wordIdx) * 0.35;
-          } else if (rightAnchor) {
-            // Jen pravá - odhad
-            time = rightAnchor.time - (rightAnchor.wordIdx - wi) * 0.35;
+          if (leftA && rightA && leftA.wordIdx !== rightA.wordIdx) {
+            const ratio = (wi - leftA.wordIdx) / (rightA.wordIdx - leftA.wordIdx);
+            time = leftA.time + (rightA.time - leftA.time) * ratio;
+          } else if (leftA) {
+            time = leftA.time + (wi - leftA.wordIdx) * 0.35;
+          } else if (rightA) {
+            time = rightA.time - (rightA.wordIdx - wi) * 0.35;
           }
-          bWords.push({ t: time, i: wi, v: 3 });
+          
+          // Zajistíme, že čas nezačne dřív než skončil minulý blok
+          time = Math.max(time, lastBlockEnd + 0.1);
+          bWords.push({ t: Math.min(time, maxDuration), i: wi, v: 3 });
         }
+        // Posuneme globální pointer za poslední nalezené slovo tohoto řádku
+        globalWhisperIdx = Math.max(...foundAnchors.map(a => a.whisperIdx)) + 1;
       } else {
-        // Fallback: Pokud řádek vůbec nepoznáme, umístíme ho za poslední blok
+        // Fallback pro nenalezený řádek
         const startTime = lastBlockEnd + 0.8;
         for (let wi = 0; wi < lineWords.length; wi++) {
-          bWords.push({ t: startTime + (wi * 0.4), i: wi, v: 3 });
+          const time = Math.min(startTime + (wi * 0.4), maxDuration);
+          bWords.push({ t: time, i: wi, v: 3 });
         }
       }
 
@@ -122,14 +119,14 @@ export async function autoAlignSong(songId: string) {
           li: blocks.length,
           v: 3,
           bs: Math.max(0, bWords[0].t - 1.2),
-          be: bWords[bWords.length - 1].t + 1.2,
+          be: Math.min(bWords[bWords.length - 1].t + 1.2, maxDuration),
           lw: lineWords,
           w: bWords
         });
       }
     }
 
-    const timingData = { blocks, dur: vJson.duration || 0, countdowns: [] };
+    const timingData = { blocks, dur: maxDuration, countdowns: [] };
 
     await db.song.update({
       where: { id: songId },
