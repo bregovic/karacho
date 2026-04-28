@@ -99,8 +99,6 @@ export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) 
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  };
-
   return (
     <>
       <button 
