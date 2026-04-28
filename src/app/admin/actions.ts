@@ -628,16 +628,41 @@ export async function researchSongDataAction(songId: string) {
 
 export async function getInternetSuggestionsAction(title: string, artist: string) {
   await ensureAdmin();
-  const suggestions: { title?: string; artist?: string } = {};
+  const suggestions: { title?: string; artist?: string; genre?: string; tags?: string[]; origin?: string } = {};
 
   try {
-    // VAGALUME (hledáme hlavně správný case a název)
+    // 1. VAGALUME (hledáme hlavně správný case, název a žánr)
     const vRes = await fetch(`https://api.vagalume.com.br/search.php?art=${encodeURIComponent(artist)}&mus=${encodeURIComponent(title)}&apikey=666a658e7948d9d20233d31c36006c9a`);
     if (vRes.ok) {
       const vData = await vRes.json();
       if (vData.mus && vData.mus[0]) {
         suggestions.title = vData.mus[0].name;
-        if (vData.art) suggestions.artist = vData.art.name;
+        if (vData.art) {
+          suggestions.artist = vData.art.name;
+          if (vData.art.genre && vData.art.genre[0]) {
+            suggestions.genre = vData.art.genre[0].name;
+          }
+        }
+      }
+    }
+
+    // 2. LAST.FM (hledáme tagy a odhadujeme původ)
+    const lfApiKey = '4d75f2b8f847ff7638d2ef1c13d33f3b';
+    const lfRes = await fetch(`https://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key=${lfApiKey}&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}&format=json`);
+    if (lfRes.ok) {
+      const lfData = await lfRes.json();
+      if (lfData.track && lfData.track.toptags && lfData.track.toptags.tag) {
+        const tags = lfData.track.toptags.tag
+          .slice(0, 10)
+          .map((t: any) => t.name.toLowerCase());
+        
+        suggestions.tags = tags;
+
+        // Odhad původu z tagů
+        if (tags.some((t: string) => t.includes('czech') || t.includes('cesk'))) suggestions.origin = 'CZ';
+        else if (tags.some((t: string) => t.includes('slovak'))) suggestions.origin = 'SK';
+        else if (tags.some((t: string) => t.includes('polish'))) suggestions.origin = 'PL';
+        else if (tags.some((t: string) => t.includes('german'))) suggestions.origin = 'DE';
       }
     }
   } catch (e) {}
@@ -1078,15 +1103,25 @@ async function findMatchingInstrumental(title: string, artist?: string) {
   return null;
 }
 
-export async function batchFixSongsAction(fixes: { songId: string; title?: string; artist?: string }[]) {
+export async function batchFixSongsAction(fixes: { 
+  songId: string; 
+  title?: string; 
+  artist?: string;
+  genre?: string;
+  tags?: string[];
+  origin?: string;
+}[]) {
   await ensureAdmin();
   
   // Merge fixes per songId (a song might have multiple issues)
-  const merged = new Map<string, { title?: string; artist?: string }>();
+  const merged = new Map<string, { title?: string; artist?: string; genre?: string; tags?: string[]; origin?: string }>();
   for (const fix of fixes) {
     const existing = merged.get(fix.songId) || {};
     if (fix.title !== undefined) existing.title = fix.title;
     if (fix.artist !== undefined) existing.artist = fix.artist;
+    if (fix.genre !== undefined) existing.genre = fix.genre;
+    if (fix.tags !== undefined) existing.tags = fix.tags;
+    if (fix.origin !== undefined) existing.origin = fix.origin;
     merged.set(fix.songId, existing);
   }
 

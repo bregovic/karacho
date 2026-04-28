@@ -12,6 +12,9 @@ type AuditIssue = {
   description: string;
   suggestedTitle?: string;
   suggestedArtist?: string;
+  suggestedGenre?: string;
+  suggestedTags?: string[];
+  suggestedOrigin?: string;
   autoFixable: boolean;
 };
 
@@ -83,6 +86,9 @@ export default function AuditPage() {
             songId: issue.songId,
             title: issue.suggestedTitle,
             artist: issue.suggestedArtist,
+            genre: issue.suggestedGenre,
+            tags: issue.suggestedTags,
+            origin: issue.suggestedOrigin,
           };
         });
       const res = await batchFixSongsAction(fixes);
@@ -132,8 +138,11 @@ export default function AuditPage() {
               ...issue,
               suggestedTitle: sug.title,
               suggestedArtist: sug.artist,
+              suggestedGenre: sug.genre,
+              suggestedTags: sug.tags,
+              suggestedOrigin: sug.origin,
               autoFixable: true,
-              description: issue.description + ' (Ověřeno z internetu)'
+              description: issue.description + ' (Metadata ověřena)'
             };
             found++;
           }
@@ -310,7 +319,7 @@ export default function AuditPage() {
                     </div>
 
                     {/* SUGGESTION */}
-                    {(issue.suggestedTitle || issue.suggestedArtist) && (
+                    {(issue.suggestedTitle || issue.suggestedArtist || issue.suggestedGenre || issue.suggestedOrigin) && (
                       <div style={{ 
                         fontSize: '12px', color: '#00ffa0', fontWeight: 600, textAlign: 'right',
                         maxWidth: '300px', flexShrink: 0
@@ -320,6 +329,12 @@ export default function AuditPage() {
                         )}
                         {issue.suggestedArtist && (
                           <div style={{ opacity: 0.7 }}>→ Interpret: {issue.suggestedArtist}</div>
+                        )}
+                        {issue.suggestedGenre && (
+                          <div style={{ opacity: 0.7, color: '#00d2ff' }}>→ Žánr: {issue.suggestedGenre}</div>
+                        )}
+                        {issue.suggestedOrigin && (
+                          <div style={{ opacity: 0.7, color: '#ff8c00' }}>→ Původ: {issue.suggestedOrigin}</div>
                         )}
                       </div>
                     )}
