@@ -893,6 +893,10 @@ interface AuditIssue {
   description: string;
   suggestedTitle?: string;
   suggestedArtist?: string;
+  suggestedGenre?: string;
+  suggestedTags?: string[];
+  suggestedOrigin?: string;
+  suggestedLyrics?: string;
   autoFixable: boolean;
 }
 
