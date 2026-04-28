@@ -143,6 +143,37 @@ export default function DesignerClient({ song }: { song: any }) {
     forceUpdate();
   };
 
+  // Clean lyrics: remove chords, structural labels, dashes, quotes, etc.
+  const cleanLyrics = (text: string): string => {
+    let t = text;
+    // Remove chord notations in brackets: [Am], [G7], [Cadd9], etc.
+    t = t.replace(/\[([A-G][^\]]*)\]/g, '');
+    // Remove structural labels (whole lines or inline): Refrén, Ref., Chorus, Sloka, Verse, Intro, Outro, Bridge, Předehra, Mezihra, Solo, Coda, Pre-chorus
+    t = t.replace(/^\s*(Refr[ée]n|Ref\.|Chorus|Sloka|Verse|Intro|Outro|Bridge|Před[ei]hra|Mezihra|Solo|Coda|Pre-?chorus|Interlude|Hook)\s*:?\s*\d*\s*$/gim, '');
+    // Remove content in square brackets: [Refrén], [2x], [Intro], etc.
+    t = t.replace(/\[[^\]]*\]/g, '');
+    // Remove content in parentheses that looks structural: (2x), (Refrén), (opakovat)
+    t = t.replace(/\(\s*(\d+x|Refr[ée]n|Ref\.|opakovat|repeat|chorus|intro|outro)\s*\)/gi, '');
+    // Replace standalone dashes surrounded by spaces: " - " → " "
+    t = t.replace(/\s+[-–—]\s+/g, ' ');
+    // Replace dashes between words: "slovo-slovo" → "slovo slovo" (but keep hyphenated words like "jsou-li")
+    // Only replace if both sides are 4+ chars (likely not a grammatical hyphen)
+    t = t.replace(/(\w{4,})[-–—](\w{4,})/g, '$1 $2');
+    // Remove quotes: "text" „text" «text» 'text'
+    t = t.replace(/["""„»«''‚‛]/g, '');
+    // Remove repeat markers like ||: :|| |: :|
+    t = t.replace(/\|{1,2}:?|:?\|{1,2}/g, '');
+    // Normalize multiple spaces to single
+    t = t.replace(/[ \t]{2,}/g, ' ');
+    // Remove empty lines (more than 2 consecutive)
+    t = t.replace(/\n{3,}/g, '\n\n');
+    // Trim each line
+    t = t.split('\n').map(l => l.trim()).join('\n');
+    // Remove leading/trailing empty lines
+    t = t.replace(/^\n+/, '').replace(/\n+$/, '');
+    return t;
+  };
+
   // Smart wrap: break long lines at commas/semicolons/word boundaries
   const smartWrapText = (text: string, maxLen = 45): string => {
     return text.split('\n').map(line => {
@@ -177,8 +208,8 @@ export default function DesignerClient({ song }: { song: any }) {
     }).join('\n');
   };
 
-  const handleAutoWrap = () => {
-    setRawText(smartWrapText(rawText));
+  const handleCleanAndWrap = () => {
+    setRawText(smartWrapText(cleanLyrics(rawText)));
   };
 
   const handleAutoAlign = async () => {
@@ -574,11 +605,11 @@ export default function DesignerClient({ song }: { song: any }) {
                 </label>
                 {viewMode === 'lyrics' && (
                   <button 
-                    onClick={handleAutoWrap}
+                    onClick={handleCleanAndWrap}
                     style={{ padding: '4px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
-                    title="Automaticky zalamovat dlouhé řádky"
+                    title="Vyčistit text (odebrat akordy, strukturální značky, pomlčky, uvozovky) a zalamovat dlouhé řádky"
                   >
-                    ✂️ Zalamovat
+                    🧹 Vyčistit & Zalamovat
                   </button>
                 )}
               </div>
@@ -629,12 +660,12 @@ export default function DesignerClient({ song }: { song: any }) {
                     onPaste={(e) => {
                       e.preventDefault();
                       const pasted = e.clipboardData.getData('text');
-                      const wrapped = smartWrapText(pasted);
+                      const cleaned = smartWrapText(cleanLyrics(pasted));
                       setRawText(prev => {
                         const ta = e.target as HTMLTextAreaElement;
                         const start = ta.selectionStart;
                         const end = ta.selectionEnd;
-                        return prev.slice(0, start) + wrapped + prev.slice(end);
+                        return prev.slice(0, start) + cleaned + prev.slice(end);
                       });
                     }}
                     placeholder="Vložte text písně..."
