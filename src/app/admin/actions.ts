@@ -813,3 +813,195 @@ export async function getTaxonomyAction() {
 
   return { genres, tags };
 }
+
+// ═══════════════════════════════════════════════════
+// DATA QUALITY AUDIT
+// ═══════════════════════════════════════════════════
+
+interface AuditIssue {
+  songId: string;
+  title: string;
+  artist: string;
+  issueType: string;
+  description: string;
+  suggestedTitle?: string;
+  suggestedArtist?: string;
+  autoFixable: boolean;
+}
+
+const YOUTUBE_JUNK = /\s*[\(\[]\s*(Official\s*(Music\s*)?Video|Lyrics?\s*Video|Lyric\s*Video|Audio|HD|4K|HQ|Remastered|Remaster|Live|feat\.\s*[^\)\]]*|ft\.\s*[^\)\]]*|Official\s*Audio|Music\s*Video|Video\s*Cl[ií]p|Karaoke|Instrumental|Creative\s*Commission[^\)\]]*|With\s*Lyrics?|Full\s*Album|Full\s*HD|Visuali[sz]er)\s*[\)\]]/gi;
+const YOUTUBE_SUFFIX = /\s*[-–—|]\s*(Official\s*(Music\s*)?Video|Lyrics?\s*Video|Lyric\s*Video|Audio|HD|4K|HQ|Remastered|Live|Official\s*Audio|Music\s*Video|Karaoke|Instrumental|With\s*Lyrics?)\s*$/gi;
+
+function cleanTitle(title: string): string {
+  let t = title;
+  t = t.replace(YOUTUBE_JUNK, '');
+  t = t.replace(YOUTUBE_SUFFIX, '');
+  t = t.replace(/\s{2,}/g, ' ').trim();
+  return t;
+}
+
+function toTitleCase(str: string): string {
+  const smallWords = new Set(['a', 'an', 'the', 'and', 'but', 'or', 'for', 'nor', 'on', 'at', 'to', 'by', 'in', 'of', 'up', 'je', 'se', 'si', 'na', 'do', 'za', 've', 'ke', 'po', 'ze', 'od', 'pro', 'při', 'nad', 'pod', 'o', 'v', 'k', 'z', 's', 'i', 'a']);
+  return str.split(' ').map((w, i) => {
+    if (i > 0 && smallWords.has(w.toLowerCase())) return w.toLowerCase();
+    if (w.length <= 2) return w;
+    return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+  }).join(' ');
+}
+
+export async function auditSongsAction() {
+  await ensureAdmin();
+  const songs = await db.song.findMany({
+    select: { id: true, title: true, artist: true, lyrics: true, state: true },
+  });
+
+  const issues: AuditIssue[] = [];
+
+  for (const s of songs) {
+    const title = s.title || '';
+    const artist = s.artist || '';
+
+    // 1. YouTube junk in title
+    const cleanedTitle = cleanTitle(title);
+    if (cleanedTitle !== title) {
+      issues.push({
+        songId: s.id, title, artist,
+        issueType: 'YOUTUBE_JUNK',
+        description: `Název obsahuje YouTube popisky`,
+        suggestedTitle: cleanedTitle,
+        autoFixable: true,
+      });
+    }
+
+    // 2. ALL CAPS title
+    if (title === title.toUpperCase() && title.length > 3) {
+      issues.push({
+        songId: s.id, title, artist,
+        issueType: 'ALL_CAPS_TITLE',
+        description: `Název je celý velkými písmeny`,
+        suggestedTitle: toTitleCase(title),
+        autoFixable: true,
+      });
+    }
+
+    // 3. ALL CAPS artist
+    if (artist && artist === artist.toUpperCase() && artist.length > 3) {
+      issues.push({
+        songId: s.id, title, artist,
+        issueType: 'ALL_CAPS_ARTIST',
+        description: `Interpret je celý velkými písmeny`,
+        suggestedArtist: toTitleCase(artist),
+        autoFixable: true,
+      });
+    }
+
+    // 4. Double spaces in title
+    if (/\s{2,}/.test(title)) {
+      issues.push({
+        songId: s.id, title, artist,
+        issueType: 'DOUBLE_SPACE_TITLE',
+        description: `Název obsahuje dvojité mezery`,
+        suggestedTitle: title.replace(/\s{2,}/g, ' ').trim(),
+        autoFixable: true,
+      });
+    }
+
+    // 5. Missing artist
+    if (!artist || artist === 'Neznámý interpret') {
+      issues.push({
+        songId: s.id, title, artist: artist || '(prázdný)',
+        issueType: 'MISSING_ARTIST',
+        description: `Chybí interpret`,
+        autoFixable: false,
+      });
+    }
+
+    // 6. Artist/title might be swapped (title is very short, artist is long)
+    if (artist && title.length < artist.length * 0.4 && title.split(' ').length <= 2) {
+      issues.push({
+        songId: s.id, title, artist,
+        issueType: 'POSSIBLE_SWAP',
+        description: `Název je kratší než interpret – možná prohozeno?`,
+        suggestedTitle: artist,
+        suggestedArtist: title,
+        autoFixable: true,
+      });
+    }
+
+    // 7. Title contains " - " (artist - title pattern)
+    if (title.includes(' - ') && !artist) {
+      const parts = title.split(' - ');
+      issues.push({
+        songId: s.id, title, artist: artist || '(prázdný)',
+        issueType: 'ARTIST_IN_TITLE',
+        description: `Název obsahuje " - " – pravděpodobně "Interpret - Název"`,
+        suggestedArtist: parts[0].trim(),
+        suggestedTitle: parts.slice(1).join(' - ').trim(),
+        autoFixable: true,
+      });
+    }
+
+    // 8. Lyrics too long lines (any line > 60 chars)
+    if (s.lyrics) {
+      const longLines = s.lyrics.split('\n').filter(l => l.trim().length > 60);
+      if (longLines.length > 3) {
+        issues.push({
+          songId: s.id, title, artist,
+          issueType: 'LONG_LYRICS_LINES',
+          description: `Text obsahuje ${longLines.length} řádků delších než 60 znaků`,
+          autoFixable: false,
+        });
+      }
+    }
+
+    // 9. Missing lyrics entirely
+    if (!s.lyrics || s.lyrics.trim().length < 10) {
+      issues.push({
+        songId: s.id, title, artist,
+        issueType: 'MISSING_LYRICS',
+        description: `Chybí text písně`,
+        autoFixable: false,
+      });
+    }
+  }
+
+  // 10. Duplicate detection (same title+artist)
+  const titleArtistMap = new Map<string, typeof songs>();
+  for (const s of songs) {
+    const key = `${(s.title || '').toLowerCase().trim()}|||${(s.artist || '').toLowerCase().trim()}`;
+    if (!titleArtistMap.has(key)) titleArtistMap.set(key, []);
+    titleArtistMap.get(key)!.push(s);
+  }
+  for (const [, group] of titleArtistMap) {
+    if (group.length > 1) {
+      for (const s of group) {
+        issues.push({
+          songId: s.id, title: s.title, artist: s.artist || '',
+          issueType: 'DUPLICATE',
+          description: `Duplicitní píseň (${group.length}x)`,
+          autoFixable: false,
+        });
+      }
+    }
+  }
+
+  return issues;
+}
+
+export async function batchFixSongsAction(fixes: { songId: string; title?: string; artist?: string }[]) {
+  await ensureAdmin();
+  let fixed = 0;
+  for (const fix of fixes) {
+    const data: any = {};
+    if (fix.title !== undefined) data.title = fix.title;
+    if (fix.artist !== undefined) data.artist = fix.artist;
+    if (Object.keys(data).length > 0) {
+      await db.song.update({ where: { id: fix.songId }, data });
+      fixed++;
+    }
+  }
+  await logAdminAction('BATCH_FIX', `Hromadná oprava ${fixed} písní`, 'Song');
+  revalidatePath('/admin');
+  revalidatePath('/');
+  return { fixed };
+}
