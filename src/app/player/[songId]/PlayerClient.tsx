@@ -379,7 +379,7 @@ export default function PlayerClient({ song }: { song: any }) {
 
     if (!isChordsMode || isHost) {
       p.play().catch(() => {});
-      audioInstRef.current?.play().catch(() => {});
+      // Instrumental element starts lazily in tick() after main audio buffers
     }
 
     return () => {
@@ -576,12 +576,14 @@ export default function PlayerClient({ song }: { song: any }) {
     const sC = getVoiceState(visualTime, 3);
 
     if (audioInstRef.current && audioRef.current) {
-        if (audioInstRef.current.paused && !audioRef.current.paused) {
+        // Only start the instrumental after the main audio has buffered and played a bit
+        if (audioInstRef.current.paused && !audioRef.current.paused && audioRef.current.readyState >= 3 && t > 1.0) {
+            audioInstRef.current.currentTime = audioRef.current.currentTime;
             audioInstRef.current.play().catch(() => {});
         }
-        if (audioInstRef.current.readyState >= 3 && audioRef.current.readyState >= 3) {
+        if (!audioInstRef.current.paused && audioInstRef.current.readyState >= 3 && audioRef.current.readyState >= 3) {
             const diff = Math.abs(audioInstRef.current.currentTime - audioRef.current.currentTime);
-            if (diff > 0.25) {
+            if (diff > 0.5) {
                 audioInstRef.current.currentTime = audioRef.current.currentTime;
             }
         }
