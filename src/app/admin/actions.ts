@@ -1267,30 +1267,42 @@ export async function batchFixSongsAction(fixes: {
   return { fixed, errors };
 }
 
-export async function exportCatalogXmlAction() {
+export async function exportCatalogXmlAction(onlyIncomplete: boolean = false) {
   await ensureAdmin();
+  
+  const where = onlyIncomplete ? {
+    OR: [
+      { genre: null },
+      { origin: null },
+      { tags: { equals: [] } }
+    ]
+  } : {};
+
   const songs = await db.song.findMany({
+    where,
     orderBy: { artist: 'asc' }
   });
 
   // Získání unikátních žánrů a původů pro číselník
-  const genres = Array.from(new Set(songs.map(s => s.genre).filter(Boolean)));
-  const origins = Array.from(new Set(songs.map(s => s.origin).filter(Boolean)));
-  const allTags = Array.from(new Set(songs.flatMap(s => s.tags || [])));
+  const allSongs = await db.song.findMany({ select: { genre: true, origin: true, tags: true } });
+  const genres = Array.from(new Set(allSongs.map(s => s.genre).filter(Boolean)));
+  const origins = Array.from(new Set(allSongs.map(s => s.origin).filter(Boolean)));
+  const allTags = Array.from(new Set(allSongs.flatMap(s => s.tags || [])));
 
-  const prompt = `Jsi expert na hudební metadata. Tvým úkolem je doplnit chybějící údaje v přiloženém XML seznamu písní.
+  const prompt = `Jsi expert na hudební metadata. Tvým úkolem je zkontrolovat a doplnit přiložený XML seznam písní.
 POKYNY:
-1. Zaměř se na pole <Origin>, <Genre> a <Tags>.
-2. Pokud je pole prázdné nebo obsahuje "null", doplň ho podle tvých znalostí.
-3. Používej pokud možno existující hodnoty z číselníku (Dictionaries) pro zachování konzistence.
-4. Původ (Origin) uváděj jako ISO kód země (CZ, SK, EN, US, DE, PL atd.).
-5. Tagy (Tags) uváděj jako čárkou oddělený seznam (např. 80s, rock, happy).
-6. Vrať mi zpět POUZE upravené XML ve stejné struktuře, nic jiného nepiš.`;
+1. OPRAVA: Zkontroluj <Title> a <Artist>. Pokud je v nich překlep, nesmysl (např. YouTube junk), nebo jsou prohozené, OPRAV JE přímo v XML.
+2. DOPLNĚNÍ: Zaměř se na prázdná pole <Origin>, <Genre> a <Tags>.
+3. KONZISTENCE: Používej pokud možno existující hodnoty z číselníku (Dictionaries).
+4. PŮVOD: <Origin> uváděj jako ISO kód země (CZ, SK, EN, US, DE, PL atd.).
+5. TAGY: <Tags> uváděj jako čárkou oddělený seznam (např. 80s, rock, happy).
+6. VÝSTUP: Vrať mi zpět POUZE upravené XML ve stejné struktuře, nic jiného nepiš.`;
 
   let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
   xml += `<KarachoCatalog>\n`;
   xml += `  <Info>\n`;
   xml += `    <RecommendedPrompt><![CDATA[${prompt}]]></RecommendedPrompt>\n`;
+  xml += `    <ExportMode>${onlyIncomplete ? 'INCOMPLETE_ONLY' : 'ALL'}</ExportMode>\n`;
   xml += `  </Info>\n`;
   xml += `  <Dictionaries>\n`;
   xml += `    <Genres>${genres.join(', ')}</Genres>\n`;
@@ -1319,7 +1331,11 @@ import { XMLParser } from 'fast-xml-parser';
 
 export async function importCatalogXmlAction(xmlContent: string) {
   await ensureAdmin();
-  const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "" });
+  const parser = new XMLParser({ 
+    ignoreAttributes: false, 
+    attributeNamePrefix: "",
+    cdataPropName: "__cdata" // Abychom správně četli CDATA
+  });
   const jsonObj = parser.parse(xmlContent);
 
   if (!jsonObj.KarachoCatalog || !jsonObj.KarachoCatalog.Songs || !jsonObj.KarachoCatalog.Songs.Song) {
@@ -1336,6 +1352,14 @@ export async function importCatalogXmlAction(xmlContent: string) {
     const id = songData.id;
     const updateData: any = {};
 
+    // Čtení dat (včetně CDATA)
+    const getVal = (val: any) => {
+      if (val && typeof val === 'object' && val.__cdata) return val.__cdata;
+      return val;
+    };
+
+    if (songData.Title !== undefined) updateData.title = String(getVal(songData.Title)).trim();
+    if (songData.Artist !== undefined) updateData.artist = String(getVal(songData.Artist)).trim();
     if (songData.Origin !== undefined) updateData.origin = String(songData.Origin).trim();
     if (songData.Genre !== undefined) updateData.genre = String(songData.Genre).trim();
     if (songData.Tags !== undefined) {
