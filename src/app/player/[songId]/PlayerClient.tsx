@@ -145,7 +145,6 @@ export default function PlayerClient({ song }: { song: any }) {
     return systemBackgrounds[Math.floor(Math.random() * systemBackgrounds.length)];
   }, [systemBackgrounds]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioInstRef = useRef<HTMLAudioElement | null>(null);
   const videoElRef = useRef<HTMLVideoElement | null>(null);
   const wakeLockRef = useRef<any>(null);
   const rafRef = useRef<number | null>(null);
@@ -260,12 +259,13 @@ export default function PlayerClient({ song }: { song: any }) {
     let p: any = audioRef.current;
     if (!p) return;
     
-    if (audioRef.current && song.audioUrl) audioRef.current.src = song.audioUrl;
-    if (audioInstRef.current && song.instrumentalUrl) audioInstRef.current.src = song.instrumentalUrl;
+    if (audioRef.current && song.audioUrl) {
+      // Set initial source based on playback mode
+      audioRef.current.src = playbackModeRef.current === 'INST' && song.instrumentalUrl ? song.instrumentalUrl : song.audioUrl;
+    }
 
     if (shouldSuppressAudio || isMuted) {
       p.muted = true;
-      if (audioInstRef.current) audioInstRef.current.muted = true;
     }
 
     if (p instanceof HTMLAudioElement) {
@@ -368,10 +368,8 @@ export default function PlayerClient({ song }: { song: any }) {
 
           if (s.status === 'PLAYING' && currentPlayer.paused && !isChordsMode) {
             currentPlayer.play().catch(() => {});
-            audioInstRef.current?.play().catch(() => {});
           } else if (s.status === 'PAUSED' && !currentPlayer.paused) {
             currentPlayer.pause();
-            audioInstRef.current?.pause();
           }
         }
       }
@@ -386,7 +384,6 @@ export default function PlayerClient({ song }: { song: any }) {
       clearInterval(syncInterval);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       p.pause();
-      audioInstRef.current?.pause();
       releaseWakeLock();
     };
   }, [song.audioUrl, song.instrumentalUrl, joinCode]);
@@ -394,23 +391,28 @@ export default function PlayerClient({ song }: { song: any }) {
   const cyclePlaybackMode = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!song.instrumentalUrl) return;
+    const p = audioRef.current;
+    if (!p) return;
     
     const currentIndex = availableModes.indexOf(playbackMode);
     const nextIndex = (currentIndex + 1) % availableModes.length;
     const nextMode = availableModes[nextIndex] as any;
+    
+    const wasPlaying = !p.paused;
+    const currentTime = p.currentTime;
+    
+    // Swap the audio source
+    p.src = nextMode === 'INST' ? (song.instrumentalUrl || song.audioUrl) : song.audioUrl;
+    p.currentTime = currentTime;
+    if (wasPlaying) p.play().catch(() => {});
     
     setPlaybackMode(nextMode);
     playbackModeRef.current = nextMode;
   };
 
   useEffect(() => {
-     // No longer needed, switching is handled natively by muting the two parallel audio tags in tick()
-  }, [playbackMode, song.audioUrl, song.instrumentalUrl]);
-
-  useEffect(() => {
     isMutedRef.current = isMuted;
     if (audioRef.current) audioRef.current.muted = isMuted;
-    if (audioInstRef.current) audioInstRef.current.muted = isMuted;
   }, [isMuted]);
 
   const toggleMute = (e: React.MouseEvent) => {
@@ -418,59 +420,20 @@ export default function PlayerClient({ song }: { song: any }) {
     setIsMuted(!isMuted);
   };
 
-  const audioCtxRef = useRef<any>(null);
-  const origGainRef = useRef<any>(null);
-  const instGainRef = useRef<any>(null);
-
-  const initWebAudio = () => {
-     if (!audioCtxRef.current && window.AudioContext) {
-         try {
-             const ctx = new AudioContext();
-             audioCtxRef.current = ctx;
-             
-             const origGain = ctx.createGain();
-             const instGain = ctx.createGain();
-             
-             origGain.connect(ctx.destination);
-             instGain.connect(ctx.destination);
-             
-             origGainRef.current = origGain;
-             instGainRef.current = instGain;
-             
-             if (audioRef.current) {
-                 const origSource = ctx.createMediaElementSource(audioRef.current);
-                 origSource.connect(origGain);
-             }
-             if (audioInstRef.current) {
-                 const instSource = ctx.createMediaElementSource(audioInstRef.current);
-                 instSource.connect(instGain);
-             }
-         } catch (e) {
-             console.error("WebAudio init error:", e);
-         }
-     }
-     if (audioCtxRef.current?.state === 'suspended') {
-         audioCtxRef.current.resume();
-     }
-  };
-
   const togglePlay = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (isChordsMode && !isHost) return;
     const p = audioRef.current;
     if (!p) return;
-    initWebAudio();
     
     const isCurrentlyPaused = p.paused;
     const newStatus = isCurrentlyPaused ? 'PLAYING' : 'PAUSED';
 
     if (isCurrentlyPaused) {
       p.play().catch(() => {});
-      audioInstRef.current?.play().catch(() => {});
       if (videoElRef.current) videoElRef.current.play().catch(() => {});
     } else {
       p.pause();
-      audioInstRef.current?.pause();
       if (videoElRef.current) videoElRef.current.pause();
     }
 
@@ -487,7 +450,6 @@ export default function PlayerClient({ song }: { song: any }) {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     const p = audioRef.current;
     if (p) p.pause();
-    if (audioInstRef.current) audioInstRef.current.pause();
 
     if (joinCode) {
       const next = await advanceSessionQueue(joinCode);
@@ -540,29 +502,6 @@ export default function PlayerClient({ song }: { song: any }) {
     return { cb, nc, ci, next: blocks.find((b, idx) => idx > ci && isBlockInVoice(b, voice)) || null };
   };
 
-  const getCurrentVoice = (t: number) => {
-     const block = blocks.find(b => t >= b.bs && t <= b.be);
-     if (!block) {
-        const upcomingBlock = blocks.find(b => b.bs > t && b.bs - t < 0.5);
-        if (upcomingBlock) {
-           return Number(upcomingBlock.w?.[0]?.v || upcomingBlock.v || 3);
-        }
-        return null; 
-     }
-     if (block.w && block.w.length > 0) {
-        for (let i = 0; i < block.w.length; i++) {
-           const wStart = block.w[i].t;
-           const wEnd = (i < block.w.length - 1) ? block.w[i+1].t : block.be;
-           if (i === 0 && t < wStart) {
-              return Number(block.w[0].v || block.v || 3);
-           }
-           if (t >= wStart && t < wEnd) {
-              return Number(block.w[i].v || block.v || 3);
-           }
-        }
-     }
-     return Number(block.v || 3);
-  };
 
   const tick = () => {
     const p = audioRef.current;
@@ -575,45 +514,7 @@ export default function PlayerClient({ song }: { song: any }) {
     const s2 = getVoiceState(visualTime, 2);
     const sC = getVoiceState(visualTime, 3);
 
-    if (audioInstRef.current && audioRef.current) {
-        // Only start the instrumental after the main audio has buffered and played a bit
-        if (audioInstRef.current.paused && !audioRef.current.paused && audioRef.current.readyState >= 3 && t > 1.0) {
-            audioInstRef.current.currentTime = audioRef.current.currentTime;
-            audioInstRef.current.play().catch(() => {});
-        }
-        if (!audioInstRef.current.paused && audioInstRef.current.readyState >= 3 && audioRef.current.readyState >= 3) {
-            const diff = Math.abs(audioInstRef.current.currentTime - audioRef.current.currentTime);
-            if (diff > 0.5) {
-                audioInstRef.current.currentTime = audioRef.current.currentTime;
-            }
-        }
-    }
-
-    if (audioRef.current) {
-       let activeTrack: 'INST' | 'ORIG' = playbackModeRef.current === 'INST' ? 'INST' : 'ORIG';
-       
-       if (!isMutedRef.current) {
-           const muteOrig = activeTrack === 'INST';
-           const muteInst = activeTrack === 'ORIG';
-           
-           if (origGainRef.current) {
-               origGainRef.current.gain.value = muteOrig ? 0 : 1;
-           } else {
-               audioRef.current.muted = muteOrig;
-               audioRef.current.volume = muteOrig ? 0 : 1;
-           }
-           
-           if (instGainRef.current) {
-               instGainRef.current.gain.value = muteInst ? 0 : 1;
-           } else if (audioInstRef.current) {
-               audioInstRef.current.muted = muteInst;
-               audioInstRef.current.volume = muteInst ? 0 : 1;
-           }
-       }
-       
-       const dbg = document.getElementById('debug-overlay');
-       if (dbg) dbg.innerText = `Mode: ${playbackModeRef.current} | Trk: ${activeTrack} | O: ${audioRef.current.volume} | I: ${audioInstRef.current?.volume}`;
-    }
+    // No dual-audio sync needed - single element plays the active track
 
     renderVoiceState(s1, visualTime, 1, curLineEl1, nextLineEl1, lastBlock1);
     renderVoiceState(s2, visualTime, 2, curLineEl2, nextLineEl2, lastBlock2);
@@ -740,8 +641,6 @@ export default function PlayerClient({ song }: { song: any }) {
   return (
     <div className="player-root" style={{ position: 'fixed', inset: 0, background: '#000', color: '#fff', fontFamily: 'Inter, sans-serif', overflow: 'hidden' }}>
       <audio ref={audioRef} preload="auto" crossOrigin="anonymous" />
-      <audio ref={audioInstRef} preload="auto" crossOrigin="anonymous" />
-      <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 9999, background: 'rgba(0,0,0,0.8)', color: 'lime', fontSize: '10px', padding: '4px', pointerEvents: 'none' }} id="debug-overlay"></div>
       
       <style dangerouslySetInnerHTML={{ __html: `
         .player-root { --glow: rgba(255, 215, 0, 0.55); }
