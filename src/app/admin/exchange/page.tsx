@@ -1,26 +1,23 @@
 'use client';
-
 import { useState } from 'react';
 import Link from 'next/link';
 import { exportCatalogXmlAction, importCatalogXmlAction } from '@/app/admin/actions';
 
 export default function DataExchangePage() {
   const [loading, setLoading] = useState(false);
-  const [xmlData, setXmlData] = useState<string | null>(null);
   const [status, setStatus] = useState<{ success?: boolean; message?: string } | null>(null);
+  const [exportMode, setExportMode] = useState<'ALL' | 'INCOMPLETE'>('INCOMPLETE');
 
   const handleExport = async () => {
     setLoading(true);
     try {
-      const xml = await exportCatalogXmlAction();
-      setXmlData(xml);
+      const xml = await exportCatalogXmlAction(exportMode === 'INCOMPLETE');
       
-      // Stažení souboru
       const blob = new Blob([xml], { type: 'text/xml' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `karacho_catalog_${new Date().toISOString().split('T')[0]}.xml`;
+      a.download = `karacho_katalog_${exportMode.toLowerCase()}_${new Date().toISOString().split('T')[0]}.xml`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -56,14 +53,14 @@ export default function DataExchangePage() {
     }
   };
 
-  const recommendedPrompt = `Jsi expert na hudební metadata. Tvým úkolem je doplnit chybějící údaje v přiloženém XML seznamu písní.
+  const recommendedPrompt = `Jsi expert na hudební metadata. Tvým úkolem je zkontrolovat a doplnit přiložený XML seznam písní.
 POKYNY:
-1. Zaměř se na pole <Origin>, <Genre> a <Tags>.
-2. Pokud je pole prázdné nebo obsahuje "null", doplň ho podle tvých znalostí.
-3. Používej pokud možno existující hodnoty z číselníku (Dictionaries) pro zachování konzistence.
-4. Původ (Origin) uváděj jako ISO kód země (CZ, SK, EN, US, DE, PL atd.).
-5. Tagy (Tags) uváděj jako čárkou oddělený seznam (např. 80s, rock, happy).
-6. Vrať mi zpět POUZE upravené XML ve stejné struktuře, nic jiného nepiš.`;
+1. OPRAVA: Zkontroluj <Title> a <Artist>. Pokud je v nich překlep, nesmysl (např. YouTube junk), nebo jsou prohozené, OPRAV JE přímo v XML.
+2. DOPLNĚNÍ: Zaměř se na prázdná pole <Origin>, <Genre> a <Tags>.
+3. KONZISTENCE: Používej pokud možno existující hodnoty z číselníku (Dictionaries).
+4. PŮVOD: <Origin> uváděj jako ISO kód země (CZ, SK, EN, US, DE, PL atd.).
+5. TAGY: <Tags> uváděj jako čárkou oddělený seznam (např. 80s, rock, happy).
+6. VÝSTUP: Vrať mi zpět POUZE upravené XML ve stejné struktuře, nic jiného nepiš.`;
 
   return (
     <div style={{ minHeight: '100vh', background: '#050505', color: 'white', padding: '6rem 2rem 2rem' }}>
@@ -72,7 +69,7 @@ POKYNY:
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
           <div>
             <Link href="/admin" style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', fontSize: '13px' }}>← Zpět do Adminu</Link>
-            <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: 'var(--color-gold)', margin: '0.5rem 0 0' }}>📦 Datový servis (AI Exchange)</h1>
+            <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: 'var(--color-gold)', margin: '0.5rem 0 0' }}>📦 Export / Import Katalogu</h1>
           </div>
         </div>
 
@@ -80,10 +77,26 @@ POKYNY:
           
           {/* EXPORT SECTION */}
           <div style={{ background: '#111', padding: '2rem', borderRadius: '24px', border: '1px solid #222' }}>
-            <h2 style={{ color: 'var(--color-gold)', marginTop: 0 }}>1. Export pro AI</h2>
-            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px' }}>
-              Stáhněte si celý katalog v XML formátu. Tento soubor pak vložte do ChatGPT nebo Claude spolu s doporučeným promptem.
+            <h2 style={{ color: 'var(--color-gold)', marginTop: 0 }}>1. Export</h2>
+            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px', marginBottom: '1.5rem' }}>
+              Stáhněte si katalog v XML. Můžete si vybrat, jestli chcete všechno, nebo jen ty s chybějícími údaji.
             </p>
+
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', background: 'rgba(0,0,0,0.3)', padding: '5px', borderRadius: '12px' }}>
+              <button 
+                onClick={() => setExportMode('INCOMPLETE')}
+                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: exportMode === 'INCOMPLETE' ? 'var(--color-teal)' : 'transparent', color: 'white', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Jen neúplné
+              </button>
+              <button 
+                onClick={() => setExportMode('ALL')}
+                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: exportMode === 'ALL' ? 'var(--color-teal)' : 'transparent', color: 'white', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Všechno
+              </button>
+            </div>
+
             <button 
               onClick={handleExport}
               disabled={loading}
@@ -93,15 +106,15 @@ POKYNY:
                 color: 'white', fontWeight: 800, cursor: loading ? 'wait' : 'pointer'
               }}
             >
-              {loading ? '⏳ Generuji...' : '📥 STÁHNOUT KATALOG (XML)'}
+              {loading ? '⏳ Generuji...' : '📥 STÁHNOUT XML'}
             </button>
 
             <div style={{ marginTop: '2rem' }}>
-              <label style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: '0.5rem' }}>DOPORUČENÝ PROMPT:</label>
+              <label style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: '0.5rem' }}>DOPORUČENÝ PROMPT PRO AI:</label>
               <div style={{ 
-                background: '#000', padding: '1rem', borderRadius: '12px', fontSize: '12px', 
+                background: '#000', padding: '1rem', borderRadius: '12px', fontSize: '11px', 
                 fontFamily: 'monospace', color: '#00ffa0', border: '1px solid #333',
-                maxHeight: '150px', overflowY: 'auto'
+                maxHeight: '130px', overflowY: 'auto'
               }}>
                 {recommendedPrompt}
               </div>
@@ -116,9 +129,9 @@ POKYNY:
 
           {/* IMPORT SECTION */}
           <div style={{ background: '#111', padding: '2rem', borderRadius: '24px', border: '1px solid #222' }}>
-            <h2 style={{ color: '#00ffa0', marginTop: 0 }}>2. Import od AI</h2>
+            <h2 style={{ color: '#00ffa0', marginTop: 0 }}>2. Import</h2>
             <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px' }}>
-              Jakmile vám AI vrátí opravené XML, nahrajte ho sem. Systém aktualizuje chybějící žánry, původ a tagy.
+              Jakmile vám AI vrátí opravené XML, nahrajte ho sem. Systém aktualizuje údaje i opraví názvy/interprety.
             </p>
             
             <div style={{ 
@@ -153,13 +166,12 @@ POKYNY:
         </div>
 
         <div style={{ marginTop: '3rem', background: 'rgba(255,215,0,0.05)', padding: '2rem', borderRadius: '24px', border: '1px solid rgba(255,215,0,0.1)' }}>
-          <h3 style={{ color: 'var(--color-gold)', margin: '0 0 1rem' }}>💡 Jak to funguje?</h3>
+          <h3 style={{ color: 'var(--color-gold)', margin: '0 0 1rem' }}>💡 Jak na generální úklid?</h3>
           <ol style={{ color: 'rgba(255,255,255,0.7)', lineHeight: 1.6, fontSize: '14px' }}>
-            <li>Stáhnete si XML soubor, který obsahuje váš aktuální katalog a instrukce pro AI.</li>
-            <li>Tento soubor nahrajete do <strong>ChatGPT Plus</strong> nebo <strong>Claude.ai</strong> (podporují přílohy).</li>
-            <li>Vložíte jim zkopírovaný prompt.</li>
-            <li>AI prohledá své znalosti a do prázdných políček v XML doplní správné údaje.</li>
-            <li>Výsledek od AI uložíte jako .xml a nahrajete ho zde zpět.</li>
+            <li>Stáhněte si XML (buď vše, nebo jen neúplné kousky).</li>
+            <li>Soubor nahrajte do <strong>ChatGPT</strong> nebo <strong>Claude</strong> a vložte mu zkopírovaný prompt.</li>
+            <li>AI za vás doplní chybějící žánry, původ, tagy a dokonce opraví i překlepy v názvech.</li>
+            <li>Výsledek od AI nahrajte zde zpět a databáze se okamžitě aktualizuje.</li>
           </ol>
         </div>
 
