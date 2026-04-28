@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { logAdminAction } from '@/app/actions/admin-extra-actions';
-import { r2, BUCKET_NAME } from '@/lib/r2';
+import { r2, BUCKET_NAME, PUBLIC_URL } from '@/lib/r2';
 import { ListObjectsV2Command } from '@aws-sdk/client-s3';
 
 async function ensureAdmin() {
@@ -861,7 +861,7 @@ interface AuditIssue {
   autoFixable: boolean;
 }
 
-const YOUTUBE_JUNK = /\s*[\(\[]\s*(Official\s*(Music\s*)?Video|Lyrics?\s*Video|Lyric\s*Video|Audio|HD|4K|HQ|Remastered|Remaster|Live|feat\.\s*[^\)\]]*|ft\.\s*[^\)\]]*|Official\s*Audio|Music\s*Video|Video\s*Cl[ií]p|Karaoke|Instrumental|Creative\s*Commission[^\)\]]*|With\s*Lyrics?|Full\s*Album|Full\s*HD|Visuali[sz]er)\s*[\)\]]/gi;
+const YOUTUBE_JUNK = /\s*[\(\[]\s*[^\]\)]*(Official\s*(Music\s*)?Video|Lyrics?\s*Video|Lyric\s*Video|Audio|HD|4K|HQ|Remastered|Remaster|Live|feat\.\s*|ft\.\s*|Official\s*Audio|Music\s*Video|Video\s*Cl[ií]p|Karaoke|Instrumental|Creative\s*Commission|With\s*Lyrics?|Full\s*Album|Full\s*HD|Visuali[sz]er)[^\]\)]*\s*[\)\]]/gi;
 const YOUTUBE_SUFFIX = /\s*[-–—|]\s*(Official\s*(Music\s*)?Video|Lyrics?\s*Video|Lyric\s*Video|Audio|HD|4K|HQ|Remastered|Live|Official\s*Audio|Music\s*Video|Karaoke|Instrumental|With\s*Lyrics?)\s*$/gi;
 
 function cleanTitle(title: string): string {
