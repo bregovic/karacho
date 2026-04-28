@@ -861,13 +861,17 @@ interface AuditIssue {
   autoFixable: boolean;
 }
 
-const YOUTUBE_JUNK = /\s*[\(\[]\s*[^\]\)]*(Official\s*(Music\s*)?Video|Lyrics?\s*Video|Lyric\s*Video|Audio|HD|4K|HQ|Remastered|Remaster|Live|feat\.\s*|ft\.\s*|Official\s*Audio|Music\s*Video|Video\s*Cl[ií]p|Karaoke|Instrumental|Creative\s*Commission|With\s*Lyrics?|Full\s*Album|Full\s*HD|Visuali[sz]er)[^\]\)]*\s*[\)\]]/gi;
-const YOUTUBE_SUFFIX = /\s*[-–—|]\s*(Official\s*(Music\s*)?Video|Lyrics?\s*Video|Lyric\s*Video|Audio|HD|4K|HQ|Remastered|Live|Official\s*Audio|Music\s*Video|Karaoke|Instrumental|With\s*Lyrics?)\s*$/gi;
+const YOUTUBE_JUNK = /\s*[\(\[]\s*[^\]\)]*(Official\s*(Music\s*)?Video|Lyrics?\s*Video|Lyric\s*Video|Audio|HD|4K|HQ|Remastered|Remaster|Live|feat\.\s*|ft\.\s*|Official\s*Audio|Music\s*Video|Video\s*Cl[ií]p|Karaoke|Instrumental|Creative\s*Commission|With\s*Lyrics?|Full\s*Album|Full\s*HD|Visuali[sz]er|VHS|RETRO|píseň\s*pro|pieseň\s*pre|soundtrack)[^\]\)]*\s*[\)\]]/gi;
+const YOUTUBE_SUFFIX = /\s*([-–—|]\s*)?(Official\s*(Music\s*)?Video|Lyrics?\s*Video|Lyric\s*Video|Audio|HD|4K|HQ|Remastered|Live|Official\s*Audio|Music\s*Video|Karaoke|Instrumental|With\s*Lyrics?|\.wmv|\.mp4|\.avi|\.mpg|\.mpeg)$/gi;
 
 function cleanTitle(title: string): string {
   let t = title;
   t = t.replace(YOUTUBE_JUNK, '');
   t = t.replace(YOUTUBE_SUFFIX, '');
+  // Speciální případ pro nalepené "KARAOKE" na konci bez mezery
+  t = t.replace(/KARAOKE$/gi, '');
+  // Odstranění zbytků teček na konci (často po příponách)
+  t = t.replace(/\.$/, '');
   t = t.replace(/\s{2,}/g, ' ').trim();
   return t;
 }
