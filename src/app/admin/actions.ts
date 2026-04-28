@@ -5,7 +5,24 @@ import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { logAdminAction } from '@/app/actions/admin-extra-actions';
 import { r2, BUCKET_NAME, PUBLIC_URL } from '@/lib/r2';
-import { ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { ListObjectsV2Command, DeleteObjectCommand } from '@aws-sdk/client-s3';
+
+async function deleteFileFromR2(fileUrl: string | null) {
+  if (!fileUrl || !fileUrl.includes(PUBLIC_URL)) return;
+  
+  try {
+    const key = fileUrl.replace(PUBLIC_URL, '').replace(/^\//, '');
+    if (!key) return;
+
+    await r2.send(new DeleteObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: key
+    }));
+    console.log(`🗑️ Smazáno z R2: ${key}`);
+  } catch (err) {
+    console.error(`❌ Chyba při mazání z R2 (${fileUrl}):`, err);
+  }
+}
 
 async function ensureAdmin() {
   const session = await auth();
@@ -187,6 +204,12 @@ function normalizeForMatching(str: string) {
 
 export async function updateSongAudio(songId: string, audioUrl: string, audioHash?: string) {
   await ensureAdmin();
+  
+  const oldSong = await db.song.findUnique({ where: { id: songId }, select: { audioUrl: true } });
+  if (oldSong?.audioUrl && oldSong.audioUrl !== audioUrl) {
+    await deleteFileFromR2(oldSong.audioUrl);
+  }
+
   await db.song.update({ 
     where: { id: songId }, 
     data: { audioUrl, audioHash: audioHash || undefined } 
@@ -196,12 +219,24 @@ export async function updateSongAudio(songId: string, audioUrl: string, audioHas
 
 export async function updateSongInstrumental(songId: string, instrumentalUrl: string) {
   await ensureAdmin();
+
+  const oldSong = await db.song.findUnique({ where: { id: songId }, select: { instrumentalUrl: true } });
+  if (oldSong?.instrumentalUrl && oldSong.instrumentalUrl !== instrumentalUrl) {
+    await deleteFileFromR2(oldSong.instrumentalUrl);
+  }
+
   await db.song.update({ where: { id: songId }, data: { instrumentalUrl } });
   revalidatePath('/admin');
 }
 
 export async function updateSongJson(songId: string, jsonUrl: string) {
   await ensureAdmin();
+
+  const oldSong = await db.song.findUnique({ where: { id: songId }, select: { jsonUrl: true } });
+  if (oldSong?.jsonUrl && oldSong.jsonUrl !== jsonUrl) {
+    await deleteFileFromR2(oldSong.jsonUrl);
+  }
+
   await db.song.update({ where: { id: songId }, data: { jsonUrl } });
   revalidatePath('/admin');
   revalidatePath('/designer');
@@ -209,6 +244,12 @@ export async function updateSongJson(songId: string, jsonUrl: string) {
 
 export async function updateSongVideo(songId: string, videoUrl: string, videoSize?: number) {
   await ensureAdmin();
+
+  const oldSong = await db.song.findUnique({ where: { id: songId }, select: { videoUrl: true } });
+  if (oldSong?.videoUrl && oldSong.videoUrl !== videoUrl) {
+    await deleteFileFromR2(oldSong.videoUrl);
+  }
+
   await db.song.update({ 
     where: { id: songId }, 
     data: { videoUrl, videoSize: videoSize || undefined } 
@@ -219,12 +260,29 @@ export async function updateSongVideo(songId: string, videoUrl: string, videoSiz
 
 export async function removeSongResource(songId: string, type: 'audio' | 'instrumental' | 'background' | 'json' | 'video') {
   await ensureAdmin();
+  
+  const song = await db.song.findUnique({ where: { id: songId } });
+  if (!song) return;
+
   const data: any = {};
-  if (type === 'audio') data.audioUrl = null;
-  if (type === 'instrumental') data.instrumentalUrl = null;
-  if (type === 'background') data.backgroundUrl = null;
-  if (type === 'json') data.jsonUrl = null;
+  if (type === 'audio') {
+    await deleteFileFromR2(song.audioUrl);
+    data.audioUrl = null;
+  }
+  if (type === 'instrumental') {
+    await deleteFileFromR2(song.instrumentalUrl);
+    data.instrumentalUrl = null;
+  }
+  if (type === 'background') {
+    await deleteFileFromR2(song.backgroundUrl);
+    data.backgroundUrl = null;
+  }
+  if (type === 'json') {
+    await deleteFileFromR2(song.jsonUrl);
+    data.jsonUrl = null;
+  }
   if (type === 'video') {
+    await deleteFileFromR2(song.videoUrl);
     data.videoUrl = null;
     data.videoSize = null;
   }
@@ -748,6 +806,23 @@ export async function bulkUpdateState(songIds: string[], newState: string) {
 }
 
 export async function deleteSong(songId: string) {
+  await ensureAdmin();
+  
+  // Najdeme píseň, abychom znali URL souborů k smazání
+  const song = await db.song.findUnique({
+    where: { id: songId },
+    select: { audioUrl: true, instrumentalUrl: true, backgroundUrl: true, jsonUrl: true, videoUrl: true }
+  });
+
+  if (song) {
+    // Smažeme všechny soubory z R2
+    if (song.audioUrl) await deleteFileFromR2(song.audioUrl);
+    if (song.instrumentalUrl) await deleteFileFromR2(song.instrumentalUrl);
+    if (song.backgroundUrl) await deleteFileFromR2(song.backgroundUrl);
+    if (song.jsonUrl) await deleteFileFromR2(song.jsonUrl);
+    if (song.videoUrl) await deleteFileFromR2(song.videoUrl);
+  }
+
   await db.song.delete({ where: { id: songId } });
   await logAdminAction('DELETE_SONG', `Smazána píseň ID: ${songId}`, 'Song', songId);
   revalidatePath('/admin');
