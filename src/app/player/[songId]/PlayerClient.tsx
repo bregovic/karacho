@@ -130,7 +130,6 @@ export default function PlayerClient({ song }: { song: any }) {
   const [isMuted, setIsMuted] = useState(false);
   const [playbackMode, setPlaybackMode] = useState<'ORIG' | 'INST'>(song.instrumentalUrl ? 'INST' : 'ORIG');
   const playbackModeRef = useRef(playbackMode);
-  const isMutedRef = useRef(isMuted);
   const [imgLoaded, setImgLoaded] = useState(false);
 
   const systemBackgrounds = useMemo(() => [
@@ -377,7 +376,6 @@ export default function PlayerClient({ song }: { song: any }) {
 
     if (!isChordsMode || isHost) {
       p.play().catch(() => {});
-      // Instrumental element starts lazily in tick() after main audio buffers
     }
 
     return () => {
@@ -411,7 +409,6 @@ export default function PlayerClient({ song }: { song: any }) {
   };
 
   useEffect(() => {
-    isMutedRef.current = isMuted;
     if (audioRef.current) audioRef.current.muted = isMuted;
   }, [isMuted]);
 
