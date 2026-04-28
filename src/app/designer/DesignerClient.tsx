@@ -269,7 +269,7 @@ export default function DesignerClient({ song }: { song: any }) {
     if (!audioRef.current) return;
     const t = audioRef.current.currentTime;
     
-    // 1. Ukončíme aktuální řádek
+    // 1. Ukončíme aktuální řádek (bs -> be)
     const lineEndEv = eventsRef.current.find(e => e.type === 'lineEnd' && e.lineIdx === curLineRef.current);
     if (!lineEndEv) {
        eventsRef.current.push({ type: 'lineEnd', time: t, lineIdx: curLineRef.current });
@@ -277,22 +277,27 @@ export default function DesignerClient({ song }: { song: any }) {
     
     // 2. Aktivujeme další řádek (pokud existuje)
     const nextL = curLineRef.current + 1;
-    if (nextL <= linesRef.current.length) { // Změna < na <= pro umožnění ukončení
+    if (nextL < linesRef.current.length) {
+       // Přidáme line start event pro nový řádek
        eventsRef.current.push({ type: 'line', time: t, lineIdx: nextL });
        
-       if (autoKeyFirstWord && nextL < linesRef.current.length) {
-          const newV = targetVoice !== undefined ? targetVoice : (voiceMap[nextL] || 3);
-          eventsRef.current.push({ type: 'word', time: t, lineIdx: nextL, wordIdx: 0, v: newV });
-          setVoiceMap(prev => ({ ...prev, [nextL]: newV }));
+       if (autoKeyFirstWord) {
+          // FLUID FLOW: Oklíčujeme hned první slovo nového řádku
+          const v = targetVoice !== undefined ? targetVoice : (voiceMap[nextL] || 3);
+          eventsRef.current.push({ type: 'word', time: t, lineIdx: nextL, wordIdx: 0, v });
+          setVoiceMap(prev => ({ ...prev, [nextL]: v }));
           curLineRef.current = nextL;
           curWordRef.current = 0;
        } else {
+          // Jen příprava (ENTER mód)
           curLineRef.current = nextL;
           curWordRef.current = -1; 
        }
-    } 
+    } else {
+      // Jsme na úplném konci textu
+      curLineRef.current = linesRef.current.length;
+    }
     
-    restoreState();
     forceUpdate();
   };
 
@@ -300,6 +305,7 @@ export default function DesignerClient({ song }: { song: any }) {
     if (!audioRef.current) return;
     const t = audioRef.current.currentTime;
     
+    // Inicializace prvního řádku pokud začínáme od nuly
     if (curLineRef.current < 0) {
       curLineRef.current = 0;
       eventsRef.current.push({ type: 'line', time: t, lineIdx: 0 });
@@ -312,11 +318,13 @@ export default function DesignerClient({ song }: { song: any }) {
     const lineLen = linesRef.current[curLineRef.current]?.length || 0;
 
     if (nextW < lineLen) {
+      // Klíčujeme slovo v aktuálním řádku
       eventsRef.current.push({ type: 'word', time: t, lineIdx: curLineRef.current, wordIdx: nextW, v: targetVoice });
-      restoreState();
+      curWordRef.current = nextW;
       forceUpdate();
     } else {
-      forceLineEndAndAdvanceToNext(true, targetVoice); // <--- Předáme dál cílový hlas
+      // Poslední slovo řádku -> FLUID FLOW do dalšího řádku
+      forceLineEndAndAdvanceToNext(true, targetVoice);
     }
   };
 
