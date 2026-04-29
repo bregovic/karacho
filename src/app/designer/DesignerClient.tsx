@@ -88,9 +88,6 @@ export default function DesignerClient({ song }: { song: any }) {
   const curLineRef = useRef<number>(-1);
   const curWordRef = useRef<number>(-1);
 
-  const curLineEl = useRef<HTMLDivElement>(null);
-  const prevLineEl = useRef<HTMLDivElement>(null);
-  const nextLineEl = useRef<HTMLDivElement>(null);
   const pbarEl = useRef<HTMLDivElement>(null);
 
   const forceUpdate = () => setRenderTick(t => t + 1);
