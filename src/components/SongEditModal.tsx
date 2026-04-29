@@ -54,7 +54,7 @@ export default function SongEditModal({
   const handleResearch = async () => {
     setResearching(true);
     setImportStatus('⌛ Zjišťuji...');
-    const res = await researchSongDataAction(song.id);
+    const res = await researchSongDataAction(song.id, formData.title, formData.artist);
     if (res.success && res.updated) {
       setFormData({ 
         ...formData, 
