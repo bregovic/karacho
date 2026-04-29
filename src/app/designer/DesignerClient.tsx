@@ -1042,5 +1042,3 @@ function dlSRT(content: string, name: string) {
     console.error(e);
   }
 }
-
-export default DesignerClient;
