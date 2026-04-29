@@ -663,7 +663,8 @@ export async function bulkFetchMissingLyrics() {
 
   const results = { count: 0, failed: 0 };
   for (const s of songsWithoutLyrics) {
-    const res = await fetchLyricsAction(s.id);
+    // Použijeme chytřejší researchSongDataAction, která prohledává i CZ/SK zdroje
+    const res = await researchSongDataAction(s.id);
     if (res.success) results.count++;
     else results.failed++;
   }
@@ -1034,8 +1035,8 @@ interface AuditIssue {
   autoFixable: boolean;
 }
 
-const YOUTUBE_JUNK = /\s*[\(\[]\s*[^\]\)]*(Official\s*(Music\s*)?Video|Lyrics?\s*Video|Lyric\s*Video|Audio|HD|4K|HQ|Remastered|Remaster|Live|feat\.\s*|ft\.\s*|Official\s*Audio|Music\s*Video|Video\s*Cl[ií]p|Karaoke|Instrumental|Creative\s*Commission|With\s*Lyrics?|Full\s*Album|Full\s*HD|Visuali[sz]er|VHS|RETRO|píseň\s*pro|pieseň\s*pre|soundtrack)[^\]\)]*\s*[\)\]]/gi;
-const YOUTUBE_SUFFIX = /\s*([-–—|]\s*)?(Official\s*(Music\s*)?Video|Lyrics?\s*Video|Lyric\s*Video|Audio|HD|4K|HQ|Remastered|Live|Official\s*Audio|Music\s*Video|Karaoke|Instrumental|With\s*Lyrics?|\.wmv|\.mp4|\.avi|\.mpg|\.mpeg)$/gi;
+const YOUTUBE_JUNK = /\s*[\(\[]\s*[^\]\)]*(Official\s*(Music\s*)?Video|Lyrics?\s*Video|Lyric\s*Video|Audio|HD|4K|HQ|Remastered|Remaster|Live|feat\.\s*|ft\.\s*|Official\s*Audio|Music\s*Video|Video\s*Cl[ií]p|Karaoke|Instrumental|Creative\s*Commission|With\s*Lyrics?|Full\s*Album|Full\s*HD|Visuali[sz]er|VHS|RETRO|píseň\s*pro|pieseň\s*pre|soundtrack|Lyrics?|Text\s*písně|Text\s*piesne)[^\]\)]*\s*[\)\]]/gi;
+const YOUTUBE_SUFFIX = /\s*([-–—|]\s*)?(Official\s*(Music\s*)?Video|Lyrics?\s*Video|Lyric\s*Video|Audio|HD|4K|HQ|Remastered|Live|Official\s*Audio|Music\s*Video|Karaoke|Instrumental|With\s*Lyrics?|\.wmv|\.mp4|\.avi|\.mpg|\.mpeg|Lyrics?|Text\s*písně)$/gi;
 
 function cleanTitle(title: string): string {
   let t = title;
@@ -1150,11 +1151,27 @@ export async function auditSongsAction() {
     if (/\s{2,}/.test(title)) {
       issues.push({
         songId: s.id, title, artist,
-        issueType: 'DOUBLE_SPACE_TITLE',
-        description: `Název obsahuje dvojité mezery`,
+        issueType: 'DOUBLE_SPACES',
+        description: `Název obsahuje více mezer za sebou`,
         suggestedTitle: title.replace(/\s{2,}/g, ' ').trim(),
         autoFixable: true,
       });
+    }
+
+    // 5. Junk in lyrics (chords or structural labels)
+    if (s.lyrics) {
+      const hasBrackets = s.lyrics.includes('[') && s.lyrics.includes(']');
+      const hasStructuralLabels = /^(Chorus|Verse|Intro|Outro|Refren|Refrén|Sloka|Bridge|Mezihra|Solo|Sólo|Interlude|Ref:|R:)/im.test(s.lyrics);
+      
+      if (hasBrackets || hasStructuralLabels) {
+        issues.push({
+          songId: s.id, title, artist,
+          issueType: 'LYRICS_JUNK',
+          description: `Text obsahuje akordy nebo značky (Chorus, Refrén...)`,
+          suggestedLyrics: cleanLyrics(s.lyrics),
+          autoFixable: true,
+        });
+      }
     }
 
     // 5. Missing artist
