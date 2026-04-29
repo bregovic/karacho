@@ -463,39 +463,6 @@ export default function DesignerClient({ song }: { song: any }) {
 
   const renderUI = () => {
     const cl = curLineRef.current;
-    const cw = curWordRef.current;
-    const prev = cl > 0 ? linesRef.current[cl - 1] : null;
-    const curr = cl >= 0 && cl < linesRef.current.length ? linesRef.current[cl] : null;
-    const nextText = cl + 1 < linesRef.current.length ? linesRef.current[cl + 1] : null;
-
-    if (prevLineEl.current) prevLineEl.current.textContent = prev ? prev.join(' ') : '';
-    if (nextLineEl.current) nextLineEl.current.textContent = nextText ? nextText.join(' ') : '';
-
-    if (curLineEl.current) {
-      if (curr) {
-        curLineEl.current.innerHTML = curr.map((w: string, i: number) => {
-          const isOn = i <= cw;
-          // Dynamická barva podle hlasu slova
-          const wordEv = eventsRef.current.find(e => e.type === 'word' && e.lineIdx === cl && e.wordIdx === i) as any;
-          const v = wordEv?.v || voiceMap[cl] || 3;
-          let color = 'rgba(255,255,255,0.82)';
-          if (isOn) {
-             if (v === 1) color = '#ff4b2b'; // H1 - Red
-             else if (v === 2) color = '#00d2ff'; // H2 - Blue
-             else color = '#ffd700'; // H3 - Gold
-          }
-          const shadow = isOn ? `0 2px 6px rgba(0,0,0,0.95), 0 0 24px ${color}88` : '0 2px 6px rgba(0,0,0,0.95)';
-          // PŘIDÁNA MEZERA ZA SLOVO (znak &nbsp; nebo mezera)
-          return `<span style="transition: color 0.07s ease, text-shadow 0.07s ease; display: inline-block; color: ${color}; text-shadow: ${shadow}">${w}</span>&nbsp;`;
-        }).join('');
-      } else {
-        curLineEl.current.innerHTML = cl >= linesRef.current.length 
-          ? '<span style="color:var(--color-gold)">🎉 HOTOVO! Klikni Export.</span>' 
-          : '<span style="color:rgba(255,255,255,0.4); font-size: 0.5em;">Stiskněte MEZERNÍK...</span>';
-      }
-    }
-  };
-
   const generateBlocksJSON = () => {
     const blocks = [];
     const dur = audioRef.current?.duration || 0;
