@@ -138,12 +138,26 @@ export default function SongEditModal({
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-      <div className="glass-panel" style={{ width: '100%', maxWidth: '850px', padding: '2rem', maxHeight: '90vh', overflowY: 'auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', alignItems: 'center' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(15px)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
+      <div className="glass-panel" style={{ 
+        width: '100%', 
+        maxWidth: '850px', 
+        padding: '0', 
+        maxHeight: '95vh', 
+        display: 'flex', 
+        flexDirection: 'column',
+        overflow: 'hidden',
+        border: '1px solid rgba(255,255,255,0.1)',
+        boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+      }}>
+        {/* FIXED HEADER */}
+        <div style={{ padding: '1.5rem 2rem 1rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
           <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 900, color: 'var(--color-gold)' }}>✏️ EDITACE PÍSNĚ</h2>
-          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer' }}>✕</button>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
         </div>
+
+        {/* SCROLLABLE CONTENT */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem 2rem' }}>
 
         {importStatus && (
            <div style={{ 
@@ -403,13 +417,33 @@ export default function SongEditModal({
           </div>
         </div>
 
-        <div style={{ marginTop: '2.5rem', display: 'flex', gap: '1rem', justifyContent: 'flex-end', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '1.5rem' }}>
-          <button onClick={onClose} className="btn-secondary" style={{ padding: '12px 30px', borderRadius: '14px' }}>ZAVŘÍT</button>
+        </div>
+
+        {/* FIXED STICKY FOOTER */}
+        <div style={{ 
+          padding: '1.5rem 2rem', 
+          display: 'flex', 
+          gap: '1rem', 
+          justifyContent: 'flex-end', 
+          borderTop: '1px solid rgba(255,255,255,0.1)', 
+          background: 'rgba(20,20,20,0.8)', 
+          backdropFilter: 'blur(10px)',
+          zIndex: 10
+        }}>
+          <button onClick={onClose} className="btn-secondary" style={{ padding: '12px 25px', borderRadius: '14px', fontSize: '13px', fontWeight: 800 }}>ZAVŘÍT</button>
           <button 
             onClick={handleSave} 
             disabled={isSaving} 
             className="btn-primary" 
-            style={{ padding: '12px 40px', background: 'var(--color-gold)', color: '#000', borderRadius: '14px', fontWeight: 900 }}
+            style={{ 
+              padding: '12px 35px', 
+              background: 'var(--color-gold)', 
+              color: '#000', 
+              borderRadius: '14px', 
+              fontWeight: 900,
+              fontSize: '13px',
+              boxShadow: '0 4px 15px rgba(212, 175, 55, 0.3)'
+            }}
           >
             {isSaving ? "UKLÁDÁM..." : "💾 ULOŽIT VŠE"}
           </button>
