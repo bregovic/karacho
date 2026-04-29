@@ -821,14 +821,45 @@ export default function DesignerClient({ song }: { song: any }) {
           {/* STŘEDNÍ ČÁST - TEXTOVÁ VRSTVA */}
           <div className="text-container" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', pointerEvents: 'none', zIndex: 1, overflow: 'hidden' }}>
              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: '30px', padding: '0 5vw', width: '100%', maxWidth: '1200px' }}>
+                
                 {/* Předchozí řádek */}
-                <div ref={prevLineEl} className="line-prev" style={{ minHeight: '1.2em', color: 'rgba(255,255,255,0.1)', fontSize: 'clamp(16px, 3.5vw, 32px)', fontWeight: 500, letterSpacing: '1px', transition: 'all 0.3s ease' }} />
+                <div className="line-prev" style={{ minHeight: '1.2em', color: 'rgba(255,255,255,0.1)', fontSize: 'clamp(16px, 3.5vw, 32px)', fontWeight: 500, letterSpacing: '1px', transition: 'all 0.3s ease' }}>
+                   {curLineRef.current > 0 ? linesRef.current[curLineRef.current - 1]?.join(' ') : ''}
+                </div>
                 
                 {/* Aktuální řádek */}
-                <div ref={curLineEl} id="cur-line" className="line-cur" style={{ minHeight: '2em', color: 'white', fontSize: 'clamp(26px, 7vw, 75px)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '2px', textShadow: '0 0 40px rgba(255,255,255,0.2)', transition: 'all 0.2s ease', filter: isPlaying ? 'none' : 'blur(1.5px)', opacity: isPlaying ? 1 : 0.6 }} />
+                <div id="cur-line" className="line-cur" style={{ minHeight: '2em', color: 'white', fontSize: 'clamp(26px, 7vw, 75px)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '2px', textShadow: '0 0 40px rgba(255,255,255,0.2)', transition: 'all 0.2s ease', filter: isPlaying ? 'none' : 'blur(1.5px)', opacity: isPlaying ? 1 : 0.6 }}>
+                   {(() => {
+                      const cl = curLineRef.current;
+                      const cw = curWordRef.current;
+                      const curr = cl >= 0 && cl < linesRef.current.length ? linesRef.current[cl] : null;
+                      
+                      if (curr) {
+                        return curr.map((w: string, i: number) => {
+                          const isOn = i <= cw;
+                          const wordEv = eventsRef.current.find(e => e.type === 'word' && e.lineIdx === cl && e.wordIdx === i) as any;
+                          const v = wordEv?.v || voiceMap[cl] || 3;
+                          let color = 'rgba(255,255,255,0.82)';
+                          if (isOn) {
+                             if (v === 1) color = '#ff4b2b'; 
+                             else if (v === 2) color = '#00d2ff'; 
+                             else color = '#ffd700'; 
+                          }
+                          const shadow = isOn ? `0 2px 6px rgba(0,0,0,0.95), 0 0 24px ${color}88` : '0 2px 6px rgba(0,0,0,0.95)';
+                          return <span key={i} style={{ transition: 'color 0.07s ease, text-shadow 0.07s ease', display: 'inline-block', color, textShadow: shadow }}>{w}&nbsp;</span>;
+                        });
+                      } else {
+                        return cl >= linesRef.current.length 
+                          ? <span style={{ color: 'var(--color-gold)' }}>🎉 HOTOVO! Klikni Uložit.</span>
+                          : <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.5em' }}>Stiskněte MEZERNÍK...</span>;
+                      }
+                   })()}
+                </div>
                 
                 {/* Následující řádek */}
-                <div ref={nextLineEl} className="line-next" style={{ minHeight: '1.2em', color: 'rgba(255,255,255,0.1)', fontSize: 'clamp(16px, 3.5vw, 32px)', fontWeight: 500, letterSpacing: '1px', transition: 'all 0.3s ease' }} />
+                <div className="line-next" style={{ minHeight: '1.2em', color: 'rgba(255,255,255,0.1)', fontSize: 'clamp(16px, 3.5vw, 32px)', fontWeight: 500, letterSpacing: '1px', transition: 'all 0.3s ease' }}>
+                   {curLineRef.current + 1 < linesRef.current.length ? linesRef.current[curLineRef.current + 1]?.join(' ') : ''}
+                </div>
              </div>
 
              {/* MOBILNÍ DOTYKOVÁ PLOCHA */}
