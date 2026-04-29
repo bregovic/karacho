@@ -818,20 +818,20 @@ export default function DesignerClient({ song }: { song: any }) {
             </button>
           </header>
 
-          <div className="text-container" style={{ position: 'absolute', top: '10vh', left: 0, right: 0, bottom: '220px', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', pointerEvents: 'none' }}>
-             {/* TEXTOVÁ VRSTVA */}
-             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: '30px', padding: '0 5vw', width: '100%' }}>
+          {/* STŘEDNÍ ČÁST - TEXTOVÁ VRSTVA */}
+          <div className="text-container" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', pointerEvents: 'none', zIndex: 1, overflow: 'hidden' }}>
+             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: '30px', padding: '0 5vw', width: '100%', maxWidth: '1200px' }}>
                 {/* Předchozí řádek */}
-                <div ref={prevLineEl} className="line-prev" style={{ minHeight: '1.2em', color: 'rgba(255,255,255,0.15)', fontSize: 'clamp(16px, 3.5vw, 36px)', fontWeight: 500, letterSpacing: '1px', transition: 'all 0.3s ease' }} />
+                <div ref={prevLineEl} className="line-prev" style={{ minHeight: '1.2em', color: 'rgba(255,255,255,0.1)', fontSize: 'clamp(16px, 3.5vw, 32px)', fontWeight: 500, letterSpacing: '1px', transition: 'all 0.3s ease' }} />
                 
                 {/* Aktuální řádek */}
-                <div ref={curLineEl} id="cur-line" className="line-cur" style={{ minHeight: '2em', color: 'white', fontSize: 'clamp(28px, 7.5vw, 80px)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '2px', textShadow: '0 0 30px rgba(255,255,255,0.2)', transition: 'all 0.2s ease', filter: isPlaying ? 'none' : 'blur(1.5px)', opacity: isPlaying ? 1 : 0.6 }} />
+                <div ref={curLineEl} id="cur-line" className="line-cur" style={{ minHeight: '2em', color: 'white', fontSize: 'clamp(26px, 7vw, 75px)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '2px', textShadow: '0 0 40px rgba(255,255,255,0.2)', transition: 'all 0.2s ease', filter: isPlaying ? 'none' : 'blur(1.5px)', opacity: isPlaying ? 1 : 0.6 }} />
                 
                 {/* Následující řádek */}
-                <div ref={nextLineEl} className="line-next" style={{ minHeight: '1.2em', color: 'rgba(255,255,255,0.15)', fontSize: 'clamp(16px, 3.5vw, 36px)', fontWeight: 500, letterSpacing: '1px', transition: 'all 0.3s ease' }} />
+                <div ref={nextLineEl} className="line-next" style={{ minHeight: '1.2em', color: 'rgba(255,255,255,0.1)', fontSize: 'clamp(16px, 3.5vw, 32px)', fontWeight: 500, letterSpacing: '1px', transition: 'all 0.3s ease' }} />
              </div>
 
-             {/* MOBILNÍ DOTYKOVÁ PLOCHA (Aktivní jen na mobilu přes pointer-events) */}
+             {/* MOBILNÍ DOTYKOVÁ PLOCHA */}
              <div 
                className="mobile-only"
                onClick={(e) => { e.stopPropagation(); if(isPlaying) handleWordTiming(); }}
@@ -845,10 +845,9 @@ export default function DesignerClient({ song }: { song: any }) {
           <style dangerouslySetInnerHTML={{ __html: `
              @media (max-width: 768px) { 
                .desktop-legend { display: none !important; } 
-               .mobile-tap-hint { display: block !important; }
-               .text-container { bottom: 180px !important; top: 60px !important; }
-               .line-cur { font-size: clamp(24px, 9vw, 48px) !important; letter-spacing: 1px !important; }
-               .main-controls { padding-top: 5px !important; padding-bottom: 5px !important; gap: 6px !important; }
+               .line-cur { font-size: clamp(22px, 8.5vw, 42px) !important; letter-spacing: 1px !important; }
+               .main-controls { padding-top: 5px !important; padding-bottom: 5px !important; gap: 4px !important; }
+               .save-bar { height: 60px !important; padding: 0 1rem !important; }
              }
              @media (min-width: 769px) {
                .mobile-only { display: none !important; }
@@ -866,8 +865,8 @@ export default function DesignerClient({ song }: { song: any }) {
              </div>
           </div>
 
-          <div className="main-controls" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, paddingBottom: '15px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px', zIndex: 100, pointerEvents: 'none', background: 'linear-gradient(to top, rgba(10,10,20,0.95) 0%, rgba(10,10,20,0.8) 70%, transparent 100%)', paddingTop: '30px' }}>
-              {/* PROGRESS BAR - Viditelný pro všechny nezávisle (myš + tah) */}
+          <div className="main-controls" style={{ width: '100%', paddingBottom: '15px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px', zIndex: 100, pointerEvents: 'none', background: 'linear-gradient(to top, rgba(10,10,20,0.95) 0%, rgba(10,10,20,0.8) 70%, transparent 100%)', paddingTop: '20px' }}>
+              {/* PROGRESS BAR */}
               <div style={{ width: '100%', maxWidth: '800px', padding: '0 20px', boxSizing: 'border-box', pointerEvents: 'auto' }}>
                   <div 
                     onClick={(e) => { if (audioRef.current?.duration) { const r = e.currentTarget.getBoundingClientRect(); audioRef.current.currentTime = (e.clientX - r.left) / r.width * audioRef.current.duration; } }} 
@@ -881,7 +880,7 @@ export default function DesignerClient({ song }: { song: any }) {
                   </div>
               </div>
 
-              {/* OVLÁDACÍ TLAČÍTKA (Nyní viditelná i pro PC) */}
+              {/* OVLÁDACÍ TLAČÍTKA */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', pointerEvents: 'auto', flexWrap: 'wrap', justifyContent: 'center' }}>
                 <button 
                   onClick={(e) => { 
@@ -939,14 +938,14 @@ export default function DesignerClient({ song }: { song: any }) {
               </div>
           </div>
 
-          <div style={{ height: '70px', background: 'rgba(0,0,0,0.98)', borderTop: '2px solid rgba(255,255,255,0.1)', zIndex: 10, display: 'flex', alignItems: 'center', padding: '0 2rem', justifyContent: 'center' }} onClick={e => e.stopPropagation()}>
+          <div className="save-bar" style={{ height: '75px', background: 'rgba(0,0,0,0.98)', borderTop: '2px solid rgba(255,255,255,0.1)', zIndex: 10, display: 'flex', alignItems: 'center', padding: '0 2rem', justifyContent: 'center' }} onClick={e => e.stopPropagation()}>
              <button 
                className="btn-primary" 
-               style={{ padding: '10px 40px', background: 'var(--color-gold)', color: '#000', fontWeight: 900, borderRadius: '50px', fontSize: '14px' }} 
+               style={{ padding: '10px 40px', background: 'var(--color-gold)', color: '#000', fontWeight: 900, borderRadius: '50px', fontSize: '14px', boxShadow: '0 0 20px rgba(255,215,0,0.2)' }} 
                onClick={handleSave} 
                disabled={saving}
              >
-               {saving ? 'UKLÁDÁM...' : (saveDone ? '✓ ULOŽENO' : '💾 ULOŽIT ROZDĚLANÉ')}
+               {saving ? 'UKLÁDÁM...' : (saveDone ? '✓ ULOŽENO DO DATABÁZE' : '💾 ULOŽIT ROZDĚLANÉ')}
              </button>
           </div>
       </div>
