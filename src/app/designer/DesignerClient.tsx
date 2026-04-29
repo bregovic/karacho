@@ -259,7 +259,7 @@ export default function DesignerClient({ song }: { song: any }) {
       const wordEvents = eventsRef.current.filter(e => e.type === 'word' && e.lineIdx === curLineRef.current);
       curWordRef.current = wordEvents.length ? Math.max(...wordEvents.map(e => (e as any).wordIdx)) : -1;
     }
-    renderUI();
+    forceUpdate();
   };
 
   const forceLineEndAndAdvanceToNext = (autoKeyFirstWord: boolean = false, targetVoice?: number) => {
