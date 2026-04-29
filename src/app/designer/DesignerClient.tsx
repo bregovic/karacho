@@ -818,21 +818,22 @@ export default function DesignerClient({ song }: { song: any }) {
             </button>
           </header>
 
-          <div className="text-container" style={{ position: 'absolute', top: '70px', left: 0, right: 0, bottom: '260px', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', pointerEvents: 'none', overflow: 'hidden' }}>
+          <div className="text-container" style={{ position: 'absolute', top: '10vh', left: 0, right: 0, bottom: '220px', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', pointerEvents: 'none' }}>
              {/* TEXTOVÁ VRSTVA */}
-             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: '2vh', padding: '0 5vw', width: '100%' }}>
+             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: '30px', padding: '0 5vw', width: '100%' }}>
                 {/* Předchozí řádek */}
-                <div ref={prevLineEl} className="line-prev" style={{ minHeight: '1.5em', color: 'rgba(255,255,255,0.15)', fontSize: 'clamp(14px, 3vw, 30px)', fontWeight: 500, letterSpacing: '1px', transition: 'all 0.3s ease' }} />
+                <div ref={prevLineEl} className="line-prev" style={{ minHeight: '1.2em', color: 'rgba(255,255,255,0.15)', fontSize: 'clamp(16px, 3.5vw, 36px)', fontWeight: 500, letterSpacing: '1px', transition: 'all 0.3s ease' }} />
                 
                 {/* Aktuální řádek */}
-                <div ref={curLineEl} id="cur-line" className="line-cur" style={{ minHeight: '2.5em', color: 'white', fontSize: 'clamp(24px, 7vw, 75px)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '2px', textShadow: '0 0 30px rgba(255,255,255,0.2)', transition: 'all 0.2s ease', filter: isPlaying ? 'none' : 'blur(2px)', opacity: isPlaying ? 1 : 0.6 }} />
+                <div ref={curLineEl} id="cur-line" className="line-cur" style={{ minHeight: '2em', color: 'white', fontSize: 'clamp(28px, 7.5vw, 80px)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '2px', textShadow: '0 0 30px rgba(255,255,255,0.2)', transition: 'all 0.2s ease', filter: isPlaying ? 'none' : 'blur(1.5px)', opacity: isPlaying ? 1 : 0.6 }} />
                 
                 {/* Následující řádek */}
-                <div ref={nextLineEl} className="line-next" style={{ minHeight: '1.5em', color: 'rgba(255,255,255,0.15)', fontSize: 'clamp(14px, 3vw, 30px)', fontWeight: 500, letterSpacing: '1px', transition: 'all 0.3s ease' }} />
+                <div ref={nextLineEl} className="line-next" style={{ minHeight: '1.2em', color: 'rgba(255,255,255,0.15)', fontSize: 'clamp(16px, 3.5vw, 36px)', fontWeight: 500, letterSpacing: '1px', transition: 'all 0.3s ease' }} />
              </div>
 
-             {/* MOBILNÍ DOTYKOVÁ PLOCHA (Skrytá pro ťukání) */}
+             {/* MOBILNÍ DOTYKOVÁ PLOCHA (Aktivní jen na mobilu přes pointer-events) */}
              <div 
+               className="mobile-only"
                onClick={(e) => { e.stopPropagation(); if(isPlaying) handleWordTiming(); }}
                style={{ 
                  position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'auto',
@@ -845,14 +846,13 @@ export default function DesignerClient({ song }: { song: any }) {
              @media (max-width: 768px) { 
                .desktop-legend { display: none !important; } 
                .mobile-tap-hint { display: block !important; }
-               .text-container { bottom: 200px !important; top: 50px !important; }
-               .line-cur { font-size: clamp(22px, 8vw, 45px) !important; letter-spacing: 1px !important; }
-               .main-controls { padding-top: 10px !important; padding-bottom: 5px !important; gap: 8px !important; }
+               .text-container { bottom: 180px !important; top: 60px !important; }
+               .line-cur { font-size: clamp(24px, 9vw, 48px) !important; letter-spacing: 1px !important; }
+               .main-controls { padding-top: 5px !important; padding-bottom: 5px !important; gap: 6px !important; }
              }
              @media (min-width: 769px) {
                .mobile-only { display: none !important; }
              }
-             .mobile-tap-hint { display: none; }
           `}} />
           
           <div className="desktop-legend" style={{ textAlign: 'center', width: '100%', pointerEvents: 'none', marginBottom: '10px' }}>
