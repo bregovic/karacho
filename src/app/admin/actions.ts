@@ -672,12 +672,15 @@ export async function bulkFetchMissingLyrics() {
   return results;
 }
 
-export async function researchSongDataAction(songId: string) {
+export async function researchSongDataAction(songId: string, overrideTitle?: string, overrideArtist?: string) {
   const song = await db.song.findUnique({ where: { id: songId } });
-  if (!song || !song.artist || !song.title) return { error: 'Chybí interpret nebo název' };
+  if (!song) return { error: 'Píseň nenalezena' };
 
-  const artist = song.artist;
-  const title = song.title;
+  const artist = overrideArtist || song.artist;
+  const title = overrideTitle || song.title;
+  
+  if (!artist || !title) return { error: 'Chybí interpret nebo název pro vyhledávání' };
+
   const results: any = {};
 
   try {
@@ -688,7 +691,8 @@ export async function researchSongDataAction(songId: string) {
       if (vData.mus && vData.mus[0]) {
         const track = vData.mus[0];
         if (track.text && (!song.lyrics || song.lyrics.length < 50)) {
-           if (!track.text.includes('?')) {
+           // Ignorujeme jen pokud je text POUZE otazník (někdy vrací "?" místo textu)
+           if (track.text.trim() !== '?') {
               results.lyrics = track.text.trim();
            }
         }
@@ -696,6 +700,19 @@ export async function researchSongDataAction(songId: string) {
            results.genre = vData.art.genre[0].name;
         }
       }
+    }
+
+    // 1b. LYRICS.OVH BACKUP (pokud Vagalume nenašlo text)
+    if (!results.lyrics) {
+       try {
+         const ovhRes = await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`);
+         if (ovhRes.ok) {
+           const ovhData = await ovhRes.json();
+           if (ovhData.lyrics) {
+             results.lyrics = ovhData.lyrics.trim();
+           }
+         }
+       } catch (e) {}
     }
 
     // 2. LAST.FM RESEARCH
