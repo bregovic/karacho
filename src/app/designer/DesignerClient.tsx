@@ -418,54 +418,57 @@ export default function DesignerClient({ song }: { song: any }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  const tick = () => {
-    if (!audioRef.current || view !== 'editor') return;
-    
-    // Automatický náhled: Pokud hrajeme a zrovna nemačkáme klávesy pro nahrávání,
-    // najdeme v eventsRef co má právě teď svítit.
-    const t = audioRef.current.currentTime;
-    const allEvs = eventsRef.current;
-    
-    if (allEvs.length > 0) {
-      // Najdeme poslední událost, která už nastala - ALE IGNORUJEME ODPOČTY (ty jsou pro player)
-      const activeEvs = [...allEvs]
-        .sort((a,b) => a.time - b.time)
-        .filter(e => e.time <= t && e.type !== 'countdown');
-        
-      if (activeEvs.length > 0) {
-        const lastEv = activeEvs[activeEvs.length - 1];
-        if (lastEv.type === 'line' || lastEv.type === 'word') {
-          curLineRef.current = lastEv.lineIdx;
-          const wIdx = lastEv.type === 'word' ? lastEv.wordIdx : -1;
-          curWordRef.current = wIdx;
+    const tick = () => {
+      if (!audioRef.current || view !== 'editor') return;
+      
+      const t = audioRef.current.currentTime;
+      const allEvs = eventsRef.current;
+      
+      if (allEvs.length > 0) {
+        const activeEvs = [...allEvs]
+          .sort((a,b) => a.time - b.time)
+          .filter(e => e.time <= t && e.type !== 'countdown');
+          
+        let cl = -1;
+        let cw = -1;
+
+        if (activeEvs.length > 0) {
+          const lastEv = activeEvs[activeEvs.length - 1];
+          if (lastEv.type === 'line' || lastEv.type === 'word') {
+            cl = lastEv.lineIdx;
+            cw = lastEv.type === 'word' ? lastEv.wordIdx : -1;
+          } else if (lastEv.type === 'lineEnd') {
+            cl = lastEv.lineIdx;
+            cw = 999;
+          }
         }
-      } else {
-        curLineRef.current = -1;
-        curWordRef.current = -1;
+
+        if (cl !== curLineRef.current || cw !== curWordRef.current) {
+           curLineRef.current = cl;
+           curWordRef.current = cw;
+           forceUpdate();
+        }
       }
-    }
 
-    renderUI();
-    rafRef.current = requestAnimationFrame(tick);
-  };
+      if (isPlaying) forceUpdate();
+      rafRef.current = requestAnimationFrame(tick);
+    };
 
-  const startTick = () => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(tick);
-  };
+    const startTick = () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(tick);
+    };
 
-  const fmtTime = (s: number) => {
-    if (isNaN(s)) return '0:00';
-    const m = Math.floor(s / 60);
-    const sec = Math.floor(s % 60);
-    return `${m}:${sec.toString().padStart(2, '0')}`;
-  };
+    const fmtTime = (s: number) => {
+      if (isNaN(s)) return '0:00';
+      const m = Math.floor(s / 60);
+      const sec = Math.floor(s % 60);
+      return `${m}:${sec.toString().padStart(2, '0')}`;
+    };
 
-  const renderUI = () => {
-    const cl = curLineRef.current;
-  const generateBlocksJSON = () => {
-    const blocks = [];
-    const dur = audioRef.current?.duration || 0;
+    const generateBlocksJSON = () => {
+      const blocks = [];
+      const dur = audioRef.current?.duration || 0;
     
     // Procházíme o jeden index více, abychom podchytili i ten finální prázdný blok
     for (let li = 0; li <= linesRef.current.length; li++) {
