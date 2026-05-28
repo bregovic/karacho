@@ -674,6 +674,14 @@ export default function PlayerClient({ song }: { song: any }) {
         }
       }
     });
+
+    if (isActive) {
+      rowEl.classList.remove('upcoming-line');
+      rowEl.classList.add('active-line');
+    } else {
+      rowEl.classList.remove('active-line');
+      rowEl.classList.add('upcoming-line');
+    }
   };
 
   const renderVoiceState = (state: any, t: number, voice: number, curEl: any, nextEl: any, lastRefA: any, lastRefB: any) => {
@@ -726,7 +734,9 @@ export default function PlayerClient({ song }: { song: any }) {
         .player-root { --glow: rgba(255, 215, 0, 0.55); }
         .w-wrap { position: relative; display: inline-block; padding: 0; margin: 0 0.1em; }
         .w-on { position: absolute; left: 0; top: 0; height: 100%; width: 100%; clip-path: inset(0 100% 0 0); overflow: visible; white-space: nowrap; text-shadow: 1px 1px 3px rgba(0,0,0,0.9); }
-        .karaoke-line { position: relative; font-size: clamp(24px, 5vw, 60px); font-weight: 900; text-align: center; min-height: 1.2em; line-height: 1.1; letter-spacing: -0.01em; color: rgba(255,255,255,0.6); text-shadow: 1px 1px 3px rgba(0,0,0,0.8); transition: opacity 0.3s; }
+        .karaoke-line { position: relative; font-size: clamp(24px, 5vw, 60px); font-weight: 900; text-align: center; min-height: 1.2em; line-height: 1.1; letter-spacing: -0.01em; color: rgba(255,255,255,0.6); text-shadow: 1px 1px 3px rgba(0,0,0,0.8); transition: transform 0.45s cubic-bezier(0.34, 1.4, 0.64, 1), color 0.3s ease, text-shadow 0.3s ease; transform-origin: center; }
+        .karaoke-line.active-line { transform: scale(1); color: rgba(255,255,255,1); }
+        .karaoke-line.upcoming-line { transform: scale(0.75); color: rgba(255,255,255,0.5); }
         @keyframes blockIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
         .block-new { animation: blockIn 0.3s ease-out forwards; }
         @media (min-width: 1025px) {
