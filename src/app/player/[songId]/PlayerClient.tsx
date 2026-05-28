@@ -584,6 +584,23 @@ export default function PlayerClient({ song }: { song: any }) {
     }
   };
 
+  const getShouldBlockFlash = (block: PlayerBlock | null, t: number, voice: number) => {
+    if (!block) return false;
+    const voiceBlocks = blocks.filter(b => isBlockInVoice(b, voice));
+    const blockIdx = voiceBlocks.indexOf(block);
+    if (blockIdx < 0) return false;
+
+    const firstWordT = block.w?.[0]?.t || block.bs;
+    const realTimeToStartLine = firstWordT - (t - 0.2);
+
+    let lastBe = 0;
+    for (let j = 0; j < blockIdx; j++) {
+      if (voiceBlocks[j].be > lastBe) lastBe = voiceBlocks[j].be;
+    }
+    const gap = (blockIdx === 0) ? firstWordT : (firstWordT - lastBe);
+    return gap >= 5.0 && realTimeToStartLine <= 1.5 && realTimeToStartLine > 0.2;
+  };
+
   const renderBlockToRow = (
     rowEl: HTMLDivElement | null,
     block: PlayerBlock | null,
@@ -638,8 +655,14 @@ export default function PlayerClient({ song }: { song: any }) {
            else if (t >= block.be) p = 1;
         }
         on.style.clipPath = `inset(0 ${100 - (p * 100)}% 0 0)`;
-        off.style.color = '';
-        off.style.textShadow = '';
+        
+        if (shouldFlash) {
+           off.style.color = '#ff8c00'; 
+           off.style.textShadow = '0 0 15px #ff8c00aa';
+        } else {
+           off.style.color = '';
+           off.style.textShadow = '';
+        }
       } else {
         on.style.clipPath = 'inset(0 100% 0 0)';
         if (shouldFlash) {
@@ -666,20 +689,6 @@ export default function PlayerClient({ song }: { song: any }) {
     const voiceBlocks = blocks.filter(b => isBlockInVoice(b, voice));
     const activeVoiceIdx = voiceBlocks.indexOf(cb);
 
-    let shouldFlash = false;
-    if (nb) {
-      const nextWordT = nb.w?.[0]?.t || nb.bs;
-      const realTimeToStartLine = nextWordT - (t - 0.2);
-
-      let lastBe = 0;
-      const activeGlobalIdx = blocks.findIndex(b => b === cb);
-      for (let j = 0; j < activeGlobalIdx; j++) {
-        if (isBlockInVoice(blocks[j], voice) && blocks[j].be > lastBe) lastBe = blocks[j].be;
-      }
-      const gap = (activeGlobalIdx === 0) ? nextWordT : (nextWordT - lastBe);
-      shouldFlash = gap >= 5.0 && realTimeToStartLine <= 1.5 && realTimeToStartLine > 0.2;
-    }
-
     const isEven = activeVoiceIdx % 2 === 0;
     const row1Block = isEven ? cb : nb;
     const row2Block = isEven ? nb : cb;
@@ -690,8 +699,11 @@ export default function PlayerClient({ song }: { song: any }) {
     const row1Idx = row1Block ? blocks.findIndex(b => b === row1Block) : -99;
     const row2Idx = row2Block ? blocks.findIndex(b => b === row2Block) : -99;
 
-    renderBlockToRow(curEl.current, row1Block, row1Active, t, voice, row1Idx, lastRefA, shouldFlash);
-    renderBlockToRow(nextEl.current, row2Block, row2Active, t, voice, row2Idx, lastRefB, shouldFlash);
+    const row1Flash = getShouldBlockFlash(row1Block, t, voice);
+    const row2Flash = getShouldBlockFlash(row2Block, t, voice);
+
+    renderBlockToRow(curEl.current, row1Block, row1Active, t, voice, row1Idx, lastRefA, row1Flash);
+    renderBlockToRow(nextEl.current, row2Block, row2Active, t, voice, row2Idx, lastRefB, row2Flash);
   };
 
   const handleSeek = (e: React.MouseEvent) => {
