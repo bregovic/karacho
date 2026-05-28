@@ -171,6 +171,13 @@ export default function PlayerClient({ song }: { song: any }) {
   const blocks = data.blocks || [];
   const dur = data.dur || 0;
 
+  const isDuet = useMemo(() => {
+    return blocks.some(b => {
+      if (b.v === 1 || b.v === 2) return true;
+      return b.w?.some(w => w.v === 1 || w.v === 2);
+    });
+  }, [blocks]);
+
   const availableModes = useMemo(() => {
     const m: ('INST' | 'ORIG')[] = [];
     if (song.instrumentalUrl) {
@@ -479,15 +486,27 @@ export default function PlayerClient({ song }: { song: any }) {
         if (v === 3) has3 = true;
      }
 
-     if (wordCount === 0) {
-        const v = b.v || 3;
-        return v === containerVoice;
+     const blockVoice = (wordCount === 0) ? (b.v || 3) : null;
+
+     if (isDuet) {
+        // Duet mode: only container 1 (upper) and container 2 (lower) are used.
+        if (containerVoice === 3) return false;
+        
+        if (containerVoice === 1) {
+           // Container 1 gets Voice 1 and Voice 3 blocks
+           if (blockVoice !== null) return blockVoice === 1 || blockVoice === 3;
+           return has1 || has3;
+        }
+        if (containerVoice === 2) {
+           // Container 2 gets Voice 2 and Voice 3 blocks
+           if (blockVoice !== null) return blockVoice === 2 || blockVoice === 3;
+           return has2 || has3;
+        }
+     } else {
+        // Solo mode: only container 3 (center) is used.
+        if (containerVoice === 1 || containerVoice === 2) return false;
+        return true; // All blocks go to container 3
      }
-
-     if (containerVoice === 1 && has1) return true;
-     if (containerVoice === 2 && has2) return true;
-     if (containerVoice === 3 && has3) return true;
-
      return false;
   };
 
