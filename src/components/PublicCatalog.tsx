@@ -245,7 +245,7 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
                   className="plus-btn"
                 >+</button>
 
-                <div style={{ marginBottom: '2rem' }}>
+                <div style={{ marginBottom: '2rem', paddingRight: '40px' }}>
                     <h3 style={{ fontSize: '20px', fontWeight: 800, margin: '0 0 6px', letterSpacing: '-0.01em' }}>{song.title}</h3>
                     <p style={{ opacity: 0.6, fontSize: '15px', margin: 0, fontWeight: 600 }}>{song.artist || 'Neznámý interpret'}</p>
                 </div>
