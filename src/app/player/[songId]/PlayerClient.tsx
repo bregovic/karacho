@@ -159,9 +159,12 @@ export default function PlayerClient({ song }: { song: any }) {
   const countEl = useRef<HTMLDivElement>(null);
   const countBarEl = useRef<HTMLDivElement>(null);
 
-  const lastBlock1 = useRef<number>(-1);
-  const lastBlock2 = useRef<number>(-1);
-  const lastBlockC = useRef<number>(-1);
+  const lastBlock1A = useRef<number>(-1);
+  const lastBlock1B = useRef<number>(-1);
+  const lastBlock2A = useRef<number>(-1);
+  const lastBlock2B = useRef<number>(-1);
+  const lastBlockCA = useRef<number>(-1);
+  const lastBlockCB = useRef<number>(-1);
   const recordHandled = useRef(false);
 
   const data: TimingData = (song.timingData as any) || { blocks: [], dur: 0 };
@@ -303,7 +306,9 @@ export default function PlayerClient({ song }: { song: any }) {
 
     const handleEnded = async () => {
       setIsPlaying(false);
-      lastBlock1.current = -1; lastBlock2.current = -1; lastBlockC.current = -1;
+      lastBlock1A.current = -1; lastBlock1B.current = -1;
+      lastBlock2A.current = -1; lastBlock2B.current = -1;
+      lastBlockCA.current = -1; lastBlockCB.current = -1;
       releaseWakeLock();
       if (isWatchMode) return;
       if (joinCode) {
@@ -530,9 +535,9 @@ export default function PlayerClient({ song }: { song: any }) {
 
     // No dual-audio sync needed - single element plays the active track
 
-    renderVoiceState(s1, visualTime, 1, curLineEl1, nextLineEl1, lastBlock1);
-    renderVoiceState(s2, visualTime, 2, curLineEl2, nextLineEl2, lastBlock2);
-    renderVoiceState(sC, visualTime, 3, curLineElC, nextLineElC, lastBlockC);
+    renderVoiceState(s1, visualTime, 1, curLineEl1, nextLineEl1, lastBlock1A, lastBlock1B);
+    renderVoiceState(s2, visualTime, 2, curLineEl2, nextLineEl2, lastBlock2A, lastBlock2B);
+    renderVoiceState(sC, visualTime, 3, curLineElC, nextLineElC, lastBlockCA, lastBlockCB);
 
     if (pbarEl.current) pbarEl.current.style.width = `${(t / d) * 100}%`;
     if (timeEl.current) {
@@ -560,84 +565,114 @@ export default function PlayerClient({ song }: { song: any }) {
     }
   };
 
-  const renderVoiceState = (state: any, t: number, voice: number, curEl: any, nextEl: any, lastRef: any) => {
-    if (!state) {
-      if (curEl.current) curEl.current.innerHTML = '';
-      if (nextEl.current) nextEl.current.innerHTML = '';
+  const renderBlockToRow = (
+    rowEl: HTMLDivElement | null,
+    block: PlayerBlock | null,
+    isActive: boolean,
+    t: number,
+    voice: number,
+    blockIdx: number,
+    lastRef: React.MutableRefObject<number>,
+    shouldFlash: boolean
+  ) => {
+    if (!rowEl) return;
+    if (!block) {
+      rowEl.innerHTML = '';
       lastRef.current = -1;
       return;
     }
-    const { cb, ci, next: nb } = state;
 
-    if (nextEl.current) {
-       if (nb) {
-          nextEl.current.innerHTML = nb.lw.map((w: string, i: number) => {
-             const targetV = nb.w?.[i]?.v || nb.v || 3;
-             let isHidden = (voice !== 3 && voice !== targetV && targetV !== 3);
-             return isHidden ? `<span style="visibility: hidden;">${w}</span>` : w;
-          }).join(' ');
-       } else {
-          nextEl.current.innerHTML = '';
-       }
-    }
-    
-    if (ci !== lastRef.current) {
-      if (curEl.current) {
-        curEl.current.innerHTML = cb.lw.map((w: string, i: number) => {
-          const targetV = cb.w?.[i]?.v || cb.v || 3;
-          let fillColor = '#ffd700'; 
-          if (targetV === 1) fillColor = '#ff4b2b'; 
-          if (targetV === 2) fillColor = '#00d2ff'; 
-          let isHidden = (voice !== 3 && voice !== targetV && targetV !== 3);
-          const wrapStyle = isHidden ? "visibility: hidden;" : "";
-          return `<span class="w-wrap" style="${wrapStyle}"><span class="w-off">${w}</span><span class="w-on" style="color: ${fillColor}; text-shadow: 0 0 15px ${fillColor}66">${w}</span></span>`;
-        }).join(' ');
-        
-        curEl.current.classList.remove('block-new');
-        void curEl.current.offsetWidth; 
-        curEl.current.classList.add('block-new');
+    if (blockIdx !== lastRef.current) {
+      rowEl.innerHTML = block.lw.map((w: string, i: number) => {
+        const targetV = block.w?.[i]?.v || block.v || 3;
+        let fillColor = '#ffd700'; 
+        if (targetV === 1) fillColor = '#ff4b2b'; 
+        if (targetV === 2) fillColor = '#00d2ff'; 
+        let isHidden = (voice !== 3 && voice !== targetV && targetV !== 3);
+        const wrapStyle = isHidden ? "visibility: hidden;" : "";
+        return `<span class="w-wrap" style="${wrapStyle}"><span class="w-off">${w}</span><span class="w-on" style="color: ${fillColor}; text-shadow: 0 0 15px ${fillColor}66">${w}</span></span>`;
+      }).join(' ');
+
+      if (isActive) {
+        rowEl.classList.remove('block-new');
+        void rowEl.offsetWidth; 
+        rowEl.classList.add('block-new');
       }
-      lastRef.current = ci;
+      lastRef.current = blockIdx;
     }
 
-    if (curEl.current) {
-      const firstWordT = cb.w?.[0]?.t || cb.bs;
-      const realTimeToStartLine = firstWordT - (t - 0.2); 
+    const wraps = rowEl.querySelectorAll('.w-wrap');
+    wraps.forEach((wrap: any, i: number) => {
+      const off = wrap.querySelector('.w-off');
+      const on = wrap.querySelector('.w-on');
+      if (!on || !off) return;
 
-      let lastBe = 0;
-      for (let j = 0; j < ci; j++) {
-        if (isBlockInVoice(blocks[j], voice) && blocks[j].be > lastBe) lastBe = blocks[j].be;
-      }
-      const gap = (ci === 0) ? firstWordT : (firstWordT - lastBe);
-      const shouldFlash = gap >= 5.0;
-
-      const wraps = curEl.current.querySelectorAll('.w-wrap');
-      wraps.forEach((wrap: any, i: number) => {
-        const off = wrap.querySelector('.w-off');
-        const on = wrap.querySelector('.w-on');
-        if (!on || !off) return;
-        
-        if (shouldFlash && realTimeToStartLine <= 1.5 && realTimeToStartLine > 0.2) {
+      if (isActive) {
+        let p = 0;
+        if (block.w && block.w[i]) {
+           const wordStart = block.w[i].t;
+           const wordEnd = (i < block.w.length - 1) ? block.w[i+1].t : block.be;
+           if (t >= wordStart && t < wordEnd) p = (t - wordStart) / (wordEnd - wordStart);
+           else if (t >= wordEnd) p = 1;
+        } else {
+           if (t >= block.bs && t < block.be) p = (t - block.bs) / (block.be - block.bs);
+           else if (t >= block.be) p = 1;
+        }
+        on.style.clipPath = `inset(0 ${100 - (p * 100)}% 0 0)`;
+        off.style.color = '';
+        off.style.textShadow = '';
+      } else {
+        on.style.clipPath = 'inset(0 100% 0 0)';
+        if (shouldFlash) {
            off.style.color = '#ff8c00'; 
            off.style.textShadow = '0 0 15px #ff8c00aa';
         } else {
            off.style.color = '';
            off.style.textShadow = '';
         }
+      }
+    });
+  };
 
-        let p = 0;
-        if (cb.w && cb.w[i]) {
-           const wordStart = cb.w[i].t;
-           const wordEnd = (i < cb.w.length - 1) ? cb.w[i+1].t : cb.be;
-           if (t >= wordStart && t < wordEnd) p = (t - wordStart) / (wordEnd - wordStart);
-           else if (t >= wordEnd) p = 1;
-        } else {
-           if (t >= cb.bs && t < cb.be) p = (t - cb.bs) / (cb.be - cb.bs);
-           else if (t >= cb.be) p = 1;
-        }
-        on.style.clipPath = `inset(0 ${100 - (p * 100)}% 0 0)`;
-      });
+  const renderVoiceState = (state: any, t: number, voice: number, curEl: any, nextEl: any, lastRefA: any, lastRefB: any) => {
+    if (!state) {
+      if (curEl.current) curEl.current.innerHTML = '';
+      if (nextEl.current) nextEl.current.innerHTML = '';
+      lastRefA.current = -1;
+      lastRefB.current = -1;
+      return;
     }
+    const { cb, ci, next: nb } = state;
+
+    const voiceBlocks = blocks.filter(b => isBlockInVoice(b, voice));
+    const activeVoiceIdx = voiceBlocks.indexOf(cb);
+
+    let shouldFlash = false;
+    if (nb) {
+      const nextWordT = nb.w?.[0]?.t || nb.bs;
+      const realTimeToStartLine = nextWordT - (t - 0.2);
+
+      let lastBe = 0;
+      const activeGlobalIdx = blocks.findIndex(b => b === cb);
+      for (let j = 0; j < activeGlobalIdx; j++) {
+        if (isBlockInVoice(blocks[j], voice) && blocks[j].be > lastBe) lastBe = blocks[j].be;
+      }
+      const gap = (activeGlobalIdx === 0) ? nextWordT : (nextWordT - lastBe);
+      shouldFlash = gap >= 5.0 && realTimeToStartLine <= 1.5 && realTimeToStartLine > 0.2;
+    }
+
+    const isEven = activeVoiceIdx % 2 === 0;
+    const row1Block = isEven ? cb : nb;
+    const row2Block = isEven ? nb : cb;
+
+    const row1Active = isEven;
+    const row2Active = !isEven;
+
+    const row1Idx = row1Block ? blocks.findIndex(b => b === row1Block) : -99;
+    const row2Idx = row2Block ? blocks.findIndex(b => b === row2Block) : -99;
+
+    renderBlockToRow(curEl.current, row1Block, row1Active, t, voice, row1Idx, lastRefA, shouldFlash);
+    renderBlockToRow(nextEl.current, row2Block, row2Active, t, voice, row2Idx, lastRefB, shouldFlash);
   };
 
   const handleSeek = (e: React.MouseEvent) => {
@@ -660,8 +695,7 @@ export default function PlayerClient({ song }: { song: any }) {
         .player-root { --glow: rgba(255, 215, 0, 0.55); }
         .w-wrap { position: relative; display: inline-block; padding: 0; margin: 0 0.1em; }
         .w-on { position: absolute; left: 0; top: 0; height: 100%; width: 100%; clip-path: inset(0 100% 0 0); overflow: visible; white-space: nowrap; text-shadow: 1px 1px 3px rgba(0,0,0,0.9); }
-        .ln-ctx { font-size: clamp(22px, 3.2vw, 40px); color: rgba(255,255,255,0.7); font-weight: 700; text-align: center; min-height: 1.4em; transition: opacity 0.3s; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); }
-        #cur-line-1, #cur-line-2, #cur-line-C { position: relative; font-size: clamp(24px, 5.5vw, 70px); font-weight: 900; text-align: center; min-height: 1.2em; line-height: 1.1; letter-spacing: -0.01em; }
+        .karaoke-line { position: relative; font-size: clamp(24px, 5vw, 60px); font-weight: 900; text-align: center; min-height: 1.2em; line-height: 1.1; letter-spacing: -0.01em; color: rgba(255,255,255,0.6); text-shadow: 1px 1px 3px rgba(0,0,0,0.8); transition: opacity 0.3s; }
         @keyframes blockIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
         .block-new { animation: blockIn 0.3s ease-out forwards; }
         @media (min-width: 1025px) {
@@ -708,18 +742,18 @@ export default function PlayerClient({ song }: { song: any }) {
             </div>
             
             <div id="voice1" style={{ position: 'absolute', top: '22%', left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3vh', padding: '0 5vw' }}>
-              <div id="cur-line-1" ref={curLineEl1} style={{ color: 'white' }}></div>
-              <div className="ln-ctx" ref={nextLineEl1}></div>
+              <div className="karaoke-line" ref={curLineEl1}></div>
+              <div className="karaoke-line" ref={nextLineEl1}></div>
             </div>
     
             <div id="voice3" style={{ position: 'absolute', top: '50%', left: 0, right: 0, transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3vh', padding: '0 5vw' }}>
-              <div id="cur-line-C" ref={curLineElC} style={{ color: 'white' }}></div>
-              <div className="ln-ctx" ref={nextLineElC}></div>
+              <div className="karaoke-line" ref={curLineElC}></div>
+              <div className="karaoke-line" ref={nextLineElC}></div>
             </div>
     
             <div id="voice2" style={{ position: 'absolute', bottom: '35%', left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3vh', padding: '0 5vw' }}>
-              <div id="cur-line-2" ref={curLineEl2} style={{ color: 'white' }}></div>
-              <div className="ln-ctx" ref={nextLineEl2}></div>
+              <div className="karaoke-line" ref={curLineEl2}></div>
+              <div className="karaoke-line" ref={nextLineEl2}></div>
             </div>
           </>
         )}
