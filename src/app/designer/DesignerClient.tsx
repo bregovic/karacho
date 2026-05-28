@@ -30,6 +30,14 @@ export default function DesignerClient({ song }: { song: any }) {
   const [songbookPage, setSongbookPage] = useState(0);
   const [showSongbookPreview, setShowSongbookPreview] = useState(false);
   const [viewMode, setViewMode] = useState<'lyrics' | 'chords'>('lyrics');
+  const [startTime, setStartTime] = useState<number>(song.startTime || 0);
+  const [statusMessage, setStatusMessage] = useState('');
+
+  useEffect(() => {
+    if (!statusMessage) return;
+    const t = setTimeout(() => setStatusMessage(''), 3000);
+    return () => clearTimeout(t);
+  }, [statusMessage]);
 
   // --- AUTO-LOAD AUDIO Z CLOUDU ---
   useEffect(() => {
@@ -408,7 +416,15 @@ export default function DesignerClient({ song }: { song: any }) {
       forceUpdate();
       return;
     }
-  }, [view, voiceMap]);
+
+    if (e.code === 'KeyX') {
+      e.preventDefault();
+      const currentT = audioRef.current.currentTime;
+      setStartTime(currentT);
+      setStatusMessage(`✂️ Začátek písně nastaven na ${fmtTime(currentT)}`);
+      return;
+    }
+  }, [view, voiceMap, startTime]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -529,7 +545,7 @@ export default function DesignerClient({ song }: { song: any }) {
       await fetch(`/api/songs/${song.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ timingData: data, lyrics: rawText, chords: chordsText }),
+        body: JSON.stringify({ timingData: data, lyrics: rawText, chords: chordsText, startTime }),
       });
       setSaveDone(true);
       // alert("Uloženo do databáze! ✅");
@@ -549,7 +565,7 @@ export default function DesignerClient({ song }: { song: any }) {
       await fetch(`/api/songs/${song.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ timingData: data, lyrics: rawText, chords: chordsText, state: 'ACTIVE' }),
+        body: JSON.stringify({ timingData: data, lyrics: rawText, chords: chordsText, state: 'ACTIVE', startTime }),
       });
       window.location.href = '/admin';
     } catch (e) {
@@ -777,6 +793,18 @@ export default function DesignerClient({ song }: { song: any }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#0a0a14', zIndex: 9999, overflow: 'hidden', display: 'flex' }} onClick={() => { if(!isPlaying) togglePlay(); }}>
       
+      {statusMessage && (
+        <div style={{
+          position: 'absolute', top: '2rem', left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(0, 255, 180, 0.25)', border: '1px solid rgba(0, 255, 180, 0.5)',
+          padding: '10px 24px', borderRadius: '30px', color: '#fff', fontSize: '13px', fontWeight: 900,
+          backdropFilter: 'blur(15px)', zIndex: 10000, boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', gap: '8px'
+        }}>
+          {statusMessage}
+        </div>
+      )}
+
       {/* LEVÁ ČÁST - STAGE */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
           <header style={{ position: 'absolute', top: '1rem', left: '1rem', zIndex: 10, display: 'flex', gap: '1rem' }}>
@@ -860,6 +888,7 @@ export default function DesignerClient({ song }: { song: any }) {
                 <span><b>Backspace</b> Zpět ✕</span>
                 <span><b>[ / ]</b> Zpět čas</span>
                 <span><b>A / D</b> Hlas 1 / 2</span>
+                <span><b style={{ color: 'var(--color-gold)' }}>X</b> Začátek ✂️</span>
              </div>
           </div>
 
