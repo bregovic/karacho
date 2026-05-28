@@ -660,7 +660,7 @@ export default function PlayerClient({ song }: { song: any }) {
         .player-root { --glow: rgba(255, 215, 0, 0.55); }
         .w-wrap { position: relative; display: inline-block; padding: 0; margin: 0 0.1em; }
         .w-on { position: absolute; left: 0; top: 0; height: 100%; width: 100%; clip-path: inset(0 100% 0 0); overflow: visible; white-space: nowrap; text-shadow: 1px 1px 3px rgba(0,0,0,0.9); }
-        .ln-ctx { font-size: clamp(18px, 2.5vw, 30px); color: rgba(255,255,255,0.4); font-weight: 700; text-align: center; min-height: 1.4em; transition: opacity 0.3s; }
+        .ln-ctx { font-size: clamp(22px, 3.2vw, 40px); color: rgba(255,255,255,0.7); font-weight: 700; text-align: center; min-height: 1.4em; transition: opacity 0.3s; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); }
         #cur-line-1, #cur-line-2, #cur-line-C { position: relative; font-size: clamp(24px, 5.5vw, 70px); font-weight: 900; text-align: center; min-height: 1.2em; line-height: 1.1; letter-spacing: -0.01em; }
         @keyframes blockIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
         .block-new { animation: blockIn 0.3s ease-out forwards; }
@@ -707,19 +707,19 @@ export default function PlayerClient({ song }: { song: any }) {
               </div>
             </div>
             
-            <div id="voice1" style={{ position: 'absolute', top: '15%', left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3vh', padding: '0 5vw' }}>
+            <div id="voice1" style={{ position: 'absolute', top: '22%', left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3vh', padding: '0 5vw' }}>
               <div id="cur-line-1" ref={curLineEl1} style={{ color: 'white' }}></div>
-              <div className="ln-ctx" ref={nextLineEl1} style={{ opacity: 0.4 }}></div>
+              <div className="ln-ctx" ref={nextLineEl1}></div>
             </div>
     
             <div id="voice3" style={{ position: 'absolute', top: '50%', left: 0, right: 0, transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3vh', padding: '0 5vw' }}>
               <div id="cur-line-C" ref={curLineElC} style={{ color: 'white' }}></div>
-              <div className="ln-ctx" ref={nextLineElC} style={{ opacity: 0.4 }}></div>
+              <div className="ln-ctx" ref={nextLineElC}></div>
             </div>
     
-            <div id="voice2" style={{ position: 'absolute', bottom: '25%', left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3vh', padding: '0 5vw' }}>
+            <div id="voice2" style={{ position: 'absolute', bottom: '35%', left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3vh', padding: '0 5vw' }}>
               <div id="cur-line-2" ref={curLineEl2} style={{ color: 'white' }}></div>
-              <div className="ln-ctx" ref={nextLineEl2} style={{ opacity: 0.4 }}></div>
+              <div className="ln-ctx" ref={nextLineEl2}></div>
             </div>
           </>
         )}
