@@ -27,5 +27,11 @@ export default async function Home() {
     orderBy: { createdAt: 'desc' }
   });
 
+  // Fisher-Yates shuffle directly on the server (forceDynamic is true)
+  for (let i = songs.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [songs[i], songs[j]] = [songs[j], songs[i]];
+  }
+
   return <PublicCatalog initialSongs={songs} isAdmin={isAdmin} />;
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from '@/context/SessionContext';
@@ -26,13 +26,17 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
   const { showToast } = useToast();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [seedMap, setSeedMap] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    const sm: Record<string, number> = {};
-    initialSongs.forEach(s => { sm[s.id] = Math.random(); });
-    setSeedMap(sm);
     setMounted(true);
+  }, []);
+
+  const songIndexMap = useMemo(() => {
+    const map = new Map<string, number>();
+    initialSongs.forEach((song, index) => {
+      map.set(song.id, index);
+    });
+    return map;
   }, [initialSongs]);
 
   // Definice dat pro frontu
@@ -86,9 +90,9 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
     const titleB = (b.title || '').trim();
 
     if (sortBy === 'RANDOM') {
-      const vA = seedMap[a.id] || 0;
-      const vB = seedMap[b.id] || 0;
-      return vA - vB;
+      const idxA = songIndexMap.get(a.id) ?? 0;
+      const idxB = songIndexMap.get(b.id) ?? 0;
+      return idxA - idxB;
     }
     if (sortBy === 'POPULAR') {
       const diff = (b.playCount || 0) - (a.playCount || 0);
