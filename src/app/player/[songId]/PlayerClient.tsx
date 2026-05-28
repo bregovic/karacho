@@ -745,6 +745,17 @@ export default function PlayerClient({ song }: { song: any }) {
         @media (max-width: 600px) {
           .footer-title-hide { display: none !important; }
         }
+        @media (max-height: 520px) {
+          .karaoke-line { font-size: clamp(16px, 7vh, 38px) !important; min-height: 1.1em !important; }
+          #voice1 { top: 8% !important; gap: 1vh !important; }
+          #voice2 { bottom: 25% !important; gap: 1vh !important; }
+          #voice3 { gap: 1.5vh !important; }
+          #controls { padding: 0.5rem 1rem 0.8rem !important; gap: 0.4rem !important; }
+          .progress-section { gap: 2px !important; }
+          .progress-section > div:first-child { height: 20px !important; }
+          #main-play-btn { width: 48px !important; height: 48px !important; font-size: 20px !important; }
+          .btn-group-left button, .btn-group-right button, #main-next-btn { width: 36px !important; height: 36px !important; font-size: 16px !important; border-radius: 10px !important; }
+        }
       `}} />
 
       <div style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
