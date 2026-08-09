@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { updateTechnicalConfig, getTechnicalConfig, getAdminAuditLog } from '@/app/actions/admin-extra-actions';
+import { updateTechnicalConfig, getTechnicalConfig, getAdminAuditLog, getUsageStats, cleanupSessionsAction } from '@/app/actions/admin-extra-actions';
 
 export default function AdminTechPage() {
+  const [stats, setStats] = useState<any>(null);
+  const [cleaning, setCleaning] = useState(false);
   const [configs, setConfigs] = useState<any[]>([]);
   const [auditLog, setAuditLog] = useState<any[]>([]);
   const [newKey, setNewKey] = useState('');
@@ -13,8 +15,19 @@ export default function AdminTechPage() {
   const loadData = async () => {
     const c = await getTechnicalConfig();
     const l = await getAdminAuditLog();
+    const st = await getUsageStats();
     setConfigs(c);
     setAuditLog(l);
+    setStats(st);
+  };
+
+  const handleCleanup = async () => {
+    if (!confirm('Smazat všechny relace bez aktivity déle než 24 h?')) return;
+    setCleaning(true);
+    const res = await cleanupSessionsAction();
+    setCleaning(false);
+    alert(`Smazáno relací: ${res.smazano}`);
+    loadData();
   };
 
   // Přístup hlídá middleware (jen ADMIN), data se načtou rovnou po otevření.
@@ -36,6 +49,41 @@ export default function AdminTechPage() {
     <div style={{ minHeight: '100vh', background: '#050505', color: 'white', padding: '6rem 2rem 2rem' }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         <h1 style={{ fontSize: '2.5rem', fontWeight: 900, marginBottom: '3rem', color: 'var(--color-gold)' }}>⚙️ Technická konfigurace</h1>
+
+        {/* PŘEHLED VYUŽITÍ */}
+        {stats && (
+          <section style={{ marginBottom: '3rem' }}>
+            <h2 style={{ fontSize: '18px', marginBottom: '1.5rem', opacity: 0.8 }}>📊 Přehled využití</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '1rem' }}>
+              <Stat label="Přehrání celkem" value={stats.prehraniCelkem} hint="včetně nepřihlášených hostů" />
+              <Stat label="Zpěvy se zpěvákem" value={stats.zpevyCelkem} hint={`za 30 dní ${stats.zpevy30} · za 7 dní ${stats.zpevy7}`} />
+              <Stat label="Relace živé" value={stats.relaceZive} hint={`za celou dobu ${stats.relaceCelkem}`} />
+              <Stat label="Písně" value={stats.pisneCelkem} hint={`publikovaných ${stats.pisneActive} · s časováním ${stats.pisneSCasovanim}`} />
+              <Stat label="Uživatelé" value={stats.uzivatele} hint={`z toho adminů ${stats.adminu}`} />
+              <Stat label="Admin akcí v logu" value={stats.adminAkci} />
+            </div>
+
+            {stats.topPisne?.length > 0 && (
+              <div style={{ marginTop: '1.5rem', opacity: 0.85 }}>
+                <h3 style={{ fontSize: '14px', marginBottom: '0.75rem', opacity: 0.7 }}>Nejhranější písně</h3>
+                <ol style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '14px', lineHeight: 1.8 }}>
+                  {stats.topPisne.map((p: any, i: number) => (
+                    <li key={i}>{p.artist ? `${p.artist} – ` : ''}{p.title} <span style={{ opacity: 0.6 }}>({p.playCount}×)</span></li>
+                  ))}
+                </ol>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleCleanup}
+              disabled={cleaning}
+              style={{ marginTop: '1.5rem', padding: '10px 18px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'white', cursor: 'pointer', fontSize: '13px' }}
+            >
+              {cleaning ? 'Uklízím…' : '🧹 Uklidit relace starší 24 h'}
+            </button>
+          </section>
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '3rem' }}>
           
@@ -103,3 +151,16 @@ const inputStyle: any = {
   fontSize: '14px',
   fontFamily: 'inherit'
 };
+
+/** Dlaždice jednoho čísla v přehledu využití. */
+function Stat({ label, value, hint }: { label: string; value: number; hint?: string }) {
+  return (
+    <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: '18px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)' }}>
+      <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.6 }}>{label}</div>
+      <div style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--color-gold)', lineHeight: 1.2 }}>
+        {value.toLocaleString('cs-CZ')}
+      </div>
+      {hint && <div style={{ fontSize: '12px', opacity: 0.55, marginTop: '0.25rem' }}>{hint}</div>}
+    </div>
+  );
+}
