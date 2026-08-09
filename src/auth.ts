@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials"
 import { db } from "@/lib/db"
 import bcrypt from "bcryptjs"
 import { Role } from "@prisma/client"
+import { authConfig } from "@/auth.config"
 
 // Rozšíření typů přímo v hlavním modulu next-auth
 declare module "next-auth" {
@@ -19,11 +20,10 @@ declare module "next-auth" {
   }
 }
 
+// Plný config (Node runtime). Společná pravidla i callbacky jsou v auth.config.ts,
+// aby je middleware mohlo použít bez Prismy – tady se jen dolepí provider.
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  trustHost: true,
-  pages: {
-    signIn: '/login',
-  },
+  ...authConfig,
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -53,21 +53,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
     })
   ],
-  session: { strategy: "jwt" },
-  callbacks: {
-    jwt({ token, user }) {
-      if (user) {
-        (token as any).role = (user as any).role;
-        (token as any).id = (user as any).id;
-      }
-      return token;
-    },
-    session({ session, token }) {
-      if (token && session.user) {
-        session.user.role = (token as any).role as Role;
-        session.user.id = (token as any).id as string;
-      }
-      return session;
-    }
-  }
 })

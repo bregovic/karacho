@@ -54,7 +54,5 @@ export async function getTechnicalConfig(category?: string) {
   });
 }
 
-export async function checkAdminPassword(password: string) {
-  // Specifické heslo pro sekci Technical Parameters podle zadání
-  return password === 'Admin123';
-}
+// checkAdminPassword() odstraněna – heslo bylo natvrdo v kódu ve veřejném repu,
+// takže nic nechránilo. Přístup do /admin/tech hlídá middleware podle role ADMIN.
