@@ -1,6 +1,7 @@
 'use server';
 
 import { db } from '@/lib/db';
+import { SongState } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { logAdminAction } from '@/app/actions/admin-extra-actions';
@@ -322,7 +323,7 @@ export async function requestSong(title: string, artist: string, email?: string)
       data: {
         title: title.trim(),
         artist: artist.trim(),
-        state: 'REQUESTED' as any,
+        state: SongState.REQUESTED,
         requestedByEmail: email || null
       },
     });
@@ -882,7 +883,11 @@ export async function createHelperTrackAction(mainSongId: string) {
       instrumentalUrl: mainSong.instrumentalUrl,
       animationStyle: mainSong.animationStyle,
       createdById: mainSong.createdById,
-      state: 'UNPUBLISHED' as any
+      // POZOR: 'UNPUBLISHED' NENÍ hodnota enumu SongState – je to jen filtr v UI
+      // („nepublikované" = vše kromě ACTIVE). Zápis do DB s ní vždy selhal a
+      // vytvoření druhého hlasu tak nikdy neprošlo. `as any` to schovalo před
+      // typovou kontrolou, proto typovaná hodnota bez castu.
+      state: SongState.NEW
     }
   });
 
