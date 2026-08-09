@@ -243,21 +243,6 @@ export async function updateSongJson(songId: string, jsonUrl: string) {
   revalidatePath('/designer');
 }
 
-export async function updateSongVideo(songId: string, videoUrl: string, videoSize?: number) {
-  await ensureAdmin();
-
-  const oldSong = await db.song.findUnique({ where: { id: songId }, select: { videoUrl: true } });
-  if (oldSong?.videoUrl && oldSong.videoUrl !== videoUrl) {
-    await deleteFileFromR2(oldSong.videoUrl);
-  }
-
-  await db.song.update({ 
-    where: { id: songId }, 
-    data: { videoUrl, videoSize: videoSize || undefined } 
-  });
-  revalidatePath('/admin');
-  revalidatePath('/renderer');
-}
 
 export async function removeSongResource(songId: string, type: 'audio' | 'instrumental' | 'background' | 'json' | 'video') {
   await ensureAdmin();
@@ -282,15 +267,9 @@ export async function removeSongResource(songId: string, type: 'audio' | 'instru
     await deleteFileFromR2(song.jsonUrl);
     data.jsonUrl = null;
   }
-  if (type === 'video') {
-    await deleteFileFromR2(song.videoUrl);
-    data.videoUrl = null;
-    data.videoSize = null;
-  }
 
   await db.song.update({ where: { id: songId }, data });
   revalidatePath('/admin');
-  revalidatePath('/renderer');
   revalidatePath('/designer');
 }
 
@@ -339,14 +318,12 @@ export async function updateSongAnimation(songId: string, animationStyle: string
   await ensureAdmin();
   await db.song.update({ where: { id: songId }, data: { animationStyle } });
   revalidatePath('/admin');
-  revalidatePath('/renderer');
 }
 
 export async function updateSongBackground(songId: string, backgroundUrl: string) {
   await ensureAdmin();
   await db.song.update({ where: { id: songId }, data: { backgroundUrl } });
   revalidatePath('/admin');
-  revalidatePath('/renderer');
 }
 
 export async function updateSong(songId: string, data: any) {
@@ -357,7 +334,7 @@ export async function updateSong(songId: string, data: any) {
   const allowedFields = [
     'title', 'artist', 'genre', 'tags', 'lyrics', 'chords', 
     'audioUrl', 'instrumentalUrl', 'backgroundUrl', 'jsonUrl', 
-    'videoUrl', 'videoSize', 'animationStyle', 'state', 'timingData', 'startTime'
+    'animationStyle', 'state', 'timingData', 'startTime'
   ];
   
   const filteredData: any = {};
@@ -378,7 +355,6 @@ export async function updateSong(songId: string, data: any) {
 
   await logAdminAction('UPDATE_SONG', `Upravena píseň ID: ${songId}`, 'Song', songId);
   revalidatePath('/admin');
-  revalidatePath('/renderer');
 }
 
 export async function bulkRemoveBackground(backgroundUrl: string) {
@@ -836,7 +812,7 @@ export async function deleteSong(songId: string) {
   // Najdeme píseň, abychom znali URL souborů k smazání
   const song = await db.song.findUnique({
     where: { id: songId },
-    select: { audioUrl: true, instrumentalUrl: true, backgroundUrl: true, jsonUrl: true, videoUrl: true }
+    select: { audioUrl: true, instrumentalUrl: true, backgroundUrl: true, jsonUrl: true }
   });
 
   if (song) {
@@ -845,7 +821,6 @@ export async function deleteSong(songId: string) {
     if (song.instrumentalUrl) await deleteFileFromR2(song.instrumentalUrl);
     if (song.backgroundUrl) await deleteFileFromR2(song.backgroundUrl);
     if (song.jsonUrl) await deleteFileFromR2(song.jsonUrl);
-    if (song.videoUrl) await deleteFileFromR2(song.videoUrl);
   }
 
   await db.song.delete({ where: { id: songId } });
@@ -942,7 +917,6 @@ export async function mergeDuetAction(mainSongId: string, sourceSongId: string) 
 
   revalidatePath('/admin');
   revalidatePath('/designer');
-  revalidatePath('/renderer');
 
   return { success: true };
 }

@@ -146,7 +146,6 @@ export default function PlayerClient({ song }: { song: any }) {
     return systemBackgrounds[Math.floor(Math.random() * systemBackgrounds.length)];
   }, [systemBackgrounds]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const videoElRef = useRef<HTMLVideoElement | null>(null);
   const wakeLockRef = useRef<any>(null);
   const rafRef = useRef<number | null>(null);
 
@@ -302,7 +301,6 @@ export default function PlayerClient({ song }: { song: any }) {
 
     if (song.startTime > 0 && p.currentTime === 0) {
       p.currentTime = song.startTime;
-      if (videoElRef.current) videoElRef.current.currentTime = song.startTime;
     }
 
     const handlePlay = () => {
@@ -388,7 +386,6 @@ export default function PlayerClient({ song }: { song: any }) {
 
           if (absDiff > 1.2) {
             currentPlayer.currentTime = serverTime;
-            if (videoElRef.current) videoElRef.current.currentTime = serverTime;
           } else if (absDiff > 0.15) {
             const rate = diff > 0 ? 1.05 : 0.95;
             currentPlayer.playbackRate = rate;
@@ -459,10 +456,8 @@ export default function PlayerClient({ song }: { song: any }) {
 
     if (isCurrentlyPaused) {
       p.play().catch(() => {});
-      if (videoElRef.current) videoElRef.current.play().catch(() => {});
     } else {
       p.pause();
-      if (videoElRef.current) videoElRef.current.pause();
     }
 
     if (joinCode) {
@@ -740,10 +735,8 @@ export default function PlayerClient({ song }: { song: any }) {
     const r = e.currentTarget.getBoundingClientRect();
     const t = ((e.clientX - r.left) / r.width) * (p.duration || 0);
     p.currentTime = t;
-    if (videoElRef.current) videoElRef.current.currentTime = t;
   };
 
-  const hasVideo = !!song.videoUrl;
 
   return (
     <div className="player-root" style={{ position: 'fixed', inset: 0, background: '#000', color: '#fff', fontFamily: 'Inter, sans-serif', overflow: 'hidden' }}>
@@ -806,18 +799,14 @@ export default function PlayerClient({ song }: { song: any }) {
       `}} />
 
       <div style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
-        {hasVideo && !isChordsMode ? (
-          <video ref={videoElRef} src={song.videoUrl || ''} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        ) : (
-          <img 
+        <img
             ref={(el) => { if (el?.complete) setImgLoaded(true); }}
             src={song.backgroundUrl || randomBackground}
             onLoad={() => setImgLoaded(true)}
             onError={() => setImgLoaded(true)}
             style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(0.35) saturate(1.2)', opacity: imgLoaded ? 1 : 0, transition: 'opacity 0.8s ease-in-out' }} 
             alt="background"
-          />
-        )}
+        />
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 40%, transparent 60%, rgba(0,0,0,0.8) 100%)' }} />
       </div>
 
