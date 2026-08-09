@@ -4,23 +4,11 @@ import { useState, useEffect } from 'react';
 import { updateTechnicalConfig, getTechnicalConfig, getAdminAuditLog } from '@/app/actions/admin-extra-actions';
 
 export default function AdminTechPage() {
-  const [password, setPassword] = useState('');
-  const [isAuthorized, setIsAuthorized] = useState(false);
   const [configs, setConfigs] = useState<any[]>([]);
   const [auditLog, setAuditLog] = useState<any[]>([]);
   const [newKey, setNewKey] = useState('');
   const [newValue, setNewValue] = useState('');
   const [category, setCategory] = useState('CLOUD');
-
-  const checkAuth = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password === 'Admin123') {
-      setIsAuthorized(true);
-      loadData();
-    } else {
-      alert('Nesprávné heslo!');
-    }
-  };
 
   const loadData = async () => {
     const c = await getTechnicalConfig();
@@ -28,6 +16,11 @@ export default function AdminTechPage() {
     setConfigs(c);
     setAuditLog(l);
   };
+
+  // Přístup hlídá middleware (jen ADMIN), data se načtou rovnou po otevření.
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const handleSaveConfig = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,24 +31,6 @@ export default function AdminTechPage() {
     loadData();
   };
 
-  if (!isAuthorized) {
-    return (
-      <div style={{ minHeight: '100vh', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <form onSubmit={checkAuth} style={{ textAlign: 'center', background: '#111', padding: '3rem', borderRadius: '30px', border: '1px solid rgba(255,215,0,0.2)' }}>
-          <h1 style={{ color: 'var(--color-gold)', marginBottom: '2rem' }}>Technické parametry</h1>
-          <input 
-            type="password" 
-            placeholder="Zadejte admin heslo" 
-            value={password} 
-            onChange={(e) => setPassword(e.target.value)}
-            style={{ padding: '15px 20px', borderRadius: '15px', border: '1px solid #333', background: '#222', color: 'white', marginBottom: '1.5rem', width: '250px', outline: 'none' }}
-          />
-          <br/>
-          <button type="submit" className="btn-primary" style={{ padding: '15px 40px' }}>VSTOUPIT</button>
-        </form>
-      </div>
-    );
-  }
 
   return (
     <div style={{ minHeight: '100vh', background: '#050505', color: 'white', padding: '6rem 2rem 2rem' }}>

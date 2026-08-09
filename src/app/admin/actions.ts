@@ -335,12 +335,14 @@ export async function requestSong(title: string, artist: string, email?: string)
 }
 
 export async function updateSongAnimation(songId: string, animationStyle: string) {
+  await ensureAdmin();
   await db.song.update({ where: { id: songId }, data: { animationStyle } });
   revalidatePath('/admin');
   revalidatePath('/renderer');
 }
 
 export async function updateSongBackground(songId: string, backgroundUrl: string) {
+  await ensureAdmin();
   await db.song.update({ where: { id: songId }, data: { backgroundUrl } });
   revalidatePath('/admin');
   revalidatePath('/renderer');
@@ -418,6 +420,7 @@ function toSlug(text: string): string {
 }
 
 export async function fetchLyricsAction(songId: string) {
+  await ensureAdmin();
   const song = await db.song.findUnique({ where: { id: songId } });
   if (!song || !song.artist || !song.title) return { error: 'Chybí interpret nebo název' };
 
@@ -569,6 +572,7 @@ function cleanLyrics(text: string, customBlacklist: string[] = []): string {
 }
 
 export async function importLyricsFromUrl(songId: string, url: string) {
+  await ensureAdmin();
   try {
     const isKA = url.includes('pisnicky-akordy.cz');
     const isKT = url.includes('karaoketexty.cz');
@@ -673,6 +677,7 @@ export async function bulkFetchMissingLyrics() {
 }
 
 export async function researchSongDataAction(songId: string, overrideTitle?: string, overrideArtist?: string) {
+  await ensureAdmin();
   const song = await db.song.findUnique({ where: { id: songId } });
   if (!song) return { error: 'Píseň nenalezena' };
 
@@ -816,6 +821,7 @@ export async function getInternetSuggestionsAction(title: string, artist: string
 }
 
 export async function bulkUpdateState(songIds: string[], newState: string) {
+  await ensureAdmin();
   await db.song.updateMany({
     where: { id: { in: songIds } },
     data: { state: newState as any }
