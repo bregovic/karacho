@@ -459,7 +459,7 @@ export default function AdminCatalog({
           {visibleSongs.map((song) => {
             const hasAudio = !!song.audioUrl;
             const hasJson = !!song.jsonUrl || !!song.timingData;
-            const canPlay = !!song.videoUrl || hasJson;
+            const canPlay = hasJson;
 
             return (
               <div key={song.id} className="glass-panel song-card-admin" style={{ padding: 'min(1.5rem, 4vw)', display: 'flex', flexDirection: 'column', gap: '1.2rem', borderRadius: '28px', transition: 'all 0.3s', boxSizing: 'border-box', overflow: 'hidden' }}>

@@ -20,7 +20,6 @@ export default async function Home() {
       tags: true,
       playCount: true,
       createdAt: true,
-      videoUrl: true,
       timingData: true,
       chords: true,
     },

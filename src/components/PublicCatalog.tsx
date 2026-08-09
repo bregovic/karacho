@@ -16,7 +16,6 @@ interface Song {
   tags: string[];
   playCount: number;
   createdAt: string | Date;
-  videoUrl?: string | null;
   timingData?: any | null;
   jsonUrl?: string | null;
 }

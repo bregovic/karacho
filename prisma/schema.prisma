@@ -105,8 +105,6 @@ model Song {
   instrumentalUrl String?
   backgroundUrl String?
   jsonUrl       String?
-  videoUrl      String?
-  videoSize     Int?
   animationStyle String   @default("karaoke-classic")
   timingData    Json?
   tracks        Track[]

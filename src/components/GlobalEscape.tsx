@@ -15,7 +15,7 @@ export default function GlobalEscape() {
           return;
         }
 
-        if (pathname.includes('/designer') || pathname.includes('/renderer')) {
+        if (pathname.includes('/designer')) {
           router.push('/admin');
         } else if (pathname.includes('/player') || pathname === '/admin') {
           router.push('/');
