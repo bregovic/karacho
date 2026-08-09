@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { incrementPlayCount } from '@/app/admin/actions';
 import { useSession } from '@/context/SessionContext';
 import { getSessionStatus, updateSessionState, advanceSessionQueue } from '@/app/actions/session-actions';
@@ -123,6 +124,7 @@ function ChordsView({ chords, songTitle, artist }: { chords: string, songTitle: 
 
 export default function PlayerClient({ song }: { song: any }) {
   const isWatchMode = typeof window !== 'undefined' && window.location.search.includes('mode=watch');
+  const router = useRouter();
   const { joinCode, sessionData, localMode, isHost } = useSession();
   const isChordsMode = localMode === 'CHORDS' || sessionData?.sessionMode === 'CHORDS';
   const shouldSuppressAudio = (isChordsMode || isWatchMode) && !isHost;
@@ -213,6 +215,23 @@ export default function PlayerClient({ song }: { song: any }) {
       });
     }
   }, [song]);
+
+  /**
+   * Odchod z písně. Musí VŽDY nejdřív vypnout celoobrazovkový režim:
+   * fullscreen visí na documentElement, takže klientská navigace ho nezruší
+   * a uživatel skončí na katalogu pořád „zamčený" v fullscreenu – na mobilu
+   * to vypadá, jako by tlačítko nefungovalo. Zároveň se smaže příznak, který
+   * fullscreen jinak automaticky obnoví u další písně.
+   */
+  const closePlayer = async () => {
+    try {
+      sessionStorage.setItem('karacho-fullscreen', '0');
+      if (document.fullscreenElement) await document.exitFullscreen();
+    } catch {
+      /* fullscreen nemusí jít vypnout – odchod nesmí zablokovat */
+    }
+    router.push('/');
+  };
 
   // Preserve fullscreen across session song transitions
   useEffect(() => {
@@ -743,8 +762,32 @@ export default function PlayerClient({ song }: { song: any }) {
         @media (min-width: 1025px) {
           .mobile-only { display: none !important; }
         }
+        /* Skupiny tlačítek smí zmenšit obsah. Bez min-width:0 je flex položka
+           nezmenšitelná pod velikost obsahu a spodní lišta přeteče – ZAVŘÍT
+           pak vypadne mimo obrazovku a ořízne ho overflow:hidden na .player-root
+           (na úzkém telefonu se z písně nedalo odejít). */
+        .btn-group-left, .btn-group-center, .btn-group-right { min-width: 0; }
+
         @media (max-width: 600px) {
           .footer-title-hide { display: none !important; }
+          /* Na úzkém displeji jen křížek – text by lištu rozbil. */
+          .close-label { display: none !important; }
+          .close-btn { padding: 0 !important; width: 40px !important; height: 40px !important; gap: 0 !important; font-size: 18px !important; }
+          .bottom-row { gap: 0.5rem !important; }
+          .btn-group-left, .btn-group-right { gap: 0.5rem !important; }
+          /* Užší okraje a menší tlačítka, ať se lišta vejde i s frontou. */
+          #controls { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+          .btn-group-left button, .btn-group-right button, #main-next-btn { width: 40px !important; height: 40px !important; font-size: 17px !important; }
+          #main-play-btn { width: 60px !important; height: 60px !important; font-size: 26px !important; }
+        }
+
+        /* Nejužší telefony (iPhone SE apod.) – ještě o kus těsněji. */
+        @media (max-width: 360px) {
+          #controls { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+          .bottom-row { gap: 0.375rem !important; }
+          .btn-group-left, .btn-group-right, .btn-group-center { gap: 0.375rem !important; }
+          .btn-group-left button, .btn-group-right button, #main-next-btn, .close-btn { width: 36px !important; height: 36px !important; font-size: 16px !important; }
+          #main-play-btn { width: 52px !important; height: 52px !important; font-size: 22px !important; }
         }
         @media (max-height: 520px) {
           .karaoke-line { font-size: clamp(16px, 7vh, 38px) !important; min-height: 1.1em !important; }
@@ -756,6 +799,9 @@ export default function PlayerClient({ song }: { song: any }) {
           .progress-section > div:first-child { height: 20px !important; }
           #main-play-btn { width: 48px !important; height: 48px !important; font-size: 20px !important; }
           .btn-group-left button, .btn-group-right button, #main-next-btn { width: 36px !important; height: 36px !important; font-size: 16px !important; border-radius: 10px !important; }
+          /* Zavřít je jediná cesta z písně ven, tak mu necháme větší cíl na prst. */
+          .close-btn { width: 42px !important; height: 42px !important; padding: 0 !important; }
+          .close-label { display: none !important; }
         }
       `}} />
 
@@ -905,7 +951,16 @@ export default function PlayerClient({ song }: { song: any }) {
                     </span>
                   </button>
                 )}
-                <Link href="/" style={{ flexShrink: 0, height: '46px', padding: '0 16px', background: 'rgba(255,255,255,0.1)', color: 'white', borderRadius: '14px', textDecoration: 'none', fontSize: '13px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', fontWeight: 700 }} onClick={e=>e.stopPropagation()}>ZAVŘÍT</Link>
+                <button
+                  className="close-btn"
+                  onClick={(e) => { e.stopPropagation(); closePlayer(); }}
+                  title="Zavřít píseň"
+                  aria-label="Zavřít píseň"
+                  style={{ flexShrink: 0, height: '46px', padding: '0 16px', background: 'rgba(255,255,255,0.1)', color: 'white', borderRadius: '14px', fontSize: '13px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  <span aria-hidden="true">✕</span>
+                  <span className="close-label">ZAVŘÍT</span>
+                </button>
               </div>
             </div>
          </div>
