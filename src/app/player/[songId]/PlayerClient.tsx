@@ -765,7 +765,7 @@ export default function PlayerClient({ song }: { song: any }) {
           .footer-title-hide { display: none !important; }
           /* Na úzkém displeji jen křížek – text by lištu rozbil. */
           .close-label { display: none !important; }
-          .close-btn { padding: 0 !important; width: 40px !important; height: 40px !important; gap: 0 !important; font-size: 18px !important; }
+          .btn-group-right .close-btn { padding: 0 !important; width: 40px !important; height: 40px !important; gap: 0 !important; font-size: 18px !important; }
           .bottom-row { gap: 0.5rem !important; }
           .btn-group-left, .btn-group-right { gap: 0.5rem !important; }
           /* Užší okraje a menší tlačítka, ať se lišta vejde i s frontou. */
@@ -779,7 +779,8 @@ export default function PlayerClient({ song }: { song: any }) {
           #controls { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
           .bottom-row { gap: 0.375rem !important; }
           .btn-group-left, .btn-group-right, .btn-group-center { gap: 0.375rem !important; }
-          .btn-group-left button, .btn-group-right button, #main-next-btn, .close-btn { width: 36px !important; height: 36px !important; font-size: 16px !important; }
+          .btn-group-left button, .btn-group-right button, #main-next-btn { width: 36px !important; height: 36px !important; font-size: 16px !important; padding: 0 !important; }
+          .btn-group-right .close-btn { width: 38px !important; height: 38px !important; }
           #main-play-btn { width: 52px !important; height: 52px !important; font-size: 22px !important; }
         }
         @media (max-height: 520px) {
@@ -791,10 +792,16 @@ export default function PlayerClient({ song }: { song: any }) {
           .progress-section { gap: 2px !important; }
           .progress-section > div:first-child { height: 20px !important; }
           #main-play-btn { width: 48px !important; height: 48px !important; font-size: 20px !important; }
-          .btn-group-left button, .btn-group-right button, #main-next-btn { width: 36px !important; height: 36px !important; font-size: 16px !important; border-radius: 10px !important; }
-          /* Zavřít je jediná cesta z písně ven, tak mu necháme větší cíl na prst. */
-          .close-btn { width: 42px !important; height: 42px !important; padding: 0 !important; }
+          /* Popisky pryč i naležato. Bez toho zůstal v přepínači text
+             „INSTRUMENTÁL", ale pravidlo níž mu vnutilo šířku 36 px – text
+             z tlačítka vytekl a překrýval sousední Zavřít. */
+          .footer-title-hide { display: none !important; }
           .close-label { display: none !important; }
+          .btn-group-left button, .btn-group-right button, #main-next-btn { width: 36px !important; height: 36px !important; font-size: 16px !important; border-radius: 10px !important; padding: 0 !important; }
+          /* Zavřít je jediná cesta z písně ven, tak mu necháme větší cíl na prst.
+             Selektor je záměrně specifičtější než pravidlo nad ním, jinak by ho
+             přebilo (obojí je !important, rozhoduje specifičnost). */
+          .btn-group-right .close-btn { width: 44px !important; height: 44px !important; padding: 0 !important; }
         }
       `}} />
 
