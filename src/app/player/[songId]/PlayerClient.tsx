@@ -146,6 +146,10 @@ export default function PlayerClient({ song }: { song: any }) {
     return systemBackgrounds[Math.floor(Math.random() * systemBackgrounds.length)];
   }, [systemBackgrounds]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Skrytý element, který si na pozadí stáhne tu stopu, která zrovna nehraje.
+  // Nikdy se nepřehrává – jde jen o to mít soubor v mezipaměti, aby přepnutí
+  // režimu nemuselo stahovat 3–5 MB (na mobilu to bylo znát jako zaseknutí).
+  const preloadRef = useRef<HTMLAudioElement | null>(null);
   const wakeLockRef = useRef<any>(null);
   const rafRef = useRef<number | null>(null);
 
@@ -414,6 +418,24 @@ export default function PlayerClient({ song }: { song: any }) {
     };
   }, [song.audioUrl, song.instrumentalUrl, joinCode]);
 
+  // Druhá stopa se přednačítá jen když dává smysl: v režimu akordů se zvuk
+  // podle manifestu nesmí ani bufferovat, a bez instrumentálu není co stahovat.
+  useEffect(() => {
+    const el = preloadRef.current;
+    if (!el) return;
+    const druha =
+      playbackMode === 'INST' ? song.audioUrl : song.instrumentalUrl;
+    if (shouldSuppressAudio || isChordsMode || !song.instrumentalUrl || !druha) {
+      el.removeAttribute('src');
+      el.load();
+      return;
+    }
+    if (el.getAttribute('src') !== druha) {
+      el.src = druha;
+      el.load();
+    }
+  }, [playbackMode, song.audioUrl, song.instrumentalUrl, shouldSuppressAudio, isChordsMode]);
+
   const cyclePlaybackMode = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!song.instrumentalUrl) return;
@@ -426,12 +448,23 @@ export default function PlayerClient({ song }: { song: any }) {
     
     const wasPlaying = !p.paused;
     const currentTime = p.currentTime;
-    
-    // Swap the audio source
+
     p.src = nextMode === 'INST' ? (song.instrumentalUrl || song.audioUrl) : song.audioUrl;
-    p.currentTime = currentTime;
-    if (wasPlaying) p.play().catch(() => {});
-    
+
+    // Čas se smí nastavit až když má element načtená metadata. Dřív se
+    // nastavoval hned po výměně src, kdy je readyState ještě 0 – Chrome si
+    // takový seek odloží, ale Safari na iPhonu ho umí zahodit nebo provést
+    // pozdě, což bylo slyšet jako škubnutí a skok v čase.
+    const obnovitPozici = () => {
+      p.currentTime = currentTime;
+      if (wasPlaying) p.play().catch(() => {});
+    };
+    // Na `readyState` se hned po výměně src spolehnout nejde – prohlížeč ho
+    // resetuje až v další úloze, takže by ještě hlásil stav PŘEDCHOZÍ stopy
+    // a seek by se ztratil. Čekáme proto vždy na loadedmetadata.
+    p.addEventListener('loadedmetadata', obnovitPozici, { once: true });
+    p.load();
+
     setPlaybackMode(nextMode);
     playbackModeRef.current = nextMode;
   };
@@ -741,6 +774,8 @@ export default function PlayerClient({ song }: { song: any }) {
   return (
     <div className="player-root" style={{ position: 'fixed', inset: 0, background: '#000', color: '#fff', fontFamily: 'Inter, sans-serif', overflow: 'hidden' }}>
       <audio ref={audioRef} preload="auto" crossOrigin="anonymous" />
+      {/* Předstažení druhé stopy – trvale ztlumené, nikdy se nepřehrává. */}
+      <audio ref={preloadRef} preload="auto" muted crossOrigin="anonymous" />
       
       <style dangerouslySetInnerHTML={{ __html: `
         .player-root { --glow: rgba(255, 215, 0, 0.55); }
