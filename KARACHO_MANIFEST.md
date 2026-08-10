@@ -39,6 +39,22 @@ Tento dokument definuje standardy a funkčnosti projektu Karacho. Slouží jako 
 - **Czech First**: Veškeré UI texty musí být v korektní češtině (např. "ŤUKEJ SEM", nikoliv "RYTMA").
 - **Menu UX**: Kliknutím na položku v menu se menu automaticky zavře.
 
+## 🔊 6. Zvuk a přepínání stop
+- **Přepnutí originál/instrumentál** vyměňuje `src` jednoho elementu. Čas se smí nastavit
+  **až po události `loadedmetadata`** — dřív ho Safari na iOS zahodí a je slyšet škubnutí.
+- Druhá stopa se **přednačítá** skrytým elementem, aby přepnutí nestahovalo 3–5 MB.
+  V režimu akordů se nepřednačítá nic.
+- **Dvě souběžně hrající stopy se neosvědčily** (10. 8. 2026): korekce rozejití běžela
+  v každém snímku a sama se krmila → sekavé přehrávání. Vráceno. Další pokus vést přes
+  **Web Audio API** (společné hodiny), ne přes dva `<audio>` elementy.
+
+## 🧱 7. Technická pravidla
+- Soubor s `'use server'` smí exportovat **jen async funkce** — exportovaná konstanta shodí
+  celý modul. Projekt na to doplatil dvakrát.
+- **Nepoužívat `as any` u hodnot enumu.** `state: 'UNPUBLISHED' as any` databáze vždy
+  odmítla; `UNPUBLISHED` je jen filtr v UI, ne stav písně.
+- Do gitu **nepatří audio** — historie kvůli MP3 narostla na 3,6 GB (vyčištěno 10. 8. 2026).
+
 ---
-*Poslední aktualizace: 12. 4. 2026*
+*Poslední aktualizace: 10. 8. 2026*
 *Status: HLÍDÁNO ANTIGRAVITY* 🏗️🛡️✨🚀🤵🥂🎤|⏚
