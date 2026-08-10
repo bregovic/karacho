@@ -146,10 +146,31 @@ export default function PlayerClient({ song }: { song: any }) {
     return systemBackgrounds[Math.floor(Math.random() * systemBackgrounds.length)];
   }, [systemBackgrounds]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  // Skrytý element, který si na pozadí stáhne tu stopu, která zrovna nehraje.
-  // Nikdy se nepřehrává – jde jen o to mít soubor v mezipaměti, aby přepnutí
-  // režimu nemuselo stahovat 3–5 MB (na mobilu to bylo znát jako zaseknutí).
-  const preloadRef = useRef<HTMLAudioElement | null>(null);
+  /**
+   * Druhá stopa. Obě stopy běží SOUČASNĚ a sesynchronizovaně, slyšet je vždy
+   * jen jedna (druhá má hlasitost 0). Přepnutí režimu je pak jen přehození
+   * hlasitosti – žádné stahování, žádný seek, tedy okamžité a bez zaseknutí.
+   * Funguje to proto, že instrumentál i originál obsahují tutéž hudbu a liší
+   * se jen přítomností zpěvu.
+   *
+   * `audioRef` zůstává hlavní: drží čas pro text i všechny události.
+   * `altRef` ho jen následuje.
+   */
+  const altRef = useRef<HTMLAudioElement | null>(null);
+  // Hlavní element hraje originál (když existuje), druhý instrumentál.
+  const hlavniSrc = song.audioUrl || song.instrumentalUrl || '';
+  const druhySrc = song.audioUrl && song.instrumentalUrl ? song.instrumentalUrl : '';
+  /** Prolnutí, ať přehození hlasitosti nelupne. */
+  const prolniHlasitost = (el: HTMLAudioElement | null, cil: number) => {
+    if (!el) return;
+    const krok = (cil - el.volume) / 4;
+    let i = 0;
+    const t = setInterval(() => {
+      i++;
+      try { el.volume = Math.min(1, Math.max(0, i === 4 ? cil : el.volume + krok)); } catch {}
+      if (i >= 4) clearInterval(t);
+    }, 10);
+  };
   const wakeLockRef = useRef<any>(null);
   const rafRef = useRef<number | null>(null);
 
@@ -290,9 +311,9 @@ export default function PlayerClient({ song }: { song: any }) {
     let p: any = audioRef.current;
     if (!p) return;
     
-    if (audioRef.current && song.audioUrl) {
-      // Set initial source based on playback mode
-      audioRef.current.src = playbackModeRef.current === 'INST' && song.instrumentalUrl ? song.instrumentalUrl : song.audioUrl;
+    // Zdroj hlavního elementu se s režimem UŽ NEMĚNÍ – režim řídí jen hlasitost.
+    if (hlavniSrc && p.getAttribute('src') !== hlavniSrc) {
+      p.src = hlavniSrc;
     }
 
     if (shouldSuppressAudio || isMuted) {
@@ -418,59 +439,66 @@ export default function PlayerClient({ song }: { song: any }) {
     };
   }, [song.audioUrl, song.instrumentalUrl, joinCode]);
 
-  // Druhá stopa se přednačítá jen když dává smysl: v režimu akordů se zvuk
-  // podle manifestu nesmí ani bufferovat, a bez instrumentálu není co stahovat.
+  // Zdroj druhé stopy. V režimu akordů se podle manifestu zvuk nesmí ani
+  // bufferovat, takže se element nechá prázdný.
   useEffect(() => {
-    const el = preloadRef.current;
+    const el = altRef.current;
     if (!el) return;
-    const druha =
-      playbackMode === 'INST' ? song.audioUrl : song.instrumentalUrl;
-    if (shouldSuppressAudio || isChordsMode || !song.instrumentalUrl || !druha) {
-      el.removeAttribute('src');
-      el.load();
+    if (!druhySrc || shouldSuppressAudio || isChordsMode) {
+      if (el.getAttribute('src')) { el.removeAttribute('src'); el.load(); }
       return;
     }
-    if (el.getAttribute('src') !== druha) {
-      el.src = druha;
-      el.load();
-    }
-  }, [playbackMode, song.audioUrl, song.instrumentalUrl, shouldSuppressAudio, isChordsMode]);
+    if (el.getAttribute('src') !== druhySrc) { el.src = druhySrc; el.load(); }
+  }, [druhySrc, shouldSuppressAudio, isChordsMode]);
+
+  // Která stopa je slyšet. Jediné, co dělá přepnutí režimu.
+  useEffect(() => {
+    const hlavni = audioRef.current;
+    const alt = altRef.current;
+    const altHraje = !!druhySrc && playbackMode === 'INST';
+    prolniHlasitost(hlavni, altHraje ? 0 : 1);
+    prolniHlasitost(alt, altHraje ? 1 : 0);
+  }, [playbackMode, druhySrc]);
+
+  // Druhá stopa následuje hlavní: přehrávání, pauza i přetáčení.
+  useEffect(() => {
+    const hlavni = audioRef.current;
+    if (!hlavni) return;
+    const srovnej = () => {
+      const alt = altRef.current;
+      if (!alt || !alt.getAttribute('src')) return;
+      if (Math.abs(alt.currentTime - hlavni.currentTime) > 0.05) {
+        alt.currentTime = hlavni.currentTime;
+      }
+    };
+    const naPlay = () => { srovnej(); altRef.current?.play().catch(() => {}); };
+    const naPause = () => altRef.current?.pause();
+    hlavni.addEventListener('play', naPlay);
+    hlavni.addEventListener('pause', naPause);
+    hlavni.addEventListener('seeked', srovnej);
+    return () => {
+      hlavni.removeEventListener('play', naPlay);
+      hlavni.removeEventListener('pause', naPause);
+      hlavni.removeEventListener('seeked', srovnej);
+    };
+  }, []);
 
   const cyclePlaybackMode = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!song.instrumentalUrl) return;
-    const p = audioRef.current;
-    if (!p) return;
-    
+
     const currentIndex = availableModes.indexOf(playbackMode);
     const nextIndex = (currentIndex + 1) % availableModes.length;
     const nextMode = availableModes[nextIndex] as any;
-    
-    const wasPlaying = !p.paused;
-    const currentTime = p.currentTime;
 
-    p.src = nextMode === 'INST' ? (song.instrumentalUrl || song.audioUrl) : song.audioUrl;
-
-    // Čas se smí nastavit až když má element načtená metadata. Dřív se
-    // nastavoval hned po výměně src, kdy je readyState ještě 0 – Chrome si
-    // takový seek odloží, ale Safari na iPhonu ho umí zahodit nebo provést
-    // pozdě, což bylo slyšet jako škubnutí a skok v čase.
-    const obnovitPozici = () => {
-      p.currentTime = currentTime;
-      if (wasPlaying) p.play().catch(() => {});
-    };
-    // Na `readyState` se hned po výměně src spolehnout nejde – prohlížeč ho
-    // resetuje až v další úloze, takže by ještě hlásil stav PŘEDCHOZÍ stopy
-    // a seek by se ztratil. Čekáme proto vždy na loadedmetadata.
-    p.addEventListener('loadedmetadata', obnovitPozici, { once: true });
-    p.load();
-
+    // Nic se nenačítá ani nepřetáčí – obě stopy už běží, mění se jen hlasitost.
     setPlaybackMode(nextMode);
     playbackModeRef.current = nextMode;
   };
 
   useEffect(() => {
     if (audioRef.current) audioRef.current.muted = isMuted;
+    if (altRef.current) altRef.current.muted = isMuted;
   }, [isMuted]);
 
   const toggleMute = (e: React.MouseEvent) => {
@@ -489,8 +517,17 @@ export default function PlayerClient({ song }: { song: any }) {
 
     if (isCurrentlyPaused) {
       p.play().catch(() => {});
+      // Druhou stopu je nutné spustit ve stejném doteku/kliknutí. Kdyby se
+      // čekalo až na událost `play` hlavní stopy, iOS by ji jako přehrávání
+      // bez uživatelského gesta zablokoval.
+      const alt = altRef.current;
+      if (alt?.getAttribute('src')) {
+        alt.currentTime = p.currentTime;
+        alt.play().catch(() => {});
+      }
     } else {
       p.pause();
+      altRef.current?.pause();
     }
 
     if (joinCode) {
@@ -592,6 +629,12 @@ export default function PlayerClient({ song }: { song: any }) {
     const p = audioRef.current;
     if (!p) return;
     const t = p.currentTime;
+    // Stopy se během písně můžou o kousek rozejít; sesadíme je zpátky, jen
+    // když je rozdíl už slyšitelný (jinak by korekce cvakala zbytečně).
+    const alt = altRef.current;
+    if (alt && alt.getAttribute('src') && !p.paused && Math.abs(alt.currentTime - t) > 0.12) {
+      alt.currentTime = t;
+    }
     const d = p.duration || dur || 1;
     const visualTime = t + 0.2;
 
@@ -774,8 +817,8 @@ export default function PlayerClient({ song }: { song: any }) {
   return (
     <div className="player-root" style={{ position: 'fixed', inset: 0, background: '#000', color: '#fff', fontFamily: 'Inter, sans-serif', overflow: 'hidden' }}>
       <audio ref={audioRef} preload="auto" crossOrigin="anonymous" />
-      {/* Předstažení druhé stopy – trvale ztlumené, nikdy se nepřehrává. */}
-      <audio ref={preloadRef} preload="auto" muted crossOrigin="anonymous" />
+      {/* Druhá stopa – běží souběžně, slyšet je podle režimu (hlasitost 0/1). */}
+      <audio ref={altRef} preload="auto" crossOrigin="anonymous" />
       
       <style dangerouslySetInnerHTML={{ __html: `
         .player-root { --glow: rgba(255, 215, 0, 0.55); }
