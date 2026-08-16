@@ -396,6 +396,193 @@ function toSlug(text: string): string {
     .replace(/-+/g, '-');
 }
 
+
+/** Jeden nalezený text i s tím, odkud je a jak dobře vypadá. */
+type Kandidat = { zdroj: string; text: string; skore: number };
+
+/**
+ * Stažení stránky s ohledem na kódování. Supermusic jede ve windows-1250;
+ * když se to přečte jako UTF-8, místo háčků přijdou otazníky a text pak
+ * vypadá jako nenalezený, i když nalezený byl.
+ */
+async function stahni(url: string, kodovani = 'utf-8'): Promise<string | null> {
+  try {
+    const res = await fetch(url, {
+      redirect: 'follow',
+      headers: { 'User-Agent': 'Mozilla/5.0 (Karacho lyrics fetcher)' },
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!res.ok) return null;
+    const buf = await res.arrayBuffer();
+    return new TextDecoder(kodovani).decode(buf);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Jak moc to vypadá jako text písně. Rozhoduje mezi zdroji — první nalezený
+ * bývá často útržek, cizojazyčná verze nebo akordový zápis.
+ */
+function ohodnotText(text: string, ocekavanyJazykCesky: boolean): number {
+  const radky = text.split('\n').map(r => r.trim()).filter(Boolean);
+  if (radky.length < 4) return 0;
+
+  let skore = Math.min(radky.length, 60);
+
+  // Krátké řádky jsou typické pro zpěv; dlouhé odstavce bývají článek o písni.
+  const prumer = radky.reduce((a, r) => a + r.length, 0) / radky.length;
+  if (prumer > 90) skore -= 30;
+  if (prumer >= 15 && prumer <= 60) skore += 15;
+
+  // Opakování (refrén) je dobrý příznak.
+  const unikatni = new Set(radky.map(r => r.toLowerCase())).size;
+  if (unikatni < radky.length * 0.85) skore += 10;
+
+  // Akordový zápis nechceme jako text.
+  const akordove = radky.filter(r => /^[\s|]*([A-H][#b]?(mi|m|maj|dim|sus)?\d?[\s|]*)+$/.test(r)).length;
+  if (akordove > radky.length * 0.2) skore -= 40;
+
+  // Zbytky webu.
+  if (/cookie|přihlásit|reklama|copyright|všechna práva/i.test(text)) skore -= 20;
+
+  // U českých písní čekáme diakritiku.
+  if (ocekavanyJazykCesky) {
+    const diakritika = (text.match(/[ěščřžýáíéúůňťďó]/gi) || []).length;
+    skore += diakritika > text.length * 0.02 ? 20 : -25;
+  }
+
+  return skore;
+}
+
+
+/** Z HTML udělá holý text: odstraní značky, převede entity a zlomy řádků. */
+function naText(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li)>/gi, '\n')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;|&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\n{3,}/g, '\n\n')
+    .split('\n').map(r => r.trim()).join('\n')
+    .trim();
+}
+
+/** Genius — pokrývá zahraniční i český rap, který na Supermusicu není. */
+async function zGenius(artist: string, title: string): Promise<string | null> {
+  const hledani = await stahni(
+    `https://genius.com/api/search/multi?q=${encodeURIComponent(`${artist} ${title}`)}`,
+  );
+  if (!hledani) return null;
+
+  let odkaz: string | null = null;
+  try {
+    const data = JSON.parse(hledani);
+    for (const sekce of data?.response?.sections ?? []) {
+      for (const zaznam of sekce.hits ?? []) {
+        if (zaznam.type === 'song' && zaznam.result?.url) { odkaz = zaznam.result.url; break; }
+      }
+      if (odkaz) break;
+    }
+  } catch { return null; }
+  if (!odkaz) return null;
+
+  const stranka = await stahni(odkaz);
+  if (!stranka) return null;
+
+  // Text je v blocích označených data-lyrics-container.
+  const bloky = stranka.match(/<div[^>]+data-lyrics-container[^>]*>([\s\S]*?)<\/div>/g);
+  if (!bloky || bloky.length === 0) return null;
+  return naText(bloky.join('\n'));
+}
+
+/** Karaoketexty.cz — český repertoár včetně toho, co jinde chybí. */
+async function zKaraoketexty(artist: string, title: string): Promise<string | null> {
+  const hledani = await stahni(
+    `https://www.karaoketexty.cz/vyhledavani?text=${encodeURIComponent(`${artist} ${title}`)}`,
+  );
+  const cesta = hledani?.match(/href="(\/texty-pisni\/[^"]+)"/)?.[1];
+  if (!cesta) return null;
+
+  const stranka = await stahni(`https://www.karaoketexty.cz${cesta}`);
+  if (!stranka) return null;
+
+  const blok = stranka.match(/<div[^>]+id="song-text"[^>]*>([\s\S]*?)<\/div>/i)
+    ?? stranka.match(/<div[^>]+class="[^"]*song-text[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
+  if (!blok) return null;
+  return naText(blok[1]);
+}
+
+/** Postupně obejde zdroje a vrátí všechny nalezené texty k porovnání. */
+async function sesbirejKandidaty(artist: string, title: string): Promise<Kandidat[]> {
+  const kandidati: Kandidat[] = [];
+  const dotaz = `${artist} ${title}`;
+  const ceske = /[ěščřžýáíéúůňťďó]/i.test(dotaz);
+
+  // 1. Supermusic (CZ/SK) — nejdřív najdeme id písně, pak čistý export.
+  const hledani = await stahni(
+    `https://www.supermusic.cz/najdi.php?fraza=${encodeURIComponent(dotaz)}&hladat=pesnicka`,
+    'windows-1250',
+  );
+  const id = hledani?.match(/idpiesne=(\d+)/)?.[1];
+  if (id) {
+    const text = await stahni(
+      `https://www.supermusic.cz/export.php?idpiesne=${id}&typ=TXT&modulacia=0`,
+      'windows-1250',
+    );
+    if (text && text.trim().length > 40) {
+      kandidati.push({ zdroj: 'Supermusic', text: text.trim(), skore: ohodnotText(text, ceske) });
+    }
+  }
+
+  // 2. Genius a Karaoketexty — sem patří rap i české písně mimo Supermusic.
+  for (const [nazev, ziskej] of [['Genius', zGenius], ['Karaoketexty', zKaraoketexty]] as const) {
+    try {
+      const text = await ziskej(artist, title);
+      if (text && text.trim().length > 40) {
+        kandidati.push({ zdroj: nazev, text: text.trim(), skore: ohodnotText(text, ceske) });
+      }
+    } catch { /* zdroj vynecháme */ }
+  }
+
+  // 3. Lyrics.ovh — zahraniční repertoár.
+  try {
+    const res = await fetch(
+      `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`,
+      { signal: AbortSignal.timeout(12000) },
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.lyrics && String(data.lyrics).trim().length > 40) {
+        const t = String(data.lyrics).trim();
+        kandidati.push({ zdroj: 'Lyrics.ovh', text: t, skore: ohodnotText(t, ceske) });
+      }
+    }
+  } catch { /* zdroj vynecháme */ }
+
+  // 4. Vagalume — původní zdroj, teď až jako poslední.
+  try {
+    const res = await fetch(
+      `https://api.vagalume.com.br/search.php?art=${encodeURIComponent(artist)}&mus=${encodeURIComponent(title)}&apikey=666a658e7948d9d20233d31c36006c9a`,
+      { signal: AbortSignal.timeout(12000) },
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const t = data?.mus?.[0]?.text?.trim();
+      if (t && t.length > 40) kandidati.push({ zdroj: 'Vagalume', text: t, skore: ohodnotText(t, ceske) });
+    }
+  } catch { /* zdroj vynecháme */ }
+
+  return kandidati;
+}
+
 export async function fetchLyricsAction(songId: string) {
   await ensureAdmin();
   const song = await db.song.findUnique({ where: { id: songId } });
@@ -405,37 +592,29 @@ export async function fetchLyricsAction(songId: string) {
   const title = song.title;
 
   try {
-    const res2 = await fetch(`https://api.vagalume.com.br/search.php?art=${encodeURIComponent(artist)}&mus=${encodeURIComponent(title)}&apikey=666a658e7948d9d20233d31c36006c9a`);
-    if (res2.ok) {
-      const data = await res2.json();
-      if (data.mus && data.mus[0] && data.mus[0].text) {
-        const rawLyrics = data.mus[0].text.trim();
-        const lyrics = cleanLyrics(rawLyrics);
-        await db.song.update({ where: { id: songId }, data: { 
-          lyrics,
-          chords: rawLyrics !== lyrics ? rawLyrics : null
-        } });
-        revalidatePath('/admin');
-        return { success: true, lyrics, source: 'Vagalume' };
-      }
+    // Zdroje obejdeme všechny a vybereme nejlepší výsledek, ne první nalezený.
+    const kandidati = await sesbirejKandidaty(artist, title);
+    console.log('Lyrics:', kandidati.map(k => `${k.zdroj}=${k.skore}`).join(', ') || 'nic nenalezeno');
+
+    const nejlepsi = kandidati.filter(k => k.skore > 10).sort((a, b) => b.skore - a.skore)[0];
+    if (!nejlepsi) {
+      return { error: kandidati.length
+        ? 'Nalezené texty nevypadaly použitelně (asi akordy nebo útržek).'
+        : 'Text se nepodařilo najít v žádném zdroji.' };
     }
 
-    const res3 = await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`);
-    if (res3.ok) {
-      const data = await res3.json();
-      if (data.lyrics) {
-        const rawLyrics = data.lyrics.trim();
-        const lyrics = cleanLyrics(rawLyrics);
-        await db.song.update({ where: { id: songId }, data: { 
-          lyrics,
-          chords: rawLyrics !== lyrics ? rawLyrics : null
-        } });
-        revalidatePath('/admin');
-        return { success: true, lyrics, source: 'Lyrics.ovh' };
-      }
-    }
-
-    return { error: 'Text nenalezen' };
+    const lyrics = cleanLyrics(nejlepsi.text);
+    await db.song.update({
+      where: { id: songId },
+      data: { lyrics, chords: nejlepsi.text !== lyrics ? nejlepsi.text : null },
+    });
+    revalidatePath('/admin');
+    return {
+      success: true,
+      lyrics,
+      source: nejlepsi.zdroj,
+      zdroje: kandidati.map(k => `${k.zdroj} (${k.skore})`),
+    };
   } catch (err) {
     return { error: 'Chyba API' };
   }
@@ -717,6 +896,21 @@ export async function researchSongDataAction(songId: string, overrideTitle?: str
     // Pokud nám chybí akordy NEBO text, zkusíme lokální zdroje
     if (!(song as any).chords || !song.lyrics || song.lyrics.length < 100) {
        // Zkusíme několik variant URL
+       // Nejdřív zkusíme společný bodovaný řetěz zdrojů — stejný, jaký běží
+       // pod tlačítkem na stažení textu. Ať se zdroje přidávají na jednom místě.
+       const kandidati = await sesbirejKandidaty(artist, title);
+       console.log('Research:', kandidati.map(k => `${k.zdroj}=${k.skore}`).join(', ') || 'nic');
+       const nejlepsi = kandidati.filter(k => k.skore > 10).sort((a, b) => b.skore - a.skore)[0];
+       if (nejlepsi) {
+         const cistyText = cleanLyrics(nejlepsi.text);
+         await db.song.update({
+           where: { id: songId },
+           data: { lyrics: cistyText, chords: nejlepsi.text !== cistyText ? nejlepsi.text : null },
+         });
+         revalidatePath('/admin');
+         return { success: true, message: `Text stažen ze zdroje ${nejlepsi.zdroj}.` };
+       }
+
        const combinations = [
          `https://supermusic.cz/skupina.php?idpisen=${toSlug(title)}&idinterpret=${toSlug(artist)}`,
          `https://pisnicky-akordy.cz/${toSlug(artist)}/${toSlug(title)}`,

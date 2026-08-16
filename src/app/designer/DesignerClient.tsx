@@ -207,6 +207,16 @@ export default function DesignerClient({ song }: { song: any }) {
         if (breakAt < 0) breakAt = maxLen;
         result.push(remaining.slice(0, breakAt).trimEnd());
         remaining = remaining.slice(breakAt).trimStart();
+
+        // Řádek musí začínat slovem. Interpunkce, která zbyla na začátku,
+        // patří na konec předchozího řádku — jinak nový řádek začíná čárkou.
+        while (remaining.length > 0 && /^[\s,;:.!?…\-–—)\]}"']/.test(remaining)) {
+          const znak = remaining[0];
+          if (!/\s/.test(znak) && result.length > 0) {
+            result[result.length - 1] = (result[result.length - 1] + znak).trimEnd();
+          }
+          remaining = remaining.slice(1).trimStart();
+        }
       }
       if (remaining.trim()) result.push(remaining.trim());
       return result.join('\n');
@@ -536,6 +546,8 @@ export default function DesignerClient({ song }: { song: any }) {
   const [saving, setSaving] = useState(false);
   const [saveDone, setSaveDone] = useState(false);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
+  /** Čas posledního automatického uložení — ukazuje se v liště. */
+  const [autoUlozeno, setAutoUlozeno] = useState<Date | null>(null);
 
   const handleSave = async () => {
     if (!song?.id) return;
@@ -556,6 +568,53 @@ export default function DesignerClient({ song }: { song: any }) {
       setSaving(false);
     }
   };
+
+  /**
+   * Průběžné ukládání. Klíčování je práce na desítky minut a zavřená karta
+   * nebo vybitý telefon ji dřív spolehlivě smazaly. Ukládá se potichu:
+   * jednou za půl minuty a při odchodu ze stránky, vždy jen když se něco
+   * změnilo a zrovna neběží ruční uložení.
+   */
+  const zmenenoRef = useRef(false);
+  const posledniOtiskRef = useRef('');
+
+  useEffect(() => {
+    const otisk = JSON.stringify({ rawText, chordsText, startTime, u: eventsRef.current });
+    if (otisk !== posledniOtiskRef.current) {
+      posledniOtiskRef.current = otisk;
+      zmenenoRef.current = true;
+      setSaveDone(false);
+    }
+  }, [rawText, chordsText, startTime, renderTick]);
+
+  useEffect(() => {
+    if (!song?.id) return;
+
+    const ulozNaPozadi = async () => {
+      if (!zmenenoRef.current || saving) return;
+      zmenenoRef.current = false;
+      try {
+        await fetch(`/api/songs/${song.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ timingData: generateBlocksJSON(), lyrics: rawText, chords: chordsText, startTime }),
+        });
+        setAutoUlozeno(new Date());
+      } catch {
+        // Síť vypadla — zkusí se to za půl minuty znovu.
+        zmenenoRef.current = true;
+      }
+    };
+
+    const casovac = setInterval(ulozNaPozadi, 30000);
+    const priOdchodu = () => { if (document.visibilityState === 'hidden') ulozNaPozadi(); };
+    document.addEventListener('visibilitychange', priOdchodu);
+
+    return () => {
+      clearInterval(casovac);
+      document.removeEventListener('visibilitychange', priOdchodu);
+    };
+  }, [song?.id, rawText, chordsText, startTime, renderTick, saving]);
 
   const handlePublish = async () => {
     if (!song?.id) return;
@@ -645,7 +704,7 @@ export default function DesignerClient({ song }: { song: any }) {
                   </div>
 
                   {/* PRŮHLEDNÁ TEXTAREA (Pro zápis a kurzor) */}
-                  <textarea 
+                  <textarea data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false" 
                     value={rawText}
                     onChange={(e) => setRawText(e.target.value)}
                     onPaste={(e) => {
@@ -679,7 +738,7 @@ export default function DesignerClient({ song }: { song: any }) {
                   />
                 </div>
               ) : (
-                <textarea 
+                <textarea data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false" 
                    value={chordsText}
                    onChange={(e) => setChordsText(e.target.value)}
                    spellCheck={false}
@@ -973,6 +1032,13 @@ export default function DesignerClient({ song }: { song: any }) {
                disabled={saving}
              >
                {saving ? 'UKLÁDÁM...' : (saveDone ? '✓ ULOŽENO DO DATABÁZE' : '💾 ULOŽIT ROZDĚLANÉ')}
+             </button>
+             {autoUlozeno && (
+               <span style={{ marginLeft: '1rem', fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>
+                 samo uloženo v {autoUlozeno.toLocaleTimeString('cs-CZ')}
+               </span>
+             )}
+             <button style={{ display: 'none' }}>
              </button>
           </div>
       </div>

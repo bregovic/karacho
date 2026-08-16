@@ -32,7 +32,7 @@ export async function autoAlignSong(songId: string) {
     console.log("AI-Align: Transcribing...");
     const transcription = await openai.audio.transcriptions.create({
       file,
-      model: "whisper-1",
+      model: "gpt-4o-transcribe",
       response_format: "verbose_json",
       timestamp_granularities: ["word"],
       prompt: `Karaoke timing for ${song.artist} - ${song.title}. Lyrics: ${song.lyrics.slice(0, 500)}`,
@@ -49,101 +49,108 @@ export async function autoAlignSong(songId: string) {
     const sourceLines = song.lyrics.split('\n')
       .map(l => l.trim())
       .filter(l => l.length > 0);
-    
-    const blocks: any[] = [];
-    let globalWhisperIdx = 0;
-    let avgPace = 0.35; 
 
+    /**
+     * Zarovnání dvou posloupností slov (Needleman-Wunsch).
+     *
+     * Dřív se kotvy hledaly slovo po slovu v okně: jakmile přepis jedno slovo
+     * spletl nebo vynechal, řetěz se rozpadl a zbytek písně ujel. Tohle hledá
+     * nejlepší zarovnání jako celek, takže překlepy i vynechávky přeskočí
+     * a pořadí zůstane zachované.
+     */
+    const zarovnej = (text: string[], slysene: string[]) => {
+      const SHODA = 2, NESHODA = -1, MEZERA = -1;
+      const n = text.length, m = slysene.length;
+      const mat: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+      for (let i = 1; i <= n; i++) mat[i][0] = i * MEZERA;
+      for (let j = 1; j <= m; j++) mat[0][j] = j * MEZERA;
+
+      const podobna = (a: string, b: string) => {
+        if (!a || !b) return false;
+        if (a === b) return true;
+        // Zpěv i přepis komolí koncovky, proto stačí shodný začátek.
+        if (Math.min(a.length, b.length) >= 4 && a.slice(0, 4) === b.slice(0, 4)) return true;
+        return a.includes(b) || b.includes(a);
+      };
+
+      for (let i = 1; i <= n; i++) {
+        for (let j = 1; j <= m; j++) {
+          const skore = podobna(text[i - 1], slysene[j - 1]) ? SHODA : NESHODA;
+          mat[i][j] = Math.max(mat[i - 1][j - 1] + skore, mat[i - 1][j] + MEZERA, mat[i][j - 1] + MEZERA);
+        }
+      }
+
+      const parovani = new Array<number | null>(n).fill(null);
+      let i = n, j = m;
+      while (i > 0 && j > 0) {
+        const skore = podobna(text[i - 1], slysene[j - 1]) ? SHODA : NESHODA;
+        if (mat[i][j] === mat[i - 1][j - 1] + skore) {
+          if (skore === SHODA) parovani[i - 1] = j - 1;
+          i--; j--;
+        } else if (mat[i][j] === mat[i - 1][j] + MEZERA) { i--; } else { j--; }
+      }
+      return parovani;
+    };
+
+    // Celý text i celý přepis srovnáme najednou, ne po řádcích.
+    const vsechnaSlova: { radek: number; text: string }[] = [];
+    sourceLines.forEach((radek, ri) => {
+      radek.split(/\s+/).filter(w => w.length > 0).forEach((w) => {
+        vsechnaSlova.push({ radek: ri, text: normalize(w) });
+      });
+    });
+
+    const slysena = whisperWords.map((w: any) => normalize(w.word));
+    const parovani = zarovnej(vsechnaSlova.map(w => w.text), slysena);
+
+    const kotvy = parovani
+      .map((par, idx) => (par === null ? null : { idx, cas: whisperWords[par].start as number }))
+      .filter(Boolean) as { idx: number; cas: number }[];
+
+    console.log(`AI-Align: napárováno ${kotvy.length} z ${vsechnaSlova.length} slov`);
+    if (kotvy.length < 3) throw new Error("Text a nahrávka si neodpovídají - zarovnání by bylo náhodné.");
+
+    const rozsahIdx = kotvy[kotvy.length - 1].idx - kotvy[0].idx;
+    const rozsahCas = kotvy[kotvy.length - 1].cas - kotvy[0].cas;
+    const tempo = rozsahIdx > 0 ? Math.min(0.6, Math.max(0.15, rozsahCas / rozsahIdx)) : 0.35;
+
+    // Čas pro každé slovo: mezi kotvami se interpoluje, na okrajích dopočítá.
+    const casy = new Array<number>(vsechnaSlova.length).fill(0);
+    for (let k = 0; k < vsechnaSlova.length; k++) {
+      const vlevo = [...kotvy].reverse().find(a => a.idx <= k);
+      const vpravo = kotvy.find(a => a.idx >= k);
+
+      if (vlevo && vpravo && vlevo.idx !== vpravo.idx) {
+        casy[k] = vlevo.cas + (vpravo.cas - vlevo.cas) * ((k - vlevo.idx) / (vpravo.idx - vlevo.idx));
+      } else if (vlevo && vpravo) {
+        casy[k] = vlevo.cas;
+      } else if (vlevo) {
+        casy[k] = vlevo.cas + (k - vlevo.idx) * tempo;
+      } else if (vpravo) {
+        casy[k] = Math.max(0, vpravo.cas - (vpravo.idx - k) * tempo);
+      }
+      // Časy musí růst, jinak by slovo svítilo pozpátku.
+      if (k > 0 && casy[k] <= casy[k - 1]) casy[k] = casy[k - 1] + 0.12;
+      casy[k] = Math.min(casy[k], maxDuration - 0.1);
+    }
+
+    const blocks: any[] = [];
+    let ukazatel = 0;
     for (let li = 0; li < sourceLines.length; li++) {
       const lineWords = sourceLines[li].split(/\s+/).filter(w => w.length > 0);
-      const foundAnchors: { wordIdx: number, time: number, whisperIdx: number }[] = [];
-      let currentLinePointer = globalWhisperIdx;
+      if (lineWords.length === 0) continue;
 
-      // PROGRESIVNÍ OKNO: Na začátku hledáme v širším okně (60 slov), pak už se držíme blíž (40 slov)
-      const searchWindow = li === 0 ? 100 : 40;
+      const bWords = lineWords.map((_, wi) => ({ t: casy[ukazatel + wi], i: wi, v: 3 }));
+      ukazatel += lineWords.length;
 
-      for (let wi = 0; wi < lineWords.length; wi++) {
-        const target = normalize(lineWords[wi]);
-        if (!target) continue;
-
-        for (let j = 0; j < searchWindow; j++) {
-          const checkIdx = currentLinePointer + j;
-          if (checkIdx >= whisperWords.length) break;
-          const wWord = normalize(whisperWords[checkIdx].word);
-          
-          if (wWord === target || wWord.includes(target) || target.includes(wWord)) {
-            const foundTime = whisperWords[checkIdx].start;
-            
-            // POJISTKA PROTI SKOKŮM: Pokud je nalezený čas o víc než 15s dál než minulý řádek,
-            // ignorujeme to (asi shoda v jiném refrénu) - kromě prvního řádku.
-            const lastEnd = blocks.length > 0 ? blocks[blocks.length-1].be : 0;
-            if (li > 0 && foundTime > lastEnd + 20) continue; 
-
-            foundAnchors.push({ wordIdx: wi, time: Math.min(foundTime, maxDuration), whisperIdx: checkIdx });
-            currentLinePointer = checkIdx + 1;
-            break; 
-          }
-        }
-      }
-
-      const bWords: any[] = [];
-      let lastBlockEnd = blocks.length > 0 ? blocks[blocks.length - 1].be : 0;
-      
-      if (foundAnchors.length > 0) {
-        if (foundAnchors.length >= 2) {
-            const timeDiff = foundAnchors[foundAnchors.length-1].time - foundAnchors[0].time;
-            const wordDiff = foundAnchors[foundAnchors.length-1].wordIdx - foundAnchors[0].wordIdx;
-            if (wordDiff > 0) avgPace = (avgPace + (timeDiff / wordDiff)) / 2;
-        }
-
-        for (let wi = 0; wi < lineWords.length; wi++) {
-          const leftA = [...foundAnchors].reverse().find(a => a.wordIdx <= wi);
-          const rightA = foundAnchors.find(a => a.wordIdx >= wi);
-
-          let time = 0;
-          if (leftA && rightA && leftA.wordIdx !== rightA.wordIdx) {
-            const ratio = (wi - leftA.wordIdx) / (rightA.wordIdx - leftA.wordIdx);
-            time = leftA.time + (rightA.time - leftA.time) * ratio;
-          } else if (leftA) {
-            time = leftA.time + (wi - leftA.wordIdx) * avgPace;
-          } else if (rightA) {
-            time = rightA.time - (rightA.wordIdx - wi) * avgPace;
-          }
-          
-          // ANTI-SQUASH: Minimální rozestup mezi slovy 200ms
-          if (wi > 0 && time <= bWords[wi-1].t) time = bWords[wi-1].t + 0.2;
-          
-          time = Math.max(time, lastBlockEnd + 0.1);
-          bWords.push({ t: Math.min(time, maxDuration - 0.1), i: wi, v: 3 });
-        }
-        globalWhisperIdx = Math.max(...foundAnchors.map(a => a.whisperIdx)) + 1;
-      } else {
-        // FALLBACK: Pokud AI řádek nepozná, vypočítáme čas rytmicky, 
-        // ale s pojistkou aby nám zbylo místo pro zbytek textu!
-        const remainingLines = sourceLines.length - li;
-        const remainingTime = maxDuration - lastBlockEnd - 5; // 5s rezerva na konec
-        
-        // Pokud zbývá málo času pro hodně textu, zkrátíme mezery mezi bloky
-        const blockGap = remainingTime / (remainingLines + 1) > 2 ? 1.0 : 0.4;
-        const startTime = lastBlockEnd + blockGap;
-        
-        for (let wi = 0; wi < lineWords.length; wi++) {
-          let time = startTime + (wi * avgPace);
-          if (wi > 0 && time <= bWords[wi-1].t) time = bWords[wi-1].t + 0.2;
-          bWords.push({ t: Math.min(time, maxDuration - 0.1), i: wi, v: 3 });
-        }
-      }
-
-      if (bWords.length > 0) {
-        blocks.push({
-          li: blocks.length,
-          v: 3,
-          bs: Math.max(0, bWords[0].t - 1.2),
-          be: Math.min(bWords[bWords.length - 1].t + 1.2, maxDuration),
-          lw: lineWords,
-          w: bWords
-        });
-      }
+      blocks.push({
+        li: blocks.length,
+        v: 3,
+        bs: Math.max(0, bWords[0].t - 1.2),
+        be: Math.min(bWords[bWords.length - 1].t + 1.2, maxDuration),
+        lw: lineWords,
+        w: bWords,
+      });
     }
 
     const timingData = { blocks, dur: maxDuration, countdowns: [] };

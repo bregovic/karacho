@@ -130,7 +130,17 @@ export default function PlayerClient({ song }: { song: any }) {
   const shouldSuppressAudio = (isChordsMode || isWatchMode) && !isHost;
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const [playbackMode, setPlaybackMode] = useState<'ORIG' | 'INST'>(song.instrumentalUrl ? 'INST' : 'ORIG');
+  const [playbackMode, setPlaybackMode] = useState<'ORIG' | 'INST'>(() => {
+    if (!song.instrumentalUrl) return 'ORIG';
+    if (typeof window === 'undefined') return 'INST';
+    const posledni = window.localStorage.getItem('karacho:rezim');
+    return posledni === 'ORIG' ? 'ORIG' : 'INST';
+  });
+
+  // Zapamatování volby, ať navazující písně jedou ve stejném režimu.
+  useEffect(() => {
+    if (typeof window !== 'undefined') window.localStorage.setItem('karacho:rezim', playbackMode);
+  }, [playbackMode]);
   const playbackModeRef = useRef(playbackMode);
   const [imgLoaded, setImgLoaded] = useState(false);
 
@@ -536,18 +546,20 @@ export default function PlayerClient({ song }: { song: any }) {
      const blockVoice = (wordCount === 0) ? (b.v || 3) : null;
 
      if (isDuet) {
-        // Duet mode: only container 1 (upper) and container 2 (lower) are used.
-        if (containerVoice === 3) return false;
-        
+        // Duet: společný text patří doprostřed, a jen tam. Dřív ho dostávaly
+        // oba krajní pásy, takže se stejný řádek vypsal dvakrát nad sebou.
+        const jeSpolecny = (blockVoice !== null) ? blockVoice === 3 : (has3 && !has1 && !has2);
+
+        if (containerVoice === 3) return jeSpolecny;
+        if (jeSpolecny) return false;
+
         if (containerVoice === 1) {
-           // Container 1 gets Voice 1 and Voice 3 blocks
-           if (blockVoice !== null) return blockVoice === 1 || blockVoice === 3;
-           return has1 || has3;
+           if (blockVoice !== null) return blockVoice === 1;
+           return has1;
         }
         if (containerVoice === 2) {
-           // Container 2 gets Voice 2 and Voice 3 blocks
-           if (blockVoice !== null) return blockVoice === 2 || blockVoice === 3;
-           return has2 || has3;
+           if (blockVoice !== null) return blockVoice === 2;
+           return has2;
         }
      } else {
         // Solo mode: only container 3 (center) is used.
