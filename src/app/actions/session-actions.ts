@@ -1,6 +1,7 @@
 'use server';
 
 import { db } from '@/lib/db';
+import { uklidStareRelace } from '@/lib/relace';
 import { revalidatePath } from 'next/cache';
 
 // Funkce pro náhodný 4-místný kód (např. K4CH)
@@ -10,32 +11,17 @@ function generateCode() {
   return res;
 }
 
-/**
- * Relace bez aktivity déle než 24 h je mrtvá – TV ani mobil se k ní už nevrátí.
- * Maže se i s frontou (kaskáda ve schématu).
- *
- * Úklid běží líně při každém zakládání/připojení relace, takže není potřeba
- * cron. Bez něj se relace jen hromadily: každé otevření přehrávače bez kódu
- * zakládá novou (nasbíralo se jich 181, všechny „aktivní").
- */
 // POZOR: soubor má 'use server', takže smí exportovat JEN async funkce.
 // Exportovaná konstanta shodí celý modul („has no exports at all").
-const SESSION_TTL_HODIN = 24;
-
-export async function cleanupStaleSessions() {
-  const hranice = new Date(Date.now() - SESSION_TTL_HODIN * 3600 * 1000);
-  const { count } = await db.karaokeSession.deleteMany({
-    where: { updatedAt: { lt: hranice } },
-  });
-  return count;
-}
+// A každá exportovaná funkce je veřejně volatelný endpoint — proto úklid
+// relací bydlí v `lib/relace.ts`, ne tady.
 
 // 📺 Vytvoří nebo se připojí k relaci
 export async function joinOrCreateSession(code?: string) {
   // Nejdřív úklid, ať se nedá připojit ke dávno mrtvé relaci.
   // Chyba úklidu nesmí zabránit připojení – host v baru za to nemůže.
   try {
-    await cleanupStaleSessions();
+    await uklidStareRelace();
   } catch (e) {
     console.error('Úklid starých relací selhal:', e);
   }

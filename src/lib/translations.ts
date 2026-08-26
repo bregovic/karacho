@@ -21,10 +21,8 @@ export const translations = {
     cancel_btn: "Zrušit",
     play_karaoke: "Přehrát Karaoke",
     open_studio: "Otevřít ve Studiu",
-    send_render: "Renderovat Video",
     step_audio: "1. Audio stopa",
     step_studio: "2. Časování (Studio)",
-    step_render: "3. Video Export",
   },
   en: {
     admin_title: "Admin & Songs",
@@ -46,10 +44,8 @@ export const translations = {
     cancel_btn: "Cancel",
     play_karaoke: "Play Karaoke",
     open_studio: "Open Studio",
-    send_render: "Render Video",
     step_audio: "1. Audio Track",
     step_studio: "2. Timing (Studio)",
-    step_render: "3. Video Export",
   }
 };
 

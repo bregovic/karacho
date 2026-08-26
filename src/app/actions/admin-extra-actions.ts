@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 import { Prisma } from '@prisma/client';
 import { auth } from '@/auth';
 import { revalidatePath } from 'next/cache';
-import { cleanupStaleSessions } from '@/app/actions/session-actions';
+import { uklidStareRelace } from '@/lib/relace';
 
 export async function logAdminAction(action: string, description?: string, targetType?: string, targetId?: string) {
   const session = await auth();
@@ -118,7 +118,7 @@ export async function getUsageStats() {
 export async function cleanupSessionsAction() {
   const session = await auth();
   if (session?.user?.role !== 'ADMIN') throw new Error('Nemáte oprávnění');
-  const smazano = await cleanupStaleSessions();
+  const smazano = await uklidStareRelace();
   return { smazano };
 }
 

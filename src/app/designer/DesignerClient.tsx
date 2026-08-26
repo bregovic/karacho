@@ -1208,7 +1208,6 @@ export default function DesignerClient({ song }: { song: any }) {
                 >
                   {isAligning ? '⌛' : '🪄'}
                 </button>
-                <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px', background: 'var(--color-teal)' }} title="Renderovat video" onClick={() => window.open(`/renderer?songId=${song.id}`, '_blank')}>🎬</button>
                 <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px' }} title="Stáhnout JSON" onClick={() => { dlSRT(JSON.stringify(generateBlocksJSON(), null, 2), "karaoke-data.json"); }}>📥</button>
                 <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px', background: 'var(--color-gold)' }} onClick={handleSave} disabled={saving}>{saving ? '...' : (saveDone ? '✓' : '💾')}</button>
              </div>

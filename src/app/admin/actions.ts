@@ -268,7 +268,9 @@ export async function updateSongJson(songId: string, jsonUrl: string) {
 }
 
 
-export async function removeSongResource(songId: string, type: 'audio' | 'instrumental' | 'background' | 'json' | 'video') {
+// 'video' zmizelo se zrušeným rendererem — typ tu zůstal viset, ale žádná
+// větev ho neobsluhovala, takže volání s ním jen tiše nic neudělalo.
+export async function removeSongResource(songId: string, type: 'audio' | 'instrumental' | 'background' | 'json') {
   await ensureAdmin();
   
   const song = await db.song.findUnique({ where: { id: songId } });
@@ -384,8 +386,8 @@ export async function updateSong(songId: string, data: any) {
 }
 
 export async function bulkRemoveBackground(backgroundUrl: string) {
-  const session = await auth();
-  if (!session?.user) throw new Error('Nejste přihlášeni');
+  // Hromadná změna přes celý katalog — na to nestačí být přihlášený.
+  await ensureAdmin();
 
   await db.song.updateMany({
     where: { backgroundUrl },

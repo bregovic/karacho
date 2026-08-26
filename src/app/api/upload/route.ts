@@ -11,6 +11,7 @@ export async function POST(req: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const jeSpravce = session.user.role === 'ADMIN';
 
     const formData = await req.formData();
     const file = formData.get('file') as File;
@@ -19,8 +20,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Soubor nebyl nalezen ve formuláři" }, { status: 400 });
     }
 
-    if (file.size > 50 * 1024 * 1024) {
-      return NextResponse.json({ error: "Soubor překračuje limit 50 MB" }, { status: 400 });
+    // Práva podle toho, co se nahrává. Dřív stačilo být přihlášený a při
+    // samoobslužné registraci si tak kdokoli mohl nasypat do R2 padesátky
+    // megabajtů. Obrázek ale musí projít i běžnému uživateli — jinak by si
+    // nenastavil profilovou fotku.
+    const jeObrazek = (file.type || '').startsWith('image/');
+    if (!jeObrazek && !jeSpravce) {
+      return NextResponse.json({ error: "Nahrávat hudbu a data smí jen správce." }, { status: 403 });
+    }
+
+    const limit = jeObrazek && !jeSpravce ? 8 * 1024 * 1024 : 50 * 1024 * 1024;
+    if (file.size > limit) {
+      return NextResponse.json({ error: `Soubor překračuje limit ${Math.round(limit / 1024 / 1024)} MB` }, { status: 400 });
     }
 
     let buffer: any = Buffer.from(await file.arrayBuffer());
