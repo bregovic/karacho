@@ -6,7 +6,7 @@ export const forceDynamic = true;
 
 export default async function Home() {
   const session = await auth();
-  const isAdmin = !!session?.user;
+  const prihlasen = !!session?.user;
 
   // Veřejný katalog (Home) ukazuje vždy jen plně publikované písně
   // bez ohledu na to, jestli jsme přihlášení jako administrátoři.
@@ -32,5 +32,5 @@ export default async function Home() {
     [songs[i], songs[j]] = [songs[j], songs[i]];
   }
 
-  return <PublicCatalog initialSongs={songs} isAdmin={isAdmin} />;
+  return <PublicCatalog initialSongs={songs} prihlasen={prihlasen} />;
 }

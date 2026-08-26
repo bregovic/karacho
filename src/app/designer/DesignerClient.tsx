@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect, ChangeEvent, useCallback } from 'react';
 import Link from 'next/link';
 import { autoAlignSong } from '@/app/admin/auto-align';
-import { nahlasChybu } from '@/app/actions/report-actions';
+import HlaseniChyby from '@/components/HlaseniChyby';
 
 type TimingEvent = 
   | { type: 'line'; time: number; lineIdx: number }
@@ -701,90 +701,19 @@ export default function DesignerClient({ song }: { song: any }) {
   /**
    * Hlášení chyby. Při klíčování je Studio první místo, kde je vidět, že text
    * nesedí na nahrávku — tak ať se to dá říct hned a nemusí se to pamatovat
-   * do administrace.
+   * do administrace. Samotný dialog je sdílený s katalogem.
    */
-  const [hlaseniDruh, setHlaseniDruh] = useState<'TEXT' | 'PISEN' | null>(null);
-  const [hlaseniPopis, setHlaseniPopis] = useState('');
-  const [hlaseniOdesila, setHlaseniOdesila] = useState(false);
+  const [hlasim, setHlasim] = useState(false);
 
-  const odesliHlaseni = async () => {
-    if (!hlaseniDruh || !song?.id) return;
-    setHlaseniOdesila(true);
-    try {
-      const r = await nahlasChybu(song.id, hlaseniDruh, hlaseniPopis);
-      if (!r.ok) { setStatusMessage(`❌ ${r.error}`); return; }
-      setHlaseniDruh(null);
-      setHlaseniPopis('');
-      setStatusMessage(r.oznaceno
-        ? '⚠️ Nahlášeno — píseň je označená a stažená z katalogu.'
-        : '⚠️ Nahlášeno správci.');
-    } catch {
-      setStatusMessage('❌ Hlášení se nepodařilo odeslat.');
-    } finally {
-      setHlaseniOdesila(false);
-    }
-  };
-
-  /** Vykresluje se v obou pohledech (setup i editor), proto zvlášť. */
-  const hlaseniModal = hlaseniDruh && (
-    <div
-      onClick={(e) => { e.stopPropagation(); setHlaseniDruh(null); }}
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 20000,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem',
-        backdropFilter: 'blur(6px)'
-      }}
-    >
-      <div onClick={e => e.stopPropagation()} className="glass-panel" style={{ padding: '2rem', borderRadius: '24px', width: 'min(520px, 100%)', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 900 }}>⚠️ Nahlásit chybu</h3>
-
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button
-            onClick={() => setHlaseniDruh('TEXT')}
-            className="btn-secondary"
-            style={{ flex: 1, padding: '14px', fontSize: '13px', fontWeight: 800, border: hlaseniDruh === 'TEXT' ? '2px solid var(--color-gold)' : '1px solid rgba(255,255,255,0.12)', color: hlaseniDruh === 'TEXT' ? 'var(--color-gold)' : '#fff' }}
-          >
-            ✍️ Špatný text
-          </button>
-          <button
-            onClick={() => setHlaseniDruh('PISEN')}
-            className="btn-secondary"
-            style={{ flex: 1, padding: '14px', fontSize: '13px', fontWeight: 800, border: hlaseniDruh === 'PISEN' ? '2px solid #ff4b2b' : '1px solid rgba(255,255,255,0.12)', color: hlaseniDruh === 'PISEN' ? '#ff4b2b' : '#fff' }}
-          >
-            ⛔ Špatná píseň
-          </button>
-        </div>
-
-        <p style={{ margin: 0, fontSize: '12px', opacity: 0.6, lineHeight: 1.5 }}>
-          {hlaseniDruh === 'TEXT'
-            ? 'Text nesedí na nahrávku — překlepy, jiná sloka, přehozené řádky. Audio i časování se dají použít dál.'
-            : 'Vadná je sama nahrávka — jiná verze, useknuté audio, nedá se to zpívat. Bude potřeba nové MP3.'}
-        </p>
-
-        <textarea
-          value={hlaseniPopis}
-          onChange={e => setHlaseniPopis(e.target.value)}
-          placeholder={'Co je špatně? (např. „druhá sloka je z jiné písně“)'}
-          rows={4}
-          maxLength={1000}
-          autoFocus
-          style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'rgba(0,0,0,0.4)', color: '#fff', border: '1px solid rgba(255,255,255,0.12)', fontSize: '14px', resize: 'vertical', fontFamily: 'inherit' }}
-        />
-
-        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-          <button className="btn-secondary" style={{ padding: '10px 20px', fontSize: '13px' }} onClick={() => setHlaseniDruh(null)}>Zrušit</button>
-          <button
-            className="btn-primary"
-            style={{ padding: '10px 24px', fontSize: '13px', fontWeight: 900, background: '#ff4b2b', border: 'none', color: '#fff', opacity: hlaseniOdesila || hlaseniPopis.trim().length < 3 ? 0.5 : 1 }}
-            onClick={odesliHlaseni}
-            disabled={hlaseniOdesila || hlaseniPopis.trim().length < 3}
-          >
-            {hlaseniOdesila ? 'Odesílám…' : 'Nahlásit'}
-          </button>
-        </div>
-      </div>
-    </div>
+  const hlaseniModal = hlasim && song?.id && (
+    <HlaseniChyby
+      songId={song.id}
+      nazev={`${song.artist || 'Neznámý interpret'} – ${song.title}`}
+      onClose={() => setHlasim(false)}
+      onHotovo={(z) => setStatusMessage(z)}
+    />
   );
+
 
   const handlePublish = async () => {
     if (!song?.id) return;
@@ -934,7 +863,7 @@ export default function DesignerClient({ song }: { song: any }) {
             ▶ Vstoupit do Studia
           </button>
           <button
-            onClick={() => setHlaseniDruh('TEXT')}
+            onClick={() => setHlasim(true)}
             className="btn-secondary"
             style={{ width: '100%', fontSize: '12px', color: '#ff8a70', border: '1px solid rgba(255,75,43,0.35)' }}
           >
@@ -1246,7 +1175,7 @@ export default function DesignerClient({ song }: { song: any }) {
                </span>
              )}
              <button
-               onClick={(e) => { e.stopPropagation(); setHlaseniDruh('TEXT'); }}
+               onClick={(e) => { e.stopPropagation(); setHlasim(true); }}
                title="Nahlásit špatný text nebo špatnou píseň"
                style={{ marginLeft: '1rem', padding: '8px 16px', borderRadius: '50px', background: 'rgba(255,75,43,0.12)', border: '1px solid rgba(255,75,43,0.4)', color: '#ff8a70', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}
              >

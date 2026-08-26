@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useSession } from '@/context/SessionContext';
 import { prepniOblibenou, getOblibeneIds } from '@/app/actions/user-actions';
 import { obsahuje } from '@/lib/hledani';
+import HlaseniChyby from '@/components/HlaseniChyby';
 import { useToast } from '@/context/ToastContext';
 import { updateSessionState, advanceSessionQueue, addToSessionQueue, removeFromSessionQueue } from '@/app/actions/session-actions';
 import { requestSong, checkDuplicateSong } from '@/app/admin/actions';
@@ -22,7 +23,10 @@ interface Song {
   jsonUrl?: string | null;
 }
 
-export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs: Song[]; isAdmin: boolean }) {
+// Pozor na název: tenhle prop NIKDY neznamenal „je admin", `page.tsx` do něj
+// posílá `!!session?.user`, tedy „je přihlášený". Než se přejmenoval, vypadala
+// oblíbená srdíčka jako funkce jen pro správce a málem se tak i opravila.
+export default function PublicCatalog({ initialSongs, prihlasen }: { initialSongs: Song[]; prihlasen: boolean }) {
   const { joinCode, sessionData, localMode, refreshSession, createOrJoin } = useSession();
   const { showToast } = useToast();
   const router = useRouter();
@@ -46,13 +50,19 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
   
   /** Id oblíbených písní. Přepnutí se projeví hned, server se dotáhne pozadu. */
   const [oblibene, setOblibene] = useState<string[]>([]);
+  /** Píseň, kterou zrovna někdo hlásí (null = dialog zavřený). */
+  const [hlaseni, setHlaseni] = useState<{ id: string; nazev: string } | null>(null);
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!prihlasen) return;
     getOblibeneIds().then(setOblibene).catch(() => {});
-  }, [isAdmin]);
+  }, [prihlasen]);
 
   const prepniSrdce = (songId: string) => {
+    if (!prihlasen) {
+      showToast('Oblíbené se ukládají k účtu — přihlas se a zůstanou ti napořád. 🤍', 'info');
+      return;
+    }
     setOblibene(p => p.includes(songId) ? p.filter(x => x !== songId) : [...p, songId]);
     prepniOblibenou(songId).catch(() => {
       // Server odmítl — vrátíme zobrazení zpět, ať nelže.
@@ -182,7 +192,16 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', paddingBottom: joinCode ? '110px' : '0' }}>
-      
+
+      {hlaseni && (
+        <HlaseniChyby
+          songId={hlaseni.id}
+          nazev={hlaseni.nazev}
+          onClose={() => setHlaseni(null)}
+          onHotovo={(z) => showToast(z, 'success')}
+        />
+      )}
+
       {/* === HERO SEKCE === */}
       <section style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center',
@@ -266,20 +285,38 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
                   className="plus-btn"
                 >+</button>
 
-                {isAdmin && (
-                  <button
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); prepniSrdce(song.id); }}
-                    title={oblibene.includes(song.id) ? 'Odebrat z oblíbených' : 'Přidat do oblíbených'}
-                    style={{
-                      position: 'absolute', top: '14px', right: '58px', background: 'none', border: 'none',
-                      fontSize: '22px', cursor: 'pointer', lineHeight: 1, padding: '4px',
-                      filter: oblibene.includes(song.id) ? 'none' : 'grayscale(1)',
-                      opacity: oblibene.includes(song.id) ? 1 : 0.45,
-                    }}
-                  >
-                    {oblibene.includes(song.id) ? '❤️' : '🤍'}
-                  </button>
-                )}
+                {/* Srdíčko vidí každý. Nepřihlášenému se místo tichého
+                    nefungování řekne, proč to nejde — ukládá se k účtu. */}
+                <button
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); prepniSrdce(song.id); }}
+                  title={!prihlasen
+                    ? 'Přihlas se, ať si můžeš písničky ukládat'
+                    : (oblibene.includes(song.id) ? 'Odebrat z oblíbených' : 'Přidat do oblíbených')}
+                  style={{
+                    position: 'absolute', top: '14px', right: '58px', background: 'none', border: 'none',
+                    fontSize: '22px', cursor: 'pointer', lineHeight: 1, padding: '4px', zIndex: 2,
+                    filter: oblibene.includes(song.id) ? 'none' : 'grayscale(1)',
+                    opacity: oblibene.includes(song.id) ? 1 : 0.45,
+                  }}
+                >
+                  {oblibene.includes(song.id) ? '❤️' : '🤍'}
+                </button>
+
+                {/* Nahlásit smí i nepřihlášený host — server hlášení jen
+                    zapíše a píseň z katalogu nestáhne, to udělá až správce. */}
+                <button
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setHlaseni({ id: song.id, nazev: `${song.artist || 'Neznámý interpret'} – ${song.title}` }); }}
+                  title="Nahlásit špatný text nebo špatnou píseň"
+                  style={{
+                    position: 'absolute', bottom: '14px', right: '15px', background: 'none', border: 'none',
+                    fontSize: '15px', cursor: 'pointer', lineHeight: 1, padding: '6px', zIndex: 2,
+                    opacity: 0.3, transition: 'opacity 0.2s',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.3'; }}
+                >
+                  ⚠️
+                </button>
 
                 <div style={{ marginBottom: '2rem', paddingRight: '40px' }}>
                     <h3 style={{ fontSize: '20px', fontWeight: 800, margin: '0 0 6px', letterSpacing: '-0.01em' }}>{song.title}</h3>
