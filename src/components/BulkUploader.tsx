@@ -64,8 +64,17 @@ export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) 
           body: formData
         });
 
-        if (!res.ok) throw new Error(`Chyba uploadu: ${res.statusText}`);
-        const uploadData = await res.json();
+        const uploadData = await res.json().catch(() => ({}));
+
+        // 409 = server poznal podle otisku souboru, že tuhle stopu už máme.
+        // Není to chyba importu, je to přeskočení — a hlavně se tím do R2
+        // nedostane druhá kopie téhož souboru.
+        if (res.status === 409) {
+          addLog(`⏭️ Přeskočeno (duplicita): ${uploadData.error || file.name}`, 'info');
+          continue;
+        }
+        if (!res.ok) throw new Error(`Chyba uploadu: ${uploadData.error || res.statusText}`);
+
         const fileUrl = uploadData.finalUrl;
 
         if (mode === 'ORIGINAL') {
@@ -73,8 +82,9 @@ export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) 
           songData.append('title', title);
           songData.append('artist', artist === 'Neznámý' ? '' : artist);
           songData.append('audioUrl', fileUrl);
+          if (uploadData.hash) songData.append('audioHash', uploadData.hash);
           songData.append('importName', rawName); // Posíláme surový název souboru
-          
+
           const newSong = await createSong(songData);
           if ('error' in newSong) {
             addLog(`❌ Chyba: ${newSong.error}`, 'error');
@@ -86,7 +96,7 @@ export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) 
           const existing = await findSongForInstrumentalAction(title, artist, rawName);
 
           if (existing) {
-            await updateSongInstrumental(existing.id, fileUrl);
+            await updateSongInstrumental(existing.id, fileUrl, uploadData.hash);
             addLog(`✅ Instrumentálka přiřazena k "${existing.title}".`, 'success');
           } else {
             addLog(`❌ Shoda pro "${artist} - ${title}" nenalezena v databázi.`, 'error');

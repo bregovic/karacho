@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from '@/context/SessionContext';
+import { prepniOblibenou, getOblibeneIds } from '@/app/actions/user-actions';
+import { obsahuje } from '@/lib/hledani';
 import { useToast } from '@/context/ToastContext';
 import { updateSessionState, advanceSessionQueue, addToSessionQueue, removeFromSessionQueue } from '@/app/actions/session-actions';
 import { requestSong, checkDuplicateSong } from '@/app/admin/actions';
@@ -42,6 +44,22 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
   const currentSong = sessionData?.currentSong;
   const queueItems = sessionData?.queue || [];
   
+  /** Id oblíbených písní. Přepnutí se projeví hned, server se dotáhne pozadu. */
+  const [oblibene, setOblibene] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    getOblibeneIds().then(setOblibene).catch(() => {});
+  }, [isAdmin]);
+
+  const prepniSrdce = (songId: string) => {
+    setOblibene(p => p.includes(songId) ? p.filter(x => x !== songId) : [...p, songId]);
+    prepniOblibenou(songId).catch(() => {
+      // Server odmítl — vrátíme zobrazení zpět, ať nelže.
+      setOblibene(p => p.includes(songId) ? p.filter(x => x !== songId) : [...p, songId]);
+    });
+  };
+
   const [search, setSearch] = useState('');
   const [genreFilter, setGenreFilter] = useState('ALL');
   const [tagFilter, setTagFilter] = useState('ALL');
@@ -74,9 +92,9 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
   const allTags = Array.from(new Set(initialSongs.flatMap(s => s.tags || []).filter(Boolean)));
 
   const filteredSongs = initialSongs.filter(song => {
-    const matchesSearch = song.title.toLowerCase().includes(search.toLowerCase()) || 
-                         (song.artist?.toLowerCase() || '').includes(search.toLowerCase()) ||
-                         (song.tags || []).some(t => t.toLowerCase().includes(search.toLowerCase()));
+    const matchesSearch = obsahuje(song.title, search) ||
+                         obsahuje(song.artist, search) ||
+                         (song.tags || []).some(t => obsahuje(t, search));
     const matchesGenre = genreFilter === 'ALL' || song.genre === genreFilter;
     const matchesTag = tagFilter === 'ALL' || (song.tags && song.tags.includes(tagFilter));
     const hasRealChords = !!(song as any).chords && (song as any).chords.includes('[');
@@ -247,6 +265,21 @@ export default function PublicCatalog({ initialSongs, isAdmin }: { initialSongs:
                   }}
                   className="plus-btn"
                 >+</button>
+
+                {isAdmin && (
+                  <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); prepniSrdce(song.id); }}
+                    title={oblibene.includes(song.id) ? 'Odebrat z oblíbených' : 'Přidat do oblíbených'}
+                    style={{
+                      position: 'absolute', top: '14px', right: '58px', background: 'none', border: 'none',
+                      fontSize: '22px', cursor: 'pointer', lineHeight: 1, padding: '4px',
+                      filter: oblibene.includes(song.id) ? 'none' : 'grayscale(1)',
+                      opacity: oblibene.includes(song.id) ? 1 : 0.45,
+                    }}
+                  >
+                    {oblibene.includes(song.id) ? '❤️' : '🤍'}
+                  </button>
+                )}
 
                 <div style={{ marginBottom: '2rem', paddingRight: '40px' }}>
                     <h3 style={{ fontSize: '20px', fontWeight: 800, margin: '0 0 6px', letterSpacing: '-0.01em' }}>{song.title}</h3>

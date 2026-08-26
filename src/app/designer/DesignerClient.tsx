@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect, ChangeEvent, useCallback } from 'react';
 import Link from 'next/link';
 import { autoAlignSong } from '@/app/admin/auto-align';
+import { nahlasChybu } from '@/app/actions/report-actions';
 
 type TimingEvent = 
   | { type: 'line'; time: number; lineIdx: number }
@@ -67,25 +68,33 @@ export default function DesignerClient({ song }: { song: any }) {
     }
   }, [song?.audioUrl]);
 
+  /**
+   * Rozbalení uloženého JSON zpět na události editoru. Vytažené z efektu níž,
+   * protože totéž potřebuje i obnova ze zálohy v prohlížeči.
+   */
+  const udalostiZBloku = (data: any): TimingEvent[] => {
+    const ev: TimingEvent[] = [];
+    (data?.blocks || []).forEach((b: any) => {
+      ev.push({ type: 'line', time: b.bs, lineIdx: b.li });
+      (b.w || []).forEach((w: any) => {
+        ev.push({ type: 'word', time: w.t, lineIdx: b.li, wordIdx: w.i, v: w.v });
+      });
+    });
+    (data?.countdowns || []).forEach((t: number) => ev.push({ type: 'countdown', time: t }));
+    return ev.sort((a, b) => a.time - b.time);
+  };
+
+  const hlasyZBloku = (data: any): Record<number, number> => {
+    const m: Record<number, number> = {};
+    (data?.blocks || []).forEach((b: any) => { m[b.li] = b.v || 3; });
+    return m;
+  };
+
   // --- NAČTENÍ EXISTUJÍCÍHO ČASOVÁNÍ (JSON) ---
   useEffect(() => {
     if (song?.timingData && song.timingData.blocks) {
-      const newEvents: TimingEvent[] = [];
-      song.timingData.blocks.forEach((b: any) => {
-        newEvents.push({ type: 'line', time: b.bs, lineIdx: b.li });
-        setVoiceMap(prev => ({ ...prev, [b.li]: b.v || 3 }));
-        if (b.w) {
-          b.w.forEach((w: any) => {
-            newEvents.push({ type: 'word', time: w.t, lineIdx: b.li, wordIdx: w.i });
-          });
-        }
-      });
-      if (song.timingData.countdowns) {
-        song.timingData.countdowns.forEach((t: number) => {
-          newEvents.push({ type: 'countdown', time: t });
-        });
-      }
-      eventsRef.current = newEvents.sort((a, b) => a.time - b.time);
+      setVoiceMap(prev => ({ ...prev, ...hlasyZBloku(song.timingData) }));
+      eventsRef.current = udalostiZBloku(song.timingData);
       forceUpdate();
     }
   }, [song?.timingData]);
@@ -549,21 +558,31 @@ export default function DesignerClient({ song }: { song: any }) {
   /** Čas posledního automatického uložení — ukazuje se v liště. */
   const [autoUlozeno, setAutoUlozeno] = useState<Date | null>(null);
 
+  const zmenenoRef = useRef(false);
+  const posledniOdeslaneRef = useRef<string | null>(null);
+  const savingRef = useRef(false);
+  const sestavTeloRef = useRef<() => string>(() => '');
+  const zalohaKlic = song?.id ? `karacho-studio-${song.id}` : '';
+
   const handleSave = async () => {
     if (!song?.id) return;
     setSaving(true);
     try {
-      const data = generateBlocksJSON();
-      await fetch(`/api/songs/${song.id}`, {
+      const telo = JSON.stringify({ timingData: generateBlocksJSON(), lyrics: rawText, chords: chordsText, startTime });
+      const res = await fetch(`/api/songs/${song.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ timingData: data, lyrics: rawText, chords: chordsText, startTime }),
+        body: telo,
       });
+      // Server dřív mohl vrátit 500 a tlačítko stejně zahlásilo ✓.
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      posledniOdeslaneRef.current = telo;
+      zmenenoRef.current = false;
+      try { localStorage.removeItem(zalohaKlic); } catch {}
       setSaveDone(true);
-      // alert("Uloženo do databáze! ✅");
     } catch (e) {
       console.error(e);
-      alert("Chyba sítě.");
+      alert("Uložení selhalo. Práce zůstává v prohlížeči, zkus to prosím znovu.");
     } finally {
       setSaving(false);
     }
@@ -571,50 +590,201 @@ export default function DesignerClient({ song }: { song: any }) {
 
   /**
    * Průběžné ukládání. Klíčování je práce na desítky minut a zavřená karta
-   * nebo vybitý telefon ji dřív spolehlivě smazaly. Ukládá se potichu:
-   * jednou za půl minuty a při odchodu ze stránky, vždy jen když se něco
-   * změnilo a zrovna neběží ruční uložení.
+   * nebo vybitý telefon ji dřív spolehlivě smazaly.
+   *
+   * POZOR na závislosti efektu s intervalem. Dřív v nich visel `renderTick`,
+   * jenže ten při přehrávání tiká v každém snímku (`tick()` volá forceUpdate),
+   * takže se `setInterval` každý snímek zrušil a založil znovu a autosave
+   * při práci NIKDY nedoběhl — spustil se jen po půl minutě úplného klidu.
+   * Interval proto stojí jen na `song.id` a k aktuálním datům se dostane
+   * přes ref.
    */
-  const zmenenoRef = useRef(false);
-  const posledniOtiskRef = useRef('');
-
+  // Refy se drží aktuálního stavu, aby na něm nemusel viset interval.
   useEffect(() => {
-    const otisk = JSON.stringify({ rawText, chordsText, startTime, u: eventsRef.current });
-    if (otisk !== posledniOtiskRef.current) {
-      posledniOtiskRef.current = otisk;
-      zmenenoRef.current = true;
-      setSaveDone(false);
-    }
+    savingRef.current = saving;
+    sestavTeloRef.current = () => JSON.stringify({
+      timingData: generateBlocksJSON(),
+      lyrics: rawText,
+      chords: chordsText,
+      startTime,
+    });
+  });
+
+  // Levná značka „uživatel na něco sáhl". Že jde opravdu o změnu, rozhodne
+  // až porovnání celého těla — proto se tu nic nestringifikuje.
+  useEffect(() => {
+    zmenenoRef.current = true;
+    setSaveDone(false);
   }, [rawText, chordsText, startTime, renderTick]);
 
   useEffect(() => {
     if (!song?.id) return;
 
-    const ulozNaPozadi = async () => {
-      if (!zmenenoRef.current || saving) return;
-      zmenenoRef.current = false;
+    const uloz = async (odchod = false) => {
+      if (!zmenenoRef.current || savingRef.current) return;
+      const telo = sestavTeloRef.current();
+      if (telo === posledniOdeslaneRef.current) { zmenenoRef.current = false; return; }
+
+      // Záloha do prohlížeče jde první: přežije i výpadek sítě a zavřený
+      // notebook, takže po návratu je z čeho práci obnovit.
+      try { localStorage.setItem(zalohaKlic, JSON.stringify({ kdy: Date.now(), telo })); } catch {}
+
       try {
-        await fetch(`/api/songs/${song.id}`, {
+        const res = await fetch(`/api/songs/${song.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ timingData: generateBlocksJSON(), lyrics: rawText, chords: chordsText, startTime }),
+          body: telo,
+          // `keepalive` nechá request doběhnout i po zavření karty, ale tělo
+          // smí mít max 64 kB. Delší písnička se pošle normálně (a když to
+          // odchod nestihne, zůstává záloha v prohlížeči).
+          keepalive: odchod && telo.length < 60000,
         });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        posledniOdeslaneRef.current = telo;
+        zmenenoRef.current = false;
         setAutoUlozeno(new Date());
+        try { localStorage.removeItem(zalohaKlic); } catch {}
       } catch {
-        // Síť vypadla — zkusí se to za půl minuty znovu.
+        // Nepovedlo se — záloha v prohlížeči zůstává a za 15 s se zkusí znovu.
         zmenenoRef.current = true;
       }
     };
 
-    const casovac = setInterval(ulozNaPozadi, 30000);
-    const priOdchodu = () => { if (document.visibilityState === 'hidden') ulozNaPozadi(); };
-    document.addEventListener('visibilitychange', priOdchodu);
+    const casovac = setInterval(uloz, 15000);
+    const priSkryti = () => { if (document.visibilityState === 'hidden') uloz(true); };
+    const priOdchodu = () => uloz(true);
+    document.addEventListener('visibilitychange', priSkryti);
+    window.addEventListener('pagehide', priOdchodu);
 
     return () => {
       clearInterval(casovac);
-      document.removeEventListener('visibilitychange', priOdchodu);
+      document.removeEventListener('visibilitychange', priSkryti);
+      window.removeEventListener('pagehide', priOdchodu);
+      uloz(true);
     };
-  }, [song?.id, rawText, chordsText, startTime, renderTick, saving]);
+  }, [song?.id, zalohaKlic]);
+
+  /** Záloha, kterou se nepodařilo odeslat — nabídne se k obnově. */
+  const [zaloha, setZaloha] = useState<{ kdy: number; telo: string } | null>(null);
+
+  useEffect(() => {
+    if (!zalohaKlic) return;
+    try {
+      const s = localStorage.getItem(zalohaKlic);
+      if (s) setZaloha(JSON.parse(s));
+    } catch {}
+  }, [zalohaKlic]);
+
+  const obnovZeZalohy = () => {
+    if (!zaloha) return;
+    try {
+      const d = JSON.parse(zaloha.telo);
+      setRawText(d.lyrics ?? '');
+      setChordsText(d.chords ?? '');
+      setStartTime(d.startTime ?? 0);
+      setVoiceMap(hlasyZBloku(d.timingData));
+      eventsRef.current = udalostiZBloku(d.timingData);
+      zmenenoRef.current = true;
+      setZaloha(null);
+      forceUpdate();
+      setStatusMessage('↩️ Rozpracované časování obnoveno ze zálohy.');
+    } catch {
+      setStatusMessage('❌ Zálohu se nepodařilo přečíst.');
+    }
+  };
+
+  const zahodZalohu = () => {
+    try { localStorage.removeItem(zalohaKlic); } catch {}
+    setZaloha(null);
+  };
+
+  /**
+   * Hlášení chyby. Při klíčování je Studio první místo, kde je vidět, že text
+   * nesedí na nahrávku — tak ať se to dá říct hned a nemusí se to pamatovat
+   * do administrace.
+   */
+  const [hlaseniDruh, setHlaseniDruh] = useState<'TEXT' | 'PISEN' | null>(null);
+  const [hlaseniPopis, setHlaseniPopis] = useState('');
+  const [hlaseniOdesila, setHlaseniOdesila] = useState(false);
+
+  const odesliHlaseni = async () => {
+    if (!hlaseniDruh || !song?.id) return;
+    setHlaseniOdesila(true);
+    try {
+      const r = await nahlasChybu(song.id, hlaseniDruh, hlaseniPopis);
+      if (!r.ok) { setStatusMessage(`❌ ${r.error}`); return; }
+      setHlaseniDruh(null);
+      setHlaseniPopis('');
+      setStatusMessage(r.oznaceno
+        ? '⚠️ Nahlášeno — píseň je označená a stažená z katalogu.'
+        : '⚠️ Nahlášeno správci.');
+    } catch {
+      setStatusMessage('❌ Hlášení se nepodařilo odeslat.');
+    } finally {
+      setHlaseniOdesila(false);
+    }
+  };
+
+  /** Vykresluje se v obou pohledech (setup i editor), proto zvlášť. */
+  const hlaseniModal = hlaseniDruh && (
+    <div
+      onClick={(e) => { e.stopPropagation(); setHlaseniDruh(null); }}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 20000,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem',
+        backdropFilter: 'blur(6px)'
+      }}
+    >
+      <div onClick={e => e.stopPropagation()} className="glass-panel" style={{ padding: '2rem', borderRadius: '24px', width: 'min(520px, 100%)', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 900 }}>⚠️ Nahlásit chybu</h3>
+
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button
+            onClick={() => setHlaseniDruh('TEXT')}
+            className="btn-secondary"
+            style={{ flex: 1, padding: '14px', fontSize: '13px', fontWeight: 800, border: hlaseniDruh === 'TEXT' ? '2px solid var(--color-gold)' : '1px solid rgba(255,255,255,0.12)', color: hlaseniDruh === 'TEXT' ? 'var(--color-gold)' : '#fff' }}
+          >
+            ✍️ Špatný text
+          </button>
+          <button
+            onClick={() => setHlaseniDruh('PISEN')}
+            className="btn-secondary"
+            style={{ flex: 1, padding: '14px', fontSize: '13px', fontWeight: 800, border: hlaseniDruh === 'PISEN' ? '2px solid #ff4b2b' : '1px solid rgba(255,255,255,0.12)', color: hlaseniDruh === 'PISEN' ? '#ff4b2b' : '#fff' }}
+          >
+            ⛔ Špatná píseň
+          </button>
+        </div>
+
+        <p style={{ margin: 0, fontSize: '12px', opacity: 0.6, lineHeight: 1.5 }}>
+          {hlaseniDruh === 'TEXT'
+            ? 'Text nesedí na nahrávku — překlepy, jiná sloka, přehozené řádky. Audio i časování se dají použít dál.'
+            : 'Vadná je sama nahrávka — jiná verze, useknuté audio, nedá se to zpívat. Bude potřeba nové MP3.'}
+        </p>
+
+        <textarea
+          value={hlaseniPopis}
+          onChange={e => setHlaseniPopis(e.target.value)}
+          placeholder={'Co je špatně? (např. „druhá sloka je z jiné písně“)'}
+          rows={4}
+          maxLength={1000}
+          autoFocus
+          style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'rgba(0,0,0,0.4)', color: '#fff', border: '1px solid rgba(255,255,255,0.12)', fontSize: '14px', resize: 'vertical', fontFamily: 'inherit' }}
+        />
+
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+          <button className="btn-secondary" style={{ padding: '10px 20px', fontSize: '13px' }} onClick={() => setHlaseniDruh(null)}>Zrušit</button>
+          <button
+            className="btn-primary"
+            style={{ padding: '10px 24px', fontSize: '13px', fontWeight: 900, background: '#ff4b2b', border: 'none', color: '#fff', opacity: hlaseniOdesila || hlaseniPopis.trim().length < 3 ? 0.5 : 1 }}
+            onClick={odesliHlaseni}
+            disabled={hlaseniOdesila || hlaseniPopis.trim().length < 3}
+          >
+            {hlaseniOdesila ? 'Odesílám…' : 'Nahlásit'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   const handlePublish = async () => {
     if (!song?.id) return;
@@ -763,6 +933,13 @@ export default function DesignerClient({ song }: { song: any }) {
           <button onClick={handleStart} disabled={rawText.trim() === ''} className={rawText.trim() === '' ? 'btn-secondary' : 'btn-primary'} style={{ width: '100%' }}>
             ▶ Vstoupit do Studia
           </button>
+          <button
+            onClick={() => setHlaseniDruh('TEXT')}
+            className="btn-secondary"
+            style={{ width: '100%', fontSize: '12px', color: '#ff8a70', border: '1px solid rgba(255,75,43,0.35)' }}
+          >
+            ⚠️ Nahlásit chybu (špatný text / špatná píseň)
+          </button>
 
           {/* SONGBOOK PREVIEW SECTION */}
           <div style={{ width: '100%', marginTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '2rem' }}>
@@ -845,13 +1022,26 @@ export default function DesignerClient({ song }: { song: any }) {
              )}
           </div>
         </div>
+        {hlaseniModal}
+        {statusMessage && (
+          <div style={{
+            position: 'fixed', top: '2rem', left: '50%', transform: 'translateX(-50%)',
+            background: 'rgba(0, 255, 180, 0.25)', border: '1px solid rgba(0, 255, 180, 0.5)',
+            padding: '10px 24px', borderRadius: '30px', color: '#fff', fontSize: '13px', fontWeight: 900,
+            backdropFilter: 'blur(15px)', zIndex: 10000, boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+          }}>
+            {statusMessage}
+          </div>
+        )}
       </div>
     );
   }
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#0a0a14', zIndex: 9999, overflow: 'hidden', display: 'flex' }} onClick={() => { if(!isPlaying) togglePlay(); }}>
-      
+
+      {hlaseniModal}
+
       {statusMessage && (
         <div style={{
           position: 'absolute', top: '2rem', left: '50%', transform: 'translateX(-50%)',
@@ -861,6 +1051,23 @@ export default function DesignerClient({ song }: { song: any }) {
           display: 'flex', alignItems: 'center', gap: '8px'
         }}>
           {statusMessage}
+        </div>
+      )}
+
+      {/* NABÍDKA OBNOVY — v prohlížeči zůstala práce, která nedoletěla na server */}
+      {zaloha && (
+        <div onClick={e => e.stopPropagation()} style={{
+          position: 'absolute', top: '2rem', left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(255, 180, 0, 0.2)', border: '1px solid rgba(255, 180, 0, 0.55)',
+          padding: '12px 20px', borderRadius: '14px', color: '#fff', fontSize: '13px',
+          backdropFilter: 'blur(15px)', zIndex: 10001, boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', gap: '12px', maxWidth: '90vw'
+        }}>
+          <span>
+            💾 Zůstalo tu neuložené časování z {new Date(zaloha.kdy).toLocaleString('cs-CZ')}.
+          </span>
+          <button className="btn-primary" style={{ padding: '6px 14px', fontSize: '12px', background: 'var(--color-gold)', color: '#000', fontWeight: 900 }} onClick={obnovZeZalohy}>Obnovit</button>
+          <button className="btn-secondary" style={{ padding: '6px 14px', fontSize: '12px' }} onClick={zahodZalohu}>Zahodit</button>
         </div>
       )}
 
@@ -1038,6 +1245,13 @@ export default function DesignerClient({ song }: { song: any }) {
                  samo uloženo v {autoUlozeno.toLocaleTimeString('cs-CZ')}
                </span>
              )}
+             <button
+               onClick={(e) => { e.stopPropagation(); setHlaseniDruh('TEXT'); }}
+               title="Nahlásit špatný text nebo špatnou píseň"
+               style={{ marginLeft: '1rem', padding: '8px 16px', borderRadius: '50px', background: 'rgba(255,75,43,0.12)', border: '1px solid rgba(255,75,43,0.4)', color: '#ff8a70', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}
+             >
+               ⚠️ NAHLÁSIT
+             </button>
              <button style={{ display: 'none' }}>
              </button>
           </div>

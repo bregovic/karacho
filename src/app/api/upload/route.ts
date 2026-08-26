@@ -27,24 +27,29 @@ export async function POST(req: NextRequest) {
     let filename = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
     let contentType = file.type || 'audio/mpeg';
     
-    // VÝPOČET HASH (MD5) pro detekci duplicit
+    // VÝPOČET HASH (MD5) pro detekci duplicit. Počítá se ze souboru tak,
+    // jak přišel — před kompresí na 128k, aby dvakrát nahraný stejný
+    // originál dal stejný otisk.
     const hash = crypto.createHash('md5').update(buffer).digest('hex');
 
-    // 🎙️ KONTROLA DUPLICITY MP3 (jen u audia)
+    // 🎙️ KONTROLA DUPLICITY MP3
+    //
+    // Hledá se v obou sloupcích: stejná stopa nahraná jednou jako originál
+    // a podruhé jako instrumentálka je pořád tentýž soubor v R2 navíc.
+    // Na název se schválně nekoukáme — přejmenovaný soubor je pořád stejná
+    // písnička a právě tím dřív kontrola propadala.
     if (contentType.includes('audio')) {
        const existing = await db.song.findFirst({
-          where: { 
-             OR: [
-               { audioHash: hash },
-               { audioUrl: { contains: hash } } // Pro jistotu, kdyby tam hash byl v názvu
-             ]
-          }
+          where: { OR: [{ audioHash: hash }, { instrumentalHash: hash }] },
+          select: { id: true, title: true, artist: true, audioUrl: true, instrumentalUrl: true, audioHash: true },
        });
        if (existing) {
-          return NextResponse.json({ 
-             error: "Tato MP3 už byla nahrána! (Duplicita v katalogu)",
+          const jakoOriginal = existing.audioHash === hash;
+          return NextResponse.json({
+             error: `Tenhle soubor už v katalogu je — „${existing.title}"${existing.artist ? ` (${existing.artist})` : ''}, jako ${jakoOriginal ? 'originál' : 'instrumentálka'}.`,
+             duplicita: true,
              existingSongId: existing.id,
-             url: existing.audioUrl 
+             url: jakoOriginal ? existing.audioUrl : existing.instrumentalUrl,
           }, { status: 409 }); // 409 Conflict
        }
     }

@@ -37,7 +37,7 @@ export default function AudioUploader({ songId, onUploaded, type = 'audio' }: Au
           const data = JSON.parse(xhr.responseText);
           // Uložení finálního linku do správného pole v DB
           if (type === 'instrumental') {
-            await updateSongInstrumental(songId, data.finalUrl);
+            await updateSongInstrumental(songId, data.finalUrl, data.hash);
           } else if (type === 'json') {
             await updateSongJson(songId, data.finalUrl);
           } else if (type === 'background') {

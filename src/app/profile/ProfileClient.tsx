@@ -169,6 +169,31 @@ export default function ProfileClient({ user, stats }: { user: any, stats: any }
         </div>
       </div>
 
+      {/* OBLÍBENÉ */}
+      <div style={{ marginTop: '4rem' }}>
+        <h2 style={{ fontSize: '24px', fontWeight: 900, marginBottom: '2rem' }}>Oblíbené písně ❤️</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {(!user.favorites || user.favorites.length === 0) ? (
+            <p style={{ opacity: 0.5 }}>Zatím žádné. V katalogu klepni na srdíčko u písně.</p>
+          ) : (
+            user.favorites.map((f: any) => (
+              <a key={f.id} href={`/player/${f.song.id}`}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '1.25rem 1.75rem', background: 'rgba(255,255,255,0.02)',
+                  borderRadius: '12px', textDecoration: 'none', color: 'inherit',
+                }}>
+                <span>
+                  <strong>{f.song.title}</strong>
+                  <span style={{ opacity: 0.6 }}> — {f.song.artist || 'Neznámý interpret'}</span>
+                </span>
+                <span style={{ opacity: 0.5, fontSize: '14px' }}>▶</span>
+              </a>
+            ))
+          )}
+        </div>
+      </div>
+
       {/* HISTORIE */}
       <div style={{ marginTop: '4rem' }}>
         <h2 style={{ fontSize: '24px', fontWeight: 900, marginBottom: '2rem' }}>Historie tvých vystoupení 🎤</h2>

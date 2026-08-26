@@ -47,6 +47,7 @@ model User {
   sessions      Session[]
   singingHistory SingingHistory[]
   adminActions   AdminAction[]
+  favorites      Favorite[]
 }
 
 model SingingHistory {
@@ -56,6 +57,19 @@ model SingingHistory {
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   song      Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
+}
+
+/// Oblíbená píseň uživatele. Dvojice je unikátní, aby ji nešlo přidat dvakrát.
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  songId    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  song      Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, songId])
+  @@index([userId])
 }
 
 model AdminAction {
@@ -111,13 +125,20 @@ model Song {
   sessions      KaraokeSession[] @relation("CurrentSong")
   queueItems    KaraokeSessionQueue[]
   singingHistory SingingHistory[]
+  favorites      Favorite[]
+  reports        SongReport[]
   requestedByEmail String?
   createdById     String?
   audioHash       String?   @unique // Hash obsahu MP3 pro detekci duplicitních souborů
+  /// Hash instrumentálky. Bez něj se stejná stopa nahrála do R2 tolikrát,
+  /// kolikrát ji někdo pustil do importu. Není unique schválně — sdílet
+  /// jeden podklad mezi dvěma písněmi je legitimní (duety, druhý hlas).
+  instrumentalHash String?
   importName      String?   // Původní surový název souboru pro párování instrumentálek
   startTime       Float     @default(0)
 
   @@unique([artist, title]) // Zamezení duplicitních názvů od stejného interpreta
+  @@index([instrumentalHash])
 }
 
 model Track {
@@ -180,6 +201,35 @@ enum SongState {
   TESTING
   ACTIVE
   REQUESTED
+  /// Text je špatně (překlepy, jiná sloka, přehozené řádky). Opraví se
+  /// v katalogu, audio i časování se dají použít dál.
+  BAD_LYRICS
+  /// Vadná je sama píseň — jiná nahrávka, useknuté audio, nezpívatelné.
+  /// Tady nepomůže oprava textu, musí se nahrát znovu.
+  BAD_SONG
+}
+
+/// Čeho se hlášení týká. Rozlišuje se schválně: špatný text je práce na
+/// pět minut v katalogu, špatná píseň znamená shánět novou nahrávku.
+enum DruhChyby {
+  TEXT
+  PISEN
+}
+
+/// Nahlášená chyba u písně. Historie se schválně nemaže ani po opravě —
+/// ať je vidět, že píseň zlobí opakovaně.
+model SongReport {
+  id        String    @id @default(cuid())
+  songId    String
+  song      Song      @relation(fields: [songId], references: [id], onDelete: Cascade)
+  userId    String?
+  druh      DruhChyby @default(TEXT)
+  popis     String
+  vyreseno  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  @@index([songId])
+  @@index([vyreseno])
 }
 
 model AdminEmail {

@@ -15,5 +15,8 @@ export const r2 = new S3Client({
   responseChecksumValidation: "WHEN_REQUIRED",
 });
 
-export const BUCKET_NAME = cleanEnv("R2_BUCKET") || "karacho-media";
+// Bucket se jmenuje "karacho". Záložní hodnota tu dřív byla "karacho-media",
+// což je bucket, který neexistuje — kdyby proměnná vypadla, aplikace by
+// mlčky sahala do prázdna a každý upload by skončil "NoSuchBucket".
+export const BUCKET_NAME = cleanEnv("R2_BUCKET") || "karacho";
 export const PUBLIC_URL = cleanEnv("R2_PUBLIC_URL") || "";

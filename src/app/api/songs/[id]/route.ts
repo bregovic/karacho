@@ -10,13 +10,16 @@ export async function PUT(req: Request, context: any) {
 
   try {
     const body = await req.json();
-    const { timingData, lyrics, state, startTime } = body;
+    const { timingData, lyrics, chords, state, startTime } = body;
 
     const updated = await prisma.song.update({
       where: { id },
       data: {
         timingData: timingData || undefined,
         lyrics: lyrics || undefined,
+        // Studio akordy posílalo, server je zahazoval — práce v záložce
+        // Akordy se po reloadu nikdy nenašla.
+        chords: chords !== undefined ? chords : undefined,
         state: state || undefined,
         startTime: startTime !== undefined ? startTime : undefined,
       },

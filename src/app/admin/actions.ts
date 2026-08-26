@@ -78,6 +78,10 @@ export async function createSong(formData: FormData) {
   
   const genre = formData.get('genre') as string;
   const audioUrl = formData.get('audioUrl') as string;
+  // Otisk nahraného souboru. Hromadný import ho dřív zahazoval, takže
+  // bulkem založené písně neměly `audioHash` a stejná MP3 se dala nahrát
+  // znovu — stačilo soubor přejmenovat a neplatila ani kontrola názvu.
+  const audioHash = (formData.get('audioHash') as string) || null;
   const tagsString = formData.get('tags') as string;
   
   const tags = tagsString ? tagsString.split(',').map(t => t.trim()).filter(Boolean) : [];
@@ -89,6 +93,7 @@ export async function createSong(formData: FormData) {
     tags,
     lyrics: cleanedLyrics || null,
     audioUrl: audioUrl || null,
+    audioHash: audioHash,
     importName: importName, // Schováme si původní název souboru
     animationStyle: 'karaoke-classic',
     createdById: session.user.id
@@ -218,7 +223,7 @@ export async function updateSongAudio(songId: string, audioUrl: string, audioHas
   revalidatePath('/admin');
 }
 
-export async function updateSongInstrumental(songId: string, instrumentalUrl: string) {
+export async function updateSongInstrumental(songId: string, instrumentalUrl: string, instrumentalHash?: string) {
   await ensureAdmin();
 
   const oldSong = await db.song.findUnique({ where: { id: songId }, select: { instrumentalUrl: true } });
@@ -226,7 +231,12 @@ export async function updateSongInstrumental(songId: string, instrumentalUrl: st
     await deleteFileFromR2(oldSong.instrumentalUrl);
   }
 
-  await db.song.update({ where: { id: songId }, data: { instrumentalUrl } });
+  // Bez otisku se stejná instrumentálka dala nahrát znovu a znovu — kontrola
+  // duplicit se má o co opřít až od téhle chvíle.
+  await db.song.update({
+    where: { id: songId },
+    data: { instrumentalUrl, instrumentalHash: instrumentalHash || undefined },
+  });
   revalidatePath('/admin');
 }
 

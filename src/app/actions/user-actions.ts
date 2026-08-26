@@ -16,6 +16,10 @@ export async function getUserProfileData() {
         include: { song: true },
         orderBy: { createdAt: 'desc' },
         take: 50
+      },
+      favorites: {
+        include: { song: true },
+        orderBy: { createdAt: 'desc' }
       }
     }
   });
@@ -96,4 +100,42 @@ export async function getSingingStats() {
     totalSings,
     uniqueSongsCount: uniqueSongs.length
   };
+}
+
+/**
+ * Přidání nebo odebrání písně z oblíbených. Jedna akce pro obojí — srdíčko
+ * je přepínač, takže se z rozhraní nikdy neposílá „přidej" na už přidanou.
+ */
+export async function prepniOblibenou(songId: string) {
+  const session = await auth();
+  if (!session?.user?.email) return { ok: false as const, error: 'Nejsi přihlášený.' };
+
+  const user = await db.user.findUnique({ where: { email: session.user.email } });
+  if (!user) return { ok: false as const, error: 'Účet nenalezen.' };
+
+  const stavajici = await db.favorite.findUnique({
+    where: { userId_songId: { userId: user.id, songId } },
+  });
+
+  if (stavajici) {
+    await db.favorite.delete({ where: { id: stavajici.id } });
+  } else {
+    await db.favorite.create({ data: { userId: user.id, songId } });
+  }
+
+  revalidatePath('/profile');
+  revalidatePath('/');
+  return { ok: true as const, oblibena: !stavajici };
+}
+
+/** Seznam id oblíbených písní přihlášeného uživatele — pro vykreslení srdíček. */
+export async function getOblibeneIds() {
+  const session = await auth();
+  if (!session?.user?.email) return [];
+
+  const user = await db.user.findUnique({
+    where: { email: session.user.email },
+    include: { favorites: { select: { songId: true } } },
+  });
+  return user?.favorites.map(f => f.songId) ?? [];
 }

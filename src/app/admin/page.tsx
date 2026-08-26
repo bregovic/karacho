@@ -14,6 +14,14 @@ export default async function AdminPage() {
 
   const songs = await db.song.findMany({
     orderBy: { createdAt: 'desc' },
+    // Nevyřízená hlášení jedou s písní — ať je na kartě rovnou vidět,
+    // co komu na písni vadilo, a nemusí se to dohledávat jinde.
+    include: {
+      reports: {
+        where: { vyreseno: false },
+        orderBy: { createdAt: 'desc' },
+      },
+    },
   });
 
   const adminEmails = await db.adminEmail.findMany({

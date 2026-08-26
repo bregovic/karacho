@@ -7,6 +7,8 @@ import BulkUploader from '@/components/BulkUploader';
 import SongEditModal from '@/components/SongEditModal';
 import { createSong, deleteSong, updateSong, removeSongResource, bulkRemoveBackground, bulkUpdateState, fetchLyricsAction, bulkFetchMissingLyrics, checkDuplicateSong, researchSongDataAction, bulkUpdateMetadata, getAdminStats, manageGenreAction, manageTagAction, getTaxonomyAction } from '@/app/admin/actions';
 import { autoAlignSong } from '@/app/admin/auto-align';
+import { vratMeziPublikovane, vyresHlaseni } from '@/app/actions/report-actions';
+import { obsahuje } from '@/lib/hledani';
 import { useTranslation } from '@/lib/translations';
 
 import AdminTeam from '@/components/AdminTeam';
@@ -54,6 +56,11 @@ export default function AdminCatalog({
 
   // Pomůcka pro určení stavu workflow
   const getWorkflowStep = (s: any) => {
+    // Nahlášená chyba přebíjí všechno ostatní — dokud se neopraví, je jedno,
+    // že píseň má komplet audio i časování.
+    if (s.state === 'BAD_LYRICS') return 'BAD_LYRICS';
+    if (s.state === 'BAD_SONG') return 'BAD_SONG';
+
     const hasLyrics = !!s.lyrics && s.lyrics.trim().length > 0;
     const hasAudio = !!s.audioUrl;
     const hasInstr = !!s.instrumentalUrl;
@@ -67,6 +74,9 @@ export default function AdminCatalog({
     if (!isActive) return 'REVIEW';
     return 'ACTIVE';
   };
+
+  /** Kolik písní čeká na opravu — číslo rovnou v nabídce filtru. */
+  const pocetVeStavu = (stav: string) => initialSongs.filter(s => s.state === stav).length;
 
   const allGenres = Array.from(new Set(initialSongs.map(s => s.genre).filter(Boolean)));
   const allTags = Array.from(new Set(initialSongs.flatMap(s => s.tags || []).filter(Boolean)));
@@ -100,11 +110,10 @@ export default function AdminCatalog({
     if (genreFilter !== 'ALL' && song.genre !== genreFilter) return false;
     if (tagFilter !== 'ALL' && !(song.tags || []).includes(tagFilter)) return false;
 
-    const q = search.toLowerCase();
-    if (q && 
-        !song.title.toLowerCase().includes(q) && 
-        !(song.artist || '').toLowerCase().includes(q) &&
-        !(song.tags || []).some((t: string) => t.toLowerCase().includes(q))
+    if (search &&
+        !obsahuje(song.title, search) &&
+        !obsahuje(song.artist, search) &&
+        !(song.tags || []).some((t: string) => obsahuje(t, search))
     ) return false;
 
     return true;
@@ -282,6 +291,8 @@ export default function AdminCatalog({
                 <option value="MISSING_TIMING">⏱️ STUDIO</option>
                 <option value="REVIEW">🚦 KONTROLA</option>
                 <option value="ACTIVE">🟢 LIVE</option>
+                <option value="BAD_LYRICS">✍️⚠️ ŠPATNÝ TEXT ({pocetVeStavu('BAD_LYRICS')})</option>
+                <option value="BAD_SONG">⛔ ŠPATNÁ PÍSEŇ ({pocetVeStavu('BAD_SONG')})</option>
             </select>
             <div style={{ display: 'flex', position: 'relative' }}>
                 <button 
@@ -493,6 +504,8 @@ export default function AdminCatalog({
                              <span style={{ fontSize: '14px', filter: (!!song.jsonUrl || !!song.timingData) ? 'none' : 'grayscale(1) opacity(0.2)', transition: 'all 0.3s' }} title={(!!song.jsonUrl || !!song.timingData) ? "Časování Dokončeno" : "Chybí Časování JSON"}>⏱️</span>
                              
                              {song.state === 'ACTIVE' && <span style={{ fontSize: '10px', background: 'rgba(0,177,64,0.15)', color: '#4ade80', padding: '4px 10px', borderRadius: '10px', fontWeight: 900, marginLeft: 'auto' }}>LIVE ✅</span>}
+                             {song.state === 'BAD_LYRICS' && <span style={{ fontSize: '10px', background: 'rgba(255,204,0,0.15)', color: '#ffcc00', padding: '4px 10px', borderRadius: '10px', fontWeight: 900, marginLeft: 'auto' }}>ŠPATNÝ TEXT ✍️⚠️</span>}
+                             {song.state === 'BAD_SONG' && <span style={{ fontSize: '10px', background: 'rgba(255,75,43,0.15)', color: '#ff8a70', padding: '4px 10px', borderRadius: '10px', fontWeight: 900, marginLeft: 'auto' }}>ŠPATNÁ PÍSEŇ ⛔</span>}
                           </div>
                       </div>
                   </div>
@@ -502,6 +515,41 @@ export default function AdminCatalog({
                       <button onClick={() => { if(confirm('Smazat?')) deleteSong(song.id); }} style={{ background: 'rgba(255,75,43,0.1)', border: 'none', color: '#ff4b2b', width: '38px', height: '38px', borderRadius: '12px', cursor: 'pointer' }}>🗑️</button>
                   </div>
                 </div>
+
+                {/* NAHLÁŠENÉ CHYBY */}
+                {(song.reports?.length > 0 || song.state === 'BAD_LYRICS' || song.state === 'BAD_SONG') && (
+                  <div style={{ background: 'rgba(255,75,43,0.07)', border: '1px solid rgba(255,75,43,0.25)', borderRadius: '16px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {(song.reports || []).map((r: any) => (
+                      <div key={r.id} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', fontSize: '12px' }}>
+                        <span title={r.druh === 'PISEN' ? 'Špatná píseň' : 'Špatný text'}>{r.druh === 'PISEN' ? '⛔' : '✍️'}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ wordBreak: 'break-word' }}>{r.popis}</div>
+                          <div style={{ opacity: 0.45, fontSize: '10px', marginTop: '2px' }}>
+                            {new Date(r.createdAt).toLocaleString('cs-CZ')}
+                          </div>
+                        </div>
+                        <button
+                          onClick={async () => { await vyresHlaseni(r.id, 'ponechat'); router.refresh(); }}
+                          title="Jen odškrtnout hlášení, stav písně nechat být"
+                          style={{ background: 'none', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.6)', borderRadius: '8px', padding: '2px 8px', fontSize: '11px', cursor: 'pointer' }}
+                        >✓</button>
+                      </div>
+                    ))}
+                    {(song.state === 'BAD_LYRICS' || song.state === 'BAD_SONG') && (
+                      <button
+                        onClick={async () => {
+                          if (!confirm('Píseň je opravená? Vrátí se mezi publikované a hlášení se odškrtnou.')) return;
+                          await vratMeziPublikovane(song.id);
+                          router.refresh();
+                        }}
+                        className="btn-secondary"
+                        style={{ padding: '8px 14px', fontSize: '12px', fontWeight: 800, border: '1px solid #4ade80', color: '#4ade80', background: 'rgba(74,222,128,0.06)', borderRadius: '12px' }}
+                      >
+                        ✅ Opraveno — vrátit do katalogu
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 <div style={{ display: 'flex', gap: '0.75rem', marginTop: 'auto' }}>
                     <Link href={`/designer?songId=${song.id}`} style={{ flex: 1 }}>
