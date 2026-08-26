@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { updateTechnicalConfig, getTechnicalConfig, getAdminAuditLog, getUsageStats, cleanupSessionsAction } from '@/app/actions/admin-extra-actions';
+import { updateTechnicalConfig, getTechnicalConfig, getAdminAuditLog, getUsageStats, cleanupSessionsAction, najdiOsireleSouboryAction, smazOsireleSouboryAction } from '@/app/actions/admin-extra-actions';
 
 export default function AdminTechPage() {
   const [stats, setStats] = useState<any>(null);
@@ -19,6 +19,36 @@ export default function AdminTechPage() {
     setConfigs(c);
     setAuditLog(l);
     setStats(st);
+  };
+
+  const [osirele, setOsirele] = useState<{ pocet: number; bajtu: number; ukazka: string[] } | null>(null);
+  const [hledamOsirele, setHledamOsirele] = useState(false);
+  const [mazuOsirele, setMazuOsirele] = useState(false);
+
+  const handleNajdiOsirele = async () => {
+    setHledamOsirele(true);
+    try {
+      setOsirele(await najdiOsireleSouboryAction());
+    } catch (e: any) {
+      alert(`Nepodařilo se projít úložiště: ${e.message}`);
+    } finally {
+      setHledamOsirele(false);
+    }
+  };
+
+  const handleSmazOsirele = async () => {
+    if (!osirele) return;
+    if (!confirm(`Opravdu smazat ${osirele.pocet} souborů (${(osirele.bajtu / 1024 / 1024).toFixed(1)} MB)? Z R2 se mažou natrvalo.`)) return;
+    setMazuOsirele(true);
+    try {
+      const r = await smazOsireleSouboryAction();
+      alert(`Smazáno ${r.smazano} souborů (${(r.bajtu / 1024 / 1024).toFixed(1)} MB).`);
+      setOsirele(null);
+    } catch (e: any) {
+      alert(`Úklid selhal: ${e.message}`);
+    } finally {
+      setMazuOsirele(false);
+    }
   };
 
   const handleCleanup = async () => {
@@ -82,6 +112,56 @@ export default function AdminTechPage() {
             >
               {cleaning ? 'Uklízím…' : '🧹 Uklidit relace starší 24 h'}
             </button>
+
+            {/* ÚKLID OSIŘELÝCH SOUBORŮ V R2 */}
+            <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+              <h3 style={{ fontSize: '14px', margin: '0 0 0.5rem', fontWeight: 800 }}>Osiřelé soubory v úložišti</h3>
+              <p style={{ fontSize: '12px', opacity: 0.55, margin: '0 0 1rem', lineHeight: 1.5 }}>
+                Soubory, které se nahrály do R2, ale nepatří žádné písni, stopě ani profilu —
+                typicky zbytky po importu, který spadl na duplicitu. Soubory mladší než hodinu
+                a data jiných projektů v podsložkách se nepočítají.
+              </p>
+
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={handleNajdiOsirele}
+                  disabled={hledamOsirele || mazuOsirele}
+                  style={{ padding: '10px 18px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'white', cursor: 'pointer', fontSize: '13px' }}
+                >
+                  {hledamOsirele ? 'Počítám…' : '🔍 Spočítat'}
+                </button>
+
+                {osirele && osirele.pocet > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleSmazOsirele}
+                    disabled={mazuOsirele}
+                    style={{ padding: '10px 18px', borderRadius: '12px', border: '1px solid #ff4b2b', background: 'rgba(255,75,43,0.08)', color: '#ff8a70', cursor: 'pointer', fontSize: '13px', fontWeight: 800 }}
+                  >
+                    {mazuOsirele ? 'Mažu…' : `🗑️ Smazat ${osirele.pocet} souborů`}
+                  </button>
+                )}
+              </div>
+
+              {osirele && (
+                <div style={{ marginTop: '1rem', fontSize: '12px' }}>
+                  {osirele.pocet === 0 ? (
+                    <span style={{ color: '#4ade80' }}>✅ Nic k úklidu, úložiště je čisté.</span>
+                  ) : (
+                    <>
+                      <div><strong>{osirele.pocet}</strong> souborů, <strong>{(osirele.bajtu / 1024 / 1024).toFixed(1)} MB</strong></div>
+                      <ul style={{ margin: '0.5rem 0 0', paddingLeft: '1.2rem', opacity: 0.55, lineHeight: 1.6 }}>
+                        {osirele.ukazka.map((k: string) => <li key={k} style={{ wordBreak: 'break-all' }}>{k}</li>)}
+                      </ul>
+                      {osirele.pocet > osirele.ukazka.length && (
+                        <div style={{ opacity: 0.4, marginTop: '4px' }}>… a dalších {osirele.pocet - osirele.ukazka.length}</div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </section>
         )}
 

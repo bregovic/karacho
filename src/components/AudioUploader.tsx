@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { updateSongAudio, updateSongInstrumental, updateSongJson, updateSongBackground } from '@/app/admin/actions';
+import { updateSongAudio, updateSongInstrumental, updateSongJson, updateSongBackground, smazNahranySoubor } from '@/app/admin/actions';
 import { useToast } from '@/context/ToastContext';
 
 interface AudioUploaderProps {
@@ -35,17 +35,27 @@ export default function AudioUploader({ songId, onUploaded, type = 'audio' }: Au
       xhr.onload = async () => {
         if (xhr.status >= 200 && xhr.status < 300) {
           const data = JSON.parse(xhr.responseText);
-          // Uložení finálního linku do správného pole v DB
-          if (type === 'instrumental') {
-            await updateSongInstrumental(songId, data.finalUrl, data.hash);
-          } else if (type === 'json') {
-            await updateSongJson(songId, data.finalUrl);
-          } else if (type === 'background') {
-            await updateSongBackground(songId, data.finalUrl);
-          } else {
-            await updateSongAudio(songId, data.finalUrl, data.hash);
+          // Uložení finálního linku do správného pole v DB. Soubor v R2 už
+          // leží — když zápis selže, musí se zase odstranit, jinak tam
+          // zůstane viset bez písně.
+          try {
+            if (type === 'instrumental') {
+              await updateSongInstrumental(songId, data.finalUrl, data.hash);
+            } else if (type === 'json') {
+              await updateSongJson(songId, data.finalUrl);
+            } else if (type === 'background') {
+              await updateSongBackground(songId, data.finalUrl);
+            } else {
+              await updateSongAudio(songId, data.finalUrl, data.hash);
+            }
+          } catch (e: any) {
+            await smazNahranySoubor(data.finalUrl).catch(() => {});
+            showToast(`Uložení selhalo: ${e.message || 'neznámá chyba'}`, 'error');
+            setUploading(false);
+            setProgress(0);
+            return;
           }
-          
+
           if (onUploaded) onUploaded(data.finalUrl);
           setUploading(false);
           setProgress(0);

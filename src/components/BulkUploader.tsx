@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { createSong, updateSongInstrumental, findSongForInstrumentalAction } from '@/app/admin/actions';
+import { createSong, updateSongInstrumental, findSongForInstrumentalAction, smazNahranySoubor } from '@/app/admin/actions';
 
 export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) {
   // const [localSongs, setLocalSongs] = useState<any[]>(initialSongs); // Už nepotřebujeme lokální seznam
@@ -27,6 +27,17 @@ export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) 
     s = s.replace(/[\s-_]*instr[\s-_]*/gi, '');
     s = s.replace(/\.[a-z0-9]{3,4}$/i, '');
     return s.replace(/\s{2,}/g, ' ').trim();
+  };
+
+  /** Zahodí soubor, který se sice nahrál do R2, ale nemá k čemu patřit. */
+  const uklid = async (fileUrl?: string) => {
+    if (!fileUrl) return;
+    try {
+      await smazNahranySoubor(fileUrl);
+    } catch {
+      // Úklid je pojistka, ne hlavní tok — když selže i on, chytne to
+      // pozdější úklid osiřelých souborů v sekci Tech.
+    }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -85,8 +96,18 @@ export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) 
           if (uploadData.hash) songData.append('audioHash', uploadData.hash);
           songData.append('importName', rawName); // Posíláme surový název souboru
 
-          const newSong = await createSong(songData);
+          // Soubor v R2 už leží. Když se píseň nezaloží, musí se uklidit —
+          // jinak tam zůstane viset a nepatří nikomu.
+          let newSong: any;
+          try {
+            newSong = await createSong(songData);
+          } catch (e: any) {
+            await uklid(fileUrl);
+            addLog(`❌ Chyba: ${e.message}`, 'error');
+            continue;
+          }
           if ('error' in newSong) {
+            await uklid(fileUrl);
             addLog(`❌ Chyba: ${newSong.error}`, 'error');
           } else {
             addLog(`✅ Píseň "${newSong.title}" vytvořena.`, 'success');
@@ -99,7 +120,8 @@ export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) 
             await updateSongInstrumental(existing.id, fileUrl, uploadData.hash);
             addLog(`✅ Instrumentálka přiřazena k "${existing.title}".`, 'success');
           } else {
-            addLog(`❌ Shoda pro "${artist} - ${title}" nenalezena v databázi.`, 'error');
+            await uklid(fileUrl);
+            addLog(`❌ Shoda pro "${artist} - ${title}" nenalezena — soubor uklizen.`, 'error');
           }
         }
 

@@ -25,6 +25,20 @@ async function deleteFileFromR2(fileUrl: string | null) {
   }
 }
 
+/**
+ * Úklid po nepovedeném nahrání.
+ *
+ * Upload do R2 a zápis do databáze jsou dva samostatné kroky — soubor se
+ * uloží a teprve pak může `createSong` spadnout na duplicitní název nebo se
+ * u instrumentálky nenajde shoda. Bez tohohle úklidu soubor v R2 zůstal
+ * a nepatřil už nikomu; takhle jich tam v srpnu 2026 leželo 153 (597 MB).
+ * Klient to volá ve své větvi s chybou.
+ */
+export async function smazNahranySoubor(fileUrl: string) {
+  await ensureAdmin();
+  await deleteFileFromR2(fileUrl);
+}
+
 async function ensureAdmin() {
   const session = await auth();
   if (session?.user?.role !== 'ADMIN') {
