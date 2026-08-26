@@ -351,8 +351,10 @@ export async function updateSongBackground(songId: string, backgroundUrl: string
 }
 
 export async function updateSong(songId: string, data: any) {
-  const session = await auth();
-  if (!session?.user) throw new Error('Nejste přihlášeni');
+  // Dřív tu stačilo být přihlášený. Registrace je přitom samoobslužná,
+  // takže kdokoli si mohl založit účet a přepsat libovolné písni název,
+  // text, odkazy na soubory i stav (tedy ji třeba stáhnout z katalogu).
+  await ensureAdmin();
 
   // FILTRACE POLÍ (Prisma nesmí dostat systémová pole nebo pole co neexistují v modelu)
   const allowedFields = [

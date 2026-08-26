@@ -3,8 +3,13 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 
 export async function PUT(req: Request, context: any) {
+  // Tudy zapisuje Studio (autosave i ruční uložení) a Studio je jen pro
+  // správce. Dřív stačilo být přihlášený, což je při samoobslužné registraci
+  // totéž jako „kdokoli" — a jde tudy přepsat text, časování i stav písně.
+  // Stejná díra jako v `updateSong`, jen jinými dveřmi.
   const session = await auth();
-  if (!session) return new NextResponse("Unauthorized", { status: 401 });
+  if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
+  if (session.user.role !== 'ADMIN') return new NextResponse("Forbidden", { status: 403 });
 
   const { id } = await context.params;
 

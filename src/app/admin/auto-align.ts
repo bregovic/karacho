@@ -2,6 +2,7 @@
 
 import { OpenAI } from 'openai';
 import { db } from '@/lib/db';
+import { jenSpravce } from '@/lib/opravneni';
 import { revalidatePath } from 'next/cache';
 
 const openai = new OpenAI({
@@ -17,6 +18,12 @@ function normalize(str: string) {
 }
 
 export async function autoAlignSong(songId: string) {
+  // Kontrola je schválně PŘED try blokem, aby ji nespolkl catch a nevrátila
+  // se jako běžná chyba zarovnání. Tahle akce stahuje celé MP3 a posílá ho
+  // do placeného přepisu OpenAI — bez kontroly ji mohl spustit kdokoli
+  // a jen tím pálit kredit (a přepsat písni časování).
+  await jenSpravce();
+
   try {
     console.log("AI-Align: Starting Pro Aligner v6.0 for", songId);
     
