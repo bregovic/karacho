@@ -1057,7 +1057,7 @@ export default function DesignerClient({ song }: { song: any }) {
 
       {statusMessage && (
         <div style={{
-          position: 'absolute', top: '2rem', left: '50%', transform: 'translateX(-50%)',
+          position: 'absolute', top: korekceStav ? '5rem' : '2rem', left: '50%', transform: 'translateX(-50%)',
           background: 'rgba(0, 255, 180, 0.25)', border: '1px solid rgba(0, 255, 180, 0.5)',
           padding: '10px 24px', borderRadius: '30px', color: '#fff', fontSize: '13px', fontWeight: 900,
           backdropFilter: 'blur(15px)', zIndex: 10000, boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
@@ -1067,18 +1067,22 @@ export default function DesignerClient({ song }: { song: any }) {
         </div>
       )}
 
-      {/* KOREKCE ČASOVÁNÍ */}
+      {/* KOREKCE ČASOVÁNÍ
+          Nahoře, ne dole: dole jsou tlačítka na přehrávání a klíčování,
+          přes která se pruh překrýval a nešlo se do nich trefit. */}
       {korekceStav && (
         <div onClick={e => e.stopPropagation()} style={{
-          position: 'absolute', bottom: '95px', left: '50%', transform: 'translateX(-50%)',
-          background: 'rgba(0, 210, 255, 0.16)', border: '1px solid rgba(0, 210, 255, 0.5)',
-          padding: '12px 20px', borderRadius: '14px', color: '#fff', fontSize: '13px',
-          backdropFilter: 'blur(15px)', zIndex: 10001, display: 'flex', alignItems: 'center',
-          gap: '14px', maxWidth: '92vw', boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+          position: 'absolute', top: 0, left: 0, right: 0,
+          background: 'rgba(0, 30, 45, 0.94)', borderBottom: '1px solid rgba(0, 210, 255, 0.5)',
+          padding: '10px 16px', color: '#fff', fontSize: '13px',
+          backdropFilter: 'blur(15px)', zIndex: 10001,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          gap: '14px', flexWrap: 'wrap', boxShadow: '0 6px 24px rgba(0,0,0,0.5)'
         }}>
           <span style={{ lineHeight: 1.4 }}>
-            🎯 <strong>Korekce</strong> — zaklíčuj klávesou <strong>W</strong> pár slov, ideálně jedno na začátku
-            a jedno ke konci. Zaklíčováno: <strong>{eventsRef.current.filter(e => e.type === 'word').length}</strong>
+            🎯 <strong>Korekce</strong> — klávesou <strong>W</strong> zaklíčuj pár slov, ideálně jedno na začátku
+            a jedno ke konci. Zaklíčováno:{' '}
+            <strong style={{ color: 'var(--color-gold)' }}>{eventsRef.current.filter(e => e.type === 'word').length}</strong>
           </span>
           <button
             className="btn-primary"
@@ -1088,7 +1092,7 @@ export default function DesignerClient({ song }: { song: any }) {
           >
             Použít korekci
           </button>
-          <button className="btn-secondary" style={{ padding: '8px 14px', fontSize: '12px' }} onClick={zrusKorekci}>Zrušit</button>
+          <button className="btn-secondary" style={{ padding: '8px 14px', fontSize: '12px', whiteSpace: 'nowrap' }} onClick={zrusKorekci}>Zrušit</button>
         </div>
       )}
 
@@ -1111,7 +1115,7 @@ export default function DesignerClient({ song }: { song: any }) {
 
       {/* LEVÁ ČÁST - STAGE */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
-          <header style={{ position: 'absolute', top: '1rem', left: '1rem', zIndex: 10, display: 'flex', gap: '1rem' }}>
+          <header style={{ position: 'absolute', top: korekceStav ? '4.5rem' : '1rem', left: '1rem', zIndex: 10, display: 'flex', gap: '1rem', transition: 'top 0.2s' }}>
             <button className="btn-secondary" style={{ padding: '8px 16px', fontSize: '13px' }} onClick={(e) => { e.stopPropagation(); setView('setup'); audioRef.current?.pause(); }}>
               ← Zpět
             </button>
