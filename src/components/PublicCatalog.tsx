@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useSession } from '@/context/SessionContext';
 import { prepniOblibenou, getOblibeneIds } from '@/app/actions/user-actions';
 import { obsahuje } from '@/lib/hledani';
+import { useUlozenyStav } from '@/lib/ulozenyStav';
 import { useToast } from '@/context/ToastContext';
 import { updateSessionState, advanceSessionQueue, addToSessionQueue, removeFromSessionQueue } from '@/app/actions/session-actions';
 import { requestSong, checkDuplicateSong } from '@/app/admin/actions';
@@ -67,9 +68,9 @@ export default function PublicCatalog({ initialSongs, prihlasen }: { initialSong
   };
 
   const [search, setSearch] = useState('');
-  const [genreFilter, setGenreFilter] = useState('ALL');
-  const [tagFilter, setTagFilter] = useState('ALL');
-  const [sortBy, setSortBy] = useState('RANDOM');
+  const [genreFilter, setGenreFilter] = useUlozenyStav('karacho-katalog-zanr', 'ALL');
+  const [tagFilter, setTagFilter] = useUlozenyStav('karacho-katalog-stitek', 'ALL');
+  const [sortBy, setSortBy] = useUlozenyStav('karacho-katalog-razeni', 'RANDOM');
   const [queueSize, setQueueSize] = useState(0);
   const [joinId, setJoinId] = useState('');
   const [displayCount, setDisplayCount] = useState(60);

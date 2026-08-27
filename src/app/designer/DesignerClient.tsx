@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, ChangeEvent, useCallback } from 'react';
 import Link from 'next/link';
 import { autoAlignSong } from '@/app/admin/auto-align';
 import HlaseniChyby from '@/components/HlaseniChyby';
+import { doplnMezeryZaInterpunkci, opravZacatkyRadku } from '@/lib/text';
 
 type TimingEvent = 
   | { type: 'line'; time: number; lineIdx: number }
@@ -177,12 +178,19 @@ export default function DesignerClient({ song }: { song: any }) {
     t = t.replace(/["""„»«''‚‛]/g, '');
     // Remove repeat markers like ||: :|| |: :|
     t = t.replace(/\|{1,2}:?|:?\|{1,2}/g, '');
+    // Chybějící mezera za čárkou. Musí se doplnit dřív, než se text zalomí —
+    // „ahoj,jak" je jinak pro zalamovač jedno dlouhé slovo a rozseká ho
+    // uprostřed.
+    t = doplnMezeryZaInterpunkci(t);
     // Normalize multiple spaces to single
     t = t.replace(/[ \t]{2,}/g, ' ');
     // Remove empty lines (more than 2 consecutive)
     t = t.replace(/\n{3,}/g, '\n\n');
     // Trim each line
     t = t.split('\n').map(l => l.trim()).join('\n');
+    // Řádek nesmí začínat mezerou ani čárkou — interpunkce se přesune
+    // na konec předchozího řádku, kam patří.
+    t = opravZacatkyRadku(t);
     // Remove leading/trailing empty lines
     t = t.replace(/^\n+/, '').replace(/\n+$/, '');
     return t;
@@ -190,8 +198,10 @@ export default function DesignerClient({ song }: { song: any }) {
 
   // Smart wrap: break long lines at commas/semicolons/word boundaries
   const smartWrapText = (text: string, maxLen = 45): string => {
-    return text.split('\n').map(line => {
-      if (line.trim().length <= maxLen) return line;
+    const zalomeno = text.split('\n').map(line => {
+      // `line.trim()`, ne `line` — krátký řádek s odsazením se dřív vracel
+      // i s mezerami na začátku a zalamovač se ho nikdy nedotkl.
+      if (line.trim().length <= maxLen) return line.trim();
       const result: string[] = [];
       let remaining = line;
       while (remaining.length > maxLen) {
@@ -230,6 +240,11 @@ export default function DesignerClient({ song }: { song: any }) {
       if (remaining.trim()) result.push(remaining.trim());
       return result.join('\n');
     }).join('\n');
+
+    // Poslední kontrola přes celý text. Smyčka výš hlídá jen zlomy, které
+    // sama udělá — čárku na začátku řádku, který takhle přišel na vstupu,
+    // by nechala být.
+    return opravZacatkyRadku(zalomeno);
   };
 
   const handleCleanAndWrap = () => {

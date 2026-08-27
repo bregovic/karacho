@@ -9,6 +9,7 @@ import { createSong, deleteSong, updateSong, removeSongResource, bulkRemoveBackg
 import { autoAlignSong } from '@/app/admin/auto-align';
 import { vratMeziPublikovane, vyresHlaseni } from '@/app/actions/report-actions';
 import { obsahuje } from '@/lib/hledani';
+import { useUlozenyStav } from '@/lib/ulozenyStav';
 import { delkaPisne, formatDelka, delkaProRazeni } from '@/lib/delka';
 import { useTranslation } from '@/lib/translations';
 
@@ -25,11 +26,11 @@ export default function AdminCatalog({
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'SONGS' | 'TEAM' | 'TECH'>('SONGS');
   const [showForm, setShowForm] = useState(false);
-  const [statusFilter, setStatusFilter] = useState('UNPUBLISHED');
-  const [razeni, setRazeni] = useState<'VYCHOZI' | 'NEJKRATSI' | 'NEJDELSI'>('VYCHOZI');
+  const [statusFilter, setStatusFilter] = useUlozenyStav('karacho-admin-stav', 'UNPUBLISHED');
+  const [razeni, setRazeni] = useUlozenyStav<'VYCHOZI' | 'NEJKRATSI' | 'NEJDELSI'>('karacho-admin-razeni', 'VYCHOZI');
   // ... rest of state
-  const [genreFilter, setGenreFilter] = useState('ALL');
-  const [tagFilter, setTagFilter] = useState('ALL');
+  const [genreFilter, setGenreFilter] = useUlozenyStav('karacho-admin-zanr', 'ALL');
+  const [tagFilter, setTagFilter] = useUlozenyStav('karacho-admin-stitek', 'ALL');
   const [search, setSearch] = useState('');
   const [editingSong, setEditingSong] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
