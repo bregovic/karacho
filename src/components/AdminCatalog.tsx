@@ -9,6 +9,7 @@ import { createSong, deleteSong, updateSong, removeSongResource, bulkRemoveBackg
 import { autoAlignSong } from '@/app/admin/auto-align';
 import { vratMeziPublikovane, vyresHlaseni } from '@/app/actions/report-actions';
 import { obsahuje } from '@/lib/hledani';
+import { delkaPisne, formatDelka, delkaProRazeni } from '@/lib/delka';
 import { useTranslation } from '@/lib/translations';
 
 import AdminTeam from '@/components/AdminTeam';
@@ -25,6 +26,7 @@ export default function AdminCatalog({
   const [activeTab, setActiveTab] = useState<'SONGS' | 'TEAM' | 'TECH'>('SONGS');
   const [showForm, setShowForm] = useState(false);
   const [statusFilter, setStatusFilter] = useState('UNPUBLISHED');
+  const [razeni, setRazeni] = useState<'VYCHOZI' | 'NEJKRATSI' | 'NEJDELSI'>('VYCHOZI');
   // ... rest of state
   const [genreFilter, setGenreFilter] = useState('ALL');
   const [tagFilter, setTagFilter] = useState('ALL');
@@ -52,7 +54,7 @@ export default function AdminCatalog({
 
   useEffect(() => {
     setDisplayCount(60);
-  }, [search, genreFilter, tagFilter, statusFilter]);
+  }, [search, genreFilter, tagFilter, statusFilter, razeni]);
 
   // Pomůcka pro určení stavu workflow
   const getWorkflowStep = (s: any) => {
@@ -102,7 +104,26 @@ export default function AdminCatalog({
     ...initialSongs.map(s => s.backgroundUrl).filter(Boolean)
   ]));
 
-  const filteredSongs = initialSongs.filter(song => {
+  /**
+   * Řazení podle délky. Smysl to má hlavně ve dvojici s filtrem na stav:
+   * vyfiltruju si „chybí časování" a zpracovávám od nejkratších, ať to
+   * viditelně ubývá.
+   */
+  const serad = (seznam: any[]) => {
+    if (razeni === 'VYCHOZI') return seznam;
+    const smer = razeni === 'NEJKRATSI' ? 1 : -1;
+    return [...seznam].sort((a, b) => {
+      const da = delkaProRazeni(a);
+      const db = delkaProRazeni(b);
+      // Neznámá délka jde na konec bez ohledu na směr řazení.
+      if (da === db) return 0;
+      if (!Number.isFinite(da)) return 1;
+      if (!Number.isFinite(db)) return -1;
+      return (da - db) * smer;
+    });
+  };
+
+  const filteredSongs = serad(initialSongs.filter(song => {
     const step = getWorkflowStep(song);
     
     if (statusFilter === 'UNPUBLISHED' && step === 'ACTIVE') return false;
@@ -117,7 +138,7 @@ export default function AdminCatalog({
     ) return false;
 
     return true;
-  });
+  }));
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -293,6 +314,19 @@ export default function AdminCatalog({
                 <option value="ACTIVE">🟢 LIVE</option>
                 <option value="BAD_LYRICS">✍️⚠️ ŠPATNÝ TEXT ({pocetVeStavu('BAD_LYRICS')})</option>
                 <option value="BAD_SONG">⛔ ŠPATNÁ PÍSEŇ ({pocetVeStavu('BAD_SONG')})</option>
+            </select>
+
+            {/* Řazení podle délky — dává smysl hlavně ve dvojici s filtrem
+                na stav: vyfiltrovat „chybí časování" a jít od nejkratších. */}
+            <select
+              value={razeni}
+              onChange={e => setRazeni(e.target.value as typeof razeni)}
+              title="Podle délky písně. U nenačasovaných se odhaduje z velikosti MP3."
+              style={{ flex: '1 1 150px', padding: '12px', borderRadius: '14px', background: '#111', color: razeni === 'VYCHOZI' ? '#fff' : 'var(--color-gold)', fontSize: '12px', fontWeight: 700, border: `1px solid ${razeni === 'VYCHOZI' ? 'rgba(255,255,255,0.1)' : 'rgba(255,215,0,0.4)'}` }}
+            >
+                <option value="VYCHOZI">🕒 OD NEJNOVĚJŠÍCH</option>
+                <option value="NEJKRATSI">⏱️ OD NEJKRATŠÍ</option>
+                <option value="NEJDELSI">⏱️ OD NEJDELŠÍ</option>
             </select>
             <div style={{ display: 'flex', position: 'relative' }}>
                 <button 
@@ -502,7 +536,22 @@ export default function AdminCatalog({
                              <span style={{ fontSize: '14px', filter: !!song.instrumentalUrl ? 'none' : 'grayscale(1) opacity(0.2)', transition: 'all 0.3s' }} title={!!song.instrumentalUrl ? "Instrumental Nahrán" : "Chybí Instrumental"}>🎻</span>
                              <span style={{ fontSize: '14px', filter: (!!song.lyrics && song.lyrics.trim().length > 0) ? 'none' : 'grayscale(1) opacity(0.2)', transition: 'all 0.3s' }} title={(!!song.lyrics && song.lyrics.trim().length > 0) ? "Text je připraven" : "Chybí Text"}>✍️</span>
                              <span style={{ fontSize: '14px', filter: (!!song.jsonUrl || !!song.timingData) ? 'none' : 'grayscale(1) opacity(0.2)', transition: 'all 0.3s' }} title={(!!song.jsonUrl || !!song.timingData) ? "Časování Dokončeno" : "Chybí Časování JSON"}>⏱️</span>
-                             
+
+                             {(() => {
+                               const d = delkaPisne(song);
+                               if (!d) return null;
+                               return (
+                                 <span
+                                   title={d.presna
+                                     ? 'Přesná délka z načasování'
+                                     : 'Odhad z velikosti MP3 (128 kb/s) — přesnou délku známe až po načasování'}
+                                   style={{ fontSize: '11px', fontWeight: 700, opacity: d.presna ? 0.75 : 0.45, fontVariantNumeric: 'tabular-nums' }}
+                                 >
+                                   {formatDelka(d)}
+                                 </span>
+                               );
+                             })()}
+
                              {song.state === 'ACTIVE' && <span style={{ fontSize: '10px', background: 'rgba(0,177,64,0.15)', color: '#4ade80', padding: '4px 10px', borderRadius: '10px', fontWeight: 900, marginLeft: 'auto' }}>LIVE ✅</span>}
                              {song.state === 'BAD_LYRICS' && <span style={{ fontSize: '10px', background: 'rgba(255,204,0,0.15)', color: '#ffcc00', padding: '4px 10px', borderRadius: '10px', fontWeight: 900, marginLeft: 'auto' }}>ŠPATNÝ TEXT ✍️⚠️</span>}
                              {song.state === 'BAD_SONG' && <span style={{ fontSize: '10px', background: 'rgba(255,75,43,0.15)', color: '#ff8a70', padding: '4px 10px', borderRadius: '10px', fontWeight: 900, marginLeft: 'auto' }}>ŠPATNÁ PÍSEŇ ⛔</span>}

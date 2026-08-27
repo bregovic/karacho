@@ -96,6 +96,9 @@ export async function createSong(formData: FormData) {
   // bulkem založené písně neměly `audioHash` a stejná MP3 se dala nahrát
   // znovu — stačilo soubor přejmenovat a neplatila ani kontrola názvu.
   const audioHash = (formData.get('audioHash') as string) || null;
+  // Velikost výsledné MP3 — v administraci se podle ní dá řadit od nejkratší.
+  const audioSizeRaw = formData.get('audioSize') as string | null;
+  const audioSize = audioSizeRaw ? Number(audioSizeRaw) : null;
   const tagsString = formData.get('tags') as string;
   
   const tags = tagsString ? tagsString.split(',').map(t => t.trim()).filter(Boolean) : [];
@@ -108,6 +111,7 @@ export async function createSong(formData: FormData) {
     lyrics: cleanedLyrics || null,
     audioUrl: audioUrl || null,
     audioHash: audioHash,
+    audioSize: Number.isFinite(audioSize as number) ? audioSize : null,
     importName: importName, // Schováme si původní název souboru
     animationStyle: 'karaoke-classic',
     createdById: session.user.id
@@ -222,17 +226,17 @@ function normalizeForMatching(str: string) {
   return s.replace(/[^a-z0-9]/gi, '');
 }
 
-export async function updateSongAudio(songId: string, audioUrl: string, audioHash?: string) {
+export async function updateSongAudio(songId: string, audioUrl: string, audioHash?: string, audioSize?: number) {
   await ensureAdmin();
-  
+
   const oldSong = await db.song.findUnique({ where: { id: songId }, select: { audioUrl: true } });
   if (oldSong?.audioUrl && oldSong.audioUrl !== audioUrl) {
     await deleteFileFromR2(oldSong.audioUrl);
   }
 
-  await db.song.update({ 
-    where: { id: songId }, 
-    data: { audioUrl, audioHash: audioHash || undefined } 
+  await db.song.update({
+    where: { id: songId },
+    data: { audioUrl, audioHash: audioHash || undefined, audioSize: audioSize ?? undefined }
   });
   revalidatePath('/admin');
 }

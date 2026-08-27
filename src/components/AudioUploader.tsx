@@ -46,7 +46,7 @@ export default function AudioUploader({ songId, onUploaded, type = 'audio' }: Au
             } else if (type === 'background') {
               await updateSongBackground(songId, data.finalUrl);
             } else {
-              await updateSongAudio(songId, data.finalUrl, data.hash);
+              await updateSongAudio(songId, data.finalUrl, data.hash, data.size);
             }
           } catch (e: any) {
             await smazNahranySoubor(data.finalUrl).catch(() => {});

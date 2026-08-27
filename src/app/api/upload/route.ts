@@ -131,11 +131,14 @@ export async function POST(req: NextRequest) {
 
     const finalUrl = `${PUBLIC_URL}/${filename}`;
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       finalUrl,
       key: filename,
-      hash
+      hash,
+      // Velikost až PO kompresi — to je to, co reálně leží v R2 a podle
+      // čeho se v administraci řadí „od nejkratší".
+      size: buffer.length,
     });
 
   } catch (error: any) {

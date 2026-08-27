@@ -130,6 +130,11 @@ model Song {
   requestedByEmail String?
   createdById     String?
   audioHash       String?   @unique // Hash obsahu MP3 pro detekci duplicitních souborů
+  /// Velikost výsledné MP3 v bajtech. Slouží jako náhrada za délku písně:
+  /// přesnou délku známe jen u načasovaných (`timingData.dur`), tedy právě
+  /// u těch hotových. Nahrávky jdou přes kompresi na 128 kb/s, takže
+  /// velikost je s délkou prakticky lineární a dá se podle ní řadit.
+  audioSize       Int?
   /// Hash instrumentálky. Bez něj se stejná stopa nahrála do R2 tolikrát,
   /// kolikrát ji někdo pustil do importu. Není unique schválně — sdílet
   /// jeden podklad mezi dvěma písněmi je legitimní (duety, druhý hlas).

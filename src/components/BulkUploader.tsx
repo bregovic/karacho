@@ -94,6 +94,7 @@ export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) 
           songData.append('artist', artist === 'Neznámý' ? '' : artist);
           songData.append('audioUrl', fileUrl);
           if (uploadData.hash) songData.append('audioHash', uploadData.hash);
+          if (uploadData.size) songData.append('audioSize', String(uploadData.size));
           songData.append('importName', rawName); // Posíláme surový název souboru
 
           // Soubor v R2 už leží. Když se píseň nezaloží, musí se uklidit —
