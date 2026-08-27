@@ -111,7 +111,7 @@ export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) 
             await uklid(fileUrl);
             addLog(`❌ Chyba: ${newSong.error}`, 'error');
           } else {
-            addLog(`✅ Píseň "${newSong.title}" vytvořena.`, 'success');
+            addLog(`✅ "${newSong.title}" — ${newSong.textNalezen ? 'text stažen' : 'text se nenašel, doplň ručně'}`, newSong.textNalezen ? 'success' : 'info');
           }
         } else {
           // Režim INSTRUMENTAL - hledáme na serveru podle názvu i surového jména

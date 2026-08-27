@@ -121,18 +121,35 @@ export async function createSong(formData: FormData) {
     data: songData
   });
 
-  // Pokud chybí text, zkusíme ho rovnou stáhnout na pozadí
+  /**
+   * Stažení textu se čeká, i když to import zdrží.
+   *
+   * Dřív se to pouštělo bez `await` „aby byl upload rychlý". Jenže odpojený
+   * příslib odejde spolu s odpovědí: buď ho běh nedokončí, nebo mu uvnitř
+   * selže `ensureAdmin()`, protože kontext požadavku už není. Chybu spolkl
+   * `.catch()` a navenek to vypadalo, že se text prostě nenašel — proto ze
+   * sta importovaných písní vyšel text u jedné.
+   *
+   * Časový strop je tu proto, aby jedna nedostupná služba nezablokovala
+   * celý hromadný import.
+   */
+  let textNalezen = false;
   if (!newSong.lyrics) {
     try {
-      // Spustíme fetchLyricsAction asynchronně (nebudeme na ni čekat v hlavní odpovědi, aby byl upload rychlý)
-      fetchLyricsAction(newSong.id).catch(err => console.error('Auto-fetch lyrics failed:', err));
-    } catch (e) {}
+      const vysledek: any = await Promise.race([
+        fetchLyricsAction(newSong.id),
+        new Promise((r) => setTimeout(() => r({ error: 'časový limit' }), 20000)),
+      ]);
+      textNalezen = !!vysledek?.success;
+    } catch (e) {
+      console.error('Stažení textu selhalo:', e);
+    }
   }
 
   await logAdminAction('CREATE_SONG', `Vytvořena píseň: ${title} (${artist})`, 'Song', newSong.id);
 
   revalidatePath('/admin');
-  return newSong;
+  return { ...newSong, textNalezen };
 }
 
 export async function manuallyCleanLyricsAction(songId: string, currentContent: string, customBlacklist: string[] = []) {
@@ -542,6 +559,41 @@ async function zGenius(artist: string, title: string): Promise<string | null> {
   return naText(bloky.join('\n'));
 }
 
+/**
+ * Písničky-akordy.cz — adresa se skládá přímo z interpreta a názvu, žádné
+ * vyhledávání se neobchází. Právě proto tenhle zdroj funguje i na český
+ * repertoár, na kterém ostatní selhávají: vyhledávání Supermusicu se po
+ * přestavbě webu dotahuje JavaScriptem a Karaoketexty vracejí 503.
+ * Dřív byl schovaný jen v `researchSongDataAction`, takže tlačítko na
+ * stažení textu ho nikdy nezavolalo.
+ */
+function naSlug(s: string): string {
+  return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+async function zPisnickyAkordy(artist: string, title: string): Promise<string | null> {
+  // Adresa se skládá z názvu, takže smetí z názvu souboru („(Video)",
+  // „(oficiální videoklip") ji rozbije. Zkoušíme proto i uklizenou variantu
+  // a prohozené pořadí — u části importovaných písní skončil interpret
+  // v názvu a naopak.
+  const bezZavorek = title.replace(/\s*[([][^)\]]*[)\]]?\s*$/, '').trim();
+  const varianty: [string, string][] = [[artist, title]];
+  if (bezZavorek && bezZavorek !== title) varianty.push([artist, bezZavorek]);
+  varianty.push([title, artist]);
+
+  for (const [a, t] of varianty) {
+    if (!a || !t) continue;
+    const stranka = await stahni(`https://pisnicky-akordy.cz/${naSlug(a)}/${naSlug(t)}`);
+    const blok = stranka?.match(/<pre[^>]*>([\s\S]*?)<\/pre>/);
+    if (blok) {
+      const text = naText(blok[1]);
+      if (text.trim().length > 40) return text;
+    }
+  }
+  return null;
+}
+
 /** Karaoketexty.cz — český repertoár včetně toho, co jinde chybí. */
 async function zKaraoketexty(artist: string, title: string): Promise<string | null> {
   const hledani = await stahni(
@@ -581,8 +633,12 @@ async function sesbirejKandidaty(artist: string, title: string): Promise<Kandida
     }
   }
 
-  // 2. Genius a Karaoketexty — sem patří rap i české písně mimo Supermusic.
-  for (const [nazev, ziskej] of [['Genius', zGenius], ['Karaoketexty', zKaraoketexty]] as const) {
+  // 2. Písničky-akordy, Genius a Karaoketexty.
+  for (const [nazev, ziskej] of [
+    ['Písničky-akordy', zPisnickyAkordy],
+    ['Genius', zGenius],
+    ['Karaoketexty', zKaraoketexty],
+  ] as const) {
     try {
       const text = await ziskej(artist, title);
       if (text && text.trim().length > 40) {
