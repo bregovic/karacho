@@ -553,19 +553,51 @@ export default function DesignerClient({ song }: { song: any }) {
     if (korekceStav) {
       if (e.code === 'Space') { e.preventDefault(); togglePlay(); return; }
 
-      // První fáze se chová jako běžné časování — klávesy nechává projít
-      // dál, ať se první slovo zaklíčuje úplně stejně jako obvykle.
-      if (korekceStav.faze === 'zacatek') {
-        if (e.code === 'Enter') { e.preventDefault(); potvrdZacatek(); return; }
-      } else {
+      // První fáze se chová jako běžné časování a klávesy nechává projít
+      // dál. ENTER si nesmí vzít — je to posun na další řádek a bez něj se
+      // nedá zaklíčovat víc než jedna sada. Začátek se potvrzuje tlačítkem.
+      if (korekceStav.faze !== 'zacatek') {
         if (e.code === 'KeyW' || e.code === 'Enter') { e.preventDefault(); potvrdNavrh(); return; }
-        // Šipky listují po celých řádcích, hranaté závorky doladí po slovech.
+
+        /**
+         * Listování po řádcích. Cíl se počítá uvnitř aktualizační funkce
+         * z indexu, který právě platí — když se bral ze zachyceného
+         * `navrh`, přeskakovalo to jen mezi dvěma řádky, protože každé
+         * stisknutí vycházelo ze stejné staré hodnoty.
+         *
+         * Řádky bez zaklíčovaného slova se přeskakují, jinak by se
+         * listování o ně zaseklo.
+         */
+        const posunORadky = (pocet: number) => setNavrhIdx((i) => {
+          const aktualni = puvodniSlova[i];
+          if (!aktualni) return i;
+          const smer = pocet > 0 ? 1 : -1;
+          let zbyva = Math.abs(pocet);
+          let vysledek = i;
+          let radek = aktualni.lineIdx;
+          while (zbyva > 0) {
+            let nalezeno = -1;
+            for (let cil = radek + smer; cil >= 0 && cil < linesRef.current.length; cil += smer) {
+              const idx = puvodniSlova.findIndex((w) => w.lineIdx === cil);
+              if (idx >= 0) { nalezeno = idx; radek = cil; break; }
+            }
+            if (nalezeno < 0) break;
+            vysledek = nalezeno;
+            zbyva--;
+          }
+          return vysledek;
+        });
+
         if (e.code === 'ArrowUp' || e.code === 'ArrowDown') {
           e.preventDefault();
-          const smer = e.code === 'ArrowDown' ? 1 : -1;
-          const cil = (navrh?.lineIdx ?? 0) + smer;
-          const idx = puvodniSlova.findIndex((w) => w.lineIdx === cil);
-          if (idx >= 0) setNavrhIdx(idx);
+          posunORadky(e.code === 'ArrowDown' ? 1 : -1);
+          return;
+        }
+        // Celá obrazovka textu naráz — u dlouhé písně je proklikat se po
+        // řádcích ke konci k neunesení.
+        if (e.code === 'PageUp' || e.code === 'PageDown') {
+          e.preventDefault();
+          posunORadky(e.code === 'PageDown' ? 10 : -10);
           return;
         }
         if (e.key === '[' || e.key === ']') {
@@ -1213,7 +1245,7 @@ export default function DesignerClient({ song }: { song: any }) {
             <>
               <span style={{ lineHeight: 1.5, textAlign: 'left' }}>
                 🎯 <strong>Korekce — 1. krok:</strong> text jede od začátku, jako by časování nebylo.
-                {' '}Přehraj a klávesou <strong>W</strong> zaklíčuj první slovo písně.
+                {' '}Přehraj a klávesou <strong>W</strong> zaklíčuj první slovo, <strong>ENTER</strong> posouvá na další řádek jako obvykle.
                 {' '}Zaklíčováno{' '}
                 <strong style={{ color: 'var(--color-gold)' }}>
                   {eventsRef.current.filter(e => e.type === 'word').length}
@@ -1233,7 +1265,7 @@ export default function DesignerClient({ song }: { song: any }) {
               <span style={{ lineHeight: 1.5, textAlign: 'left' }}>
                 <div>
                   🎯 <strong>Korekce — 2. krok:</strong> přetáhni jezdec ke konci písně.
-                  {' '}<span style={{ opacity: 0.65 }}>↑ ↓ listuje po řádcích, [ ] po slovech, Backspace bere bod zpět.</span>
+                  {' '}<span style={{ opacity: 0.65 }}>↑ ↓ po řádcích, PageUp/PageDown po deseti, [ ] po slovech, Backspace bere bod zpět.</span>
                 </div>
                 <div style={{ marginTop: '4px' }}>
                   {navrh ? (
