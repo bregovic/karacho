@@ -33,9 +33,18 @@ export default function SongEditModal({
   const [importUrl, setImportUrl] = useState('');
   const [mergeSourceId, setMergeSourceId] = useState('');
 
+  /**
+   * Posílá se JEN to, co se právě změnilo — ne celý `formData`.
+   *
+   * `formData` je snímek písně z chvíle, kdy se detail otevřel. Server ale
+   * mezitím píseň mění sám: po nahrání obou stop ji posune na kontrolu
+   * a u časování z LRC vybere verzi podle délky nahrávky. Odesláním celého
+   * snímku se všechny tyhle změny přepsaly zpátky na staré hodnoty —
+   * Alanis „Ironic" tak měla obě stopy a pořád visela v „čeká na zvuk".
+   */
   const autoSave = async (updatedFields: any) => {
     try {
-      const r: any = await updateSong(song.id, { ...formData, ...updatedFields });
+      const r: any = await updateSong(song.id, updatedFields);
       // Změna názvu nebo interpreta může narazit na píseň, která už
       // v katalogu pod tím jménem je. Server vrátí srozumitelnou zprávu.
       if (r && r.ok === false) { setImportStatus(`⚠️ ${r.error}`); return; }
@@ -52,7 +61,18 @@ export default function SongEditModal({
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const r: any = await updateSong(song.id, formData);
+      // Výslovný výčet polí formuláře. Odkazy na soubory, stav ani časování
+      // se odtud neposílají — ty patří uploaderům a serveru, formulář o nich
+      // má jen zastaralou představu.
+      const r: any = await updateSong(song.id, {
+        title: formData.title,
+        artist: formData.artist,
+        genre: formData.genre,
+        tags: formData.tags,
+        lyrics: formData.lyrics,
+        chords: formData.chords,
+        startTime: formData.startTime,
+      });
       if (r && r.ok === false) {
         setImportStatus(`⚠️ ${r.error}`);
         return; // okno zůstává otevřené, ať se dá název opravit
@@ -225,8 +245,12 @@ export default function SongEditModal({
             <div style={{ marginTop: '0.5rem', background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.05)' }}>
                <label style={{ fontSize: '11px', color: 'var(--color-teal)', fontWeight: 800, letterSpacing: '0.05em', marginBottom: '0.75rem', display: 'block' }}>NAHRÁVKY (MP3/WAV)</label>
                <div style={{ display: 'flex', gap: '10px', flexDirection: 'column' }}>
-                  <AudioUploader songId={song.id} type="audio" onUploaded={(url) => { setFormData({...formData, audioUrl: url}); autoSave({ audioUrl: url }); }} />
-                  <AudioUploader songId={song.id} type="instrumental" onUploaded={(url) => { setFormData({...formData, instrumentalUrl: url}); autoSave({ instrumentalUrl: url }); }} />
+                  {/* Uploader si URL uloží sám (`updateSongAudio`), tady se
+                      jen dorovná zobrazení a obnoví přehled. Volat k tomu
+                      ještě `autoSave` znamenalo poslat starý snímek písně
+                      a přepsat tím, co server mezitím nastavil. */}
+                  <AudioUploader songId={song.id} type="audio" onUploaded={(url) => { setFormData({ ...formData, audioUrl: url }); onRefresh(); }} />
+                  <AudioUploader songId={song.id} type="instrumental" onUploaded={(url) => { setFormData({ ...formData, instrumentalUrl: url }); onRefresh(); }} />
                </div>
                <div style={{ fontSize: '10px', color: formData.audioUrl ? '#4ade80' : '#888', marginTop: '10px', textAlign: 'center', fontWeight: formData.audioUrl ? 800 : 400 }}>
                  {(formData.audioUrl || formData.instrumentalUrl) ? '✅ Audio je nahrané na serveru' : 'Zatím nebylo nahráno žádné audio'}
