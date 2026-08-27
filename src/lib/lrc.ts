@@ -11,8 +11,19 @@
  * Studiu klávesou W.
  */
 
-/** Kolik znaků textu se vyzpívá za vteřinu. Odvozeno z reálných LRC. */
+/** Kolik znaků textu se vyzpívá za vteřinu při běžném tempu. */
 const ZNAKU_ZA_SEKUNDU = 9.1;
+/**
+ * Do téhle mezery se bere, že se celou dobu zpívá — jen pomalu nebo taženě.
+ * Delší už znamená instrumentální předěl a řádek se osekne na odhad.
+ *
+ * Bez tohohle rozlišení se u refrénů výplň zastavila v půlce. „Take on me
+ * (take on me)" má 23 znaků, odhad tedy 2,5 s — jenže v písni se ta věta
+ * táhne 5,6 s a zbylé tři vteřiny řádek jen stál. Naopak „In a day or two"
+ * před sólem má mezeru 45,9 s a tam se osekat musí, jinak by se výplň
+ * plazila přes celý mezihru.
+ */
+const STROP_SOUVISLEHO_ZPEVU = 10;
 /** Pauza, po které má smysl ukázat odpočet, ať zpěvák pozná nástup. */
 const MEZERA_PRO_ODPOCET = 5;
 /** Míň bloků než tohle znamená vadný nebo prázdný soubor. */
@@ -52,10 +63,24 @@ export function lrcNaCasovani(lrc: string, delka: number): PrevedeneCasovani {
     if (!z.text) continue;
 
     const dalsi = zaznamy[i + 1]?.cas ?? delka;
-    const zpev = Math.min(dalsi - z.cas, Math.max(1.2, z.text.length / ZNAKU_ZA_SEKUNDU));
+    const mezera = dalsi - z.cas;
+    const odhad = Math.max(1.2, z.text.length / ZNAKU_ZA_SEKUNDU);
+    // Do deseti vteřin věříme, že se pořád zpívá; nad to už je to předěl.
+    const zpev = mezera <= STROP_SOUVISLEHO_ZPEVU ? mezera : odhad;
+
     const slova = z.text.split(/\s+/).filter(Boolean);
     if (!slova.length) continue;
-    const naSlovo = zpev / slova.length;
+
+    // Čas se dělí podle délky slov, ne rovným dílem. „Take on me (take on
+    // me)" má slova od dvou do pěti znaků a rovnoměrné dělení nechávalo
+    // krátká slova svítit stejně dlouho jako dlouhá.
+    const znakuCelkem = slova.reduce((a, s) => a + s.length, 0);
+    const zacatky: number[] = [];
+    let uplynulo = 0;
+    for (const slovo of slova) {
+      zacatky.push(z.cas + uplynulo);
+      uplynulo += (slovo.length / znakuCelkem) * zpev;
+    }
 
     const predchozi = blocks[blocks.length - 1];
     if ((predchozi ? z.cas - predchozi.be : z.cas) >= MEZERA_PRO_ODPOCET) {
@@ -68,7 +93,7 @@ export function lrcNaCasovani(lrc: string, delka: number): PrevedeneCasovani {
       bs: Number(z.cas.toFixed(2)),
       be: Number((z.cas + zpev).toFixed(2)),
       v: 3,
-      w: slova.map((_, idx) => ({ t: Number((z.cas + idx * naSlovo).toFixed(2)), i: idx, v: 3 })),
+      w: slova.map((_, idx) => ({ t: Number(zacatky[idx].toFixed(2)), i: idx, v: 3 })),
     });
     radky.push(z.text);
     li++;
