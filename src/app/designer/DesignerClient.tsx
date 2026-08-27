@@ -107,6 +107,7 @@ export default function DesignerClient({ song }: { song: any }) {
     if (song?.timingData && song.timingData.blocks) {
       setVoiceMap(prev => ({ ...prev, ...hlasyZBloku(song.timingData) }));
       eventsRef.current = udalostiZBloku(song.timingData);
+      puvodniPocetBlokuRef.current = song.timingData.blocks.length;
       forceUpdate();
     }
   }, [song?.timingData]);
@@ -805,6 +806,10 @@ export default function DesignerClient({ song }: { song: any }) {
   const [autoUlozeno, setAutoUlozeno] = useState<Date | null>(null);
 
   const zmenenoRef = useRef(false);
+  /** Běží korekce? Autosave se do ní nesmí plést. */
+  const korekceBezikRef = useRef(false);
+  /** Kolik bloků měla píseň při načtení — pojistka proti tichému smazání. */
+  const puvodniPocetBlokuRef = useRef(0);
   const posledniOdeslaneRef = useRef<string | null>(null);
   const savingRef = useRef(false);
   const sestavTeloRef = useRef<() => string>(() => '');
@@ -812,6 +817,10 @@ export default function DesignerClient({ song }: { song: any }) {
 
   const handleSave = async () => {
     if (!song?.id) return;
+    if (korekceStav) {
+      setStatusMessage('❌ Nejdřív korekci dokonči nebo zruš — teď je časování jen rozpracované.');
+      return;
+    }
     setSaving(true);
     try {
       const telo = JSON.stringify({ timingData: generateBlocksJSON(), lyrics: rawText, chords: chordsText, startTime });
@@ -848,6 +857,7 @@ export default function DesignerClient({ song }: { song: any }) {
   // Refy se drží aktuálního stavu, aby na něm nemusel viset interval.
   useEffect(() => {
     savingRef.current = saving;
+    korekceBezikRef.current = !!korekceStav;
     sestavTeloRef.current = () => JSON.stringify({
       timingData: generateBlocksJSON(),
       lyrics: rawText,
@@ -868,7 +878,18 @@ export default function DesignerClient({ song }: { song: any }) {
 
     const uloz = async (odchod = false) => {
       if (!zmenenoRef.current || savingRef.current) return;
+      // Během korekce je pracovní časování schválně prázdné — uložit ho
+      // by znamenalo píseň o časování připravit. Přesně tak přišla
+      // Alanis „Ironic" o všech 39 bloků.
+      if (korekceBezikRef.current) return;
       const telo = sestavTeloRef.current();
+      // Pojistka i mimo korekci: prázdné bloky nikdy nepřepíší neprázdné.
+      // Samo od sebe se časování ztratit nesmí, mazání je vždycky záměr
+      // (tlačítko 🔄 a ruční uložení).
+      try {
+        const d = JSON.parse(telo);
+        if (!d?.timingData?.blocks?.length && puvodniPocetBlokuRef.current > 0) return;
+      } catch { /* na neparsovatelném těle není co hlídat */ }
       if (telo === posledniOdeslaneRef.current) { zmenenoRef.current = false; return; }
 
       // Záloha do prohlížeče jde první: přežije i výpadek sítě a zavřený

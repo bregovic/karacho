@@ -89,8 +89,12 @@ async function zkusDoplnitCasovani(songId: string, prepsatOdvozene = false): Pro
   // konečně podle čeho vybírat. U Sweet Caroline se tím trefilo LRC pro
   // 200s vydání místo 206s a šest vteřin rozdílu nespraví žádný posun,
   // protože se to rozjíždí postupně.
+  // Prázdný objekt s nula bloky je totéž co žádné časování — takhle
+  // vypadá píseň, které Studio uložilo rozpracovaný stav. Nesmí bránit
+  // tomu, aby se časování dohledalo.
+  const maCasovani = !!(song.timingData as any)?.blocks?.length;
   const odvozene = (song.timingData as any)?.zdroj === 'lrc';
-  if (song.timingData && !(prepsatOdvozene && odvozene)) return false;
+  if (maCasovani && !(prepsatOdvozene && odvozene)) return false;
 
   const cil = delkaZVelikosti(song.audioSize);
   if (!cil) return false;
