@@ -513,11 +513,17 @@ export default function DesignerClient({ song }: { song: any }) {
        audioRef.current.pause();
        const inc = e.key === '[' ? -1 : 1;
        const targetLine = Math.max(0, Math.min(linesRef.current.length - 1, curLineRef.current + inc));
-       const ev = eventsRef.current.find(ev => ev.type === 'line' && ev.lineIdx === targetLine);
+       // Při korekci je pracovní časování prázdné, takže není podle čeho
+       // skákat — použije se to původní, které se právě opravuje. Bez toho
+       // se nedalo dostat ke konci písně a zaklíčovat druhý bod daleko od
+       // prvního, což je přesně to, z čeho se počítá tempo.
+       const zdroj = korekceStav ? korekceStav.puvodni : eventsRef.current;
+       const ev = zdroj.find(x => x.type === 'line' && x.lineIdx === targetLine);
        if (ev) {
-           audioRef.current.currentTime = ev.time;
+           audioRef.current.currentTime = Math.max(0, ev.time - 1.5);
        }
        curLineRef.current = targetLine;
+       curWordRef.current = -1;
        restoreState();
        forceUpdate();
     }
@@ -1090,9 +1096,11 @@ export default function DesignerClient({ song }: { song: any }) {
           gap: '14px', flexWrap: 'wrap', boxShadow: '0 6px 24px rgba(0,0,0,0.5)'
         }}>
           <span style={{ lineHeight: 1.4 }}>
-            🎯 <strong>Korekce</strong> — klávesou <strong>W</strong> zaklíčuj pár slov, ideálně jedno na začátku
-            a jedno ke konci. Zaklíčováno:{' '}
-            <strong style={{ color: 'var(--color-gold)' }}>{eventsRef.current.filter(e => e.type === 'word').length}</strong>
+            🎯 <strong>Korekce</strong> — klávesou <strong>W</strong> zaklíčuj slovo na začátku,
+            pak se klávesou <strong>]</strong> přesuň ke konci a zaklíčuj další. Čím dál od sebe,
+            tím přesnější tempo.
+            {' '}Řádek <strong style={{ color: 'var(--color-gold)' }}>{Math.max(0, curLineRef.current) + 1}/{linesRef.current.length}</strong>
+            {' '}· zaklíčováno <strong style={{ color: 'var(--color-gold)' }}>{eventsRef.current.filter(e => e.type === 'word').length}</strong>
           </span>
           <button
             className="btn-primary"
