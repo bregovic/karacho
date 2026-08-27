@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef, useEffect, ChangeEvent, useCallback } from 'react';
+import { useState, useRef, useEffect, useMemo, ChangeEvent, useCallback } from 'react';
 import Link from 'next/link';
 import { autoAlignSong } from '@/app/admin/auto-align';
 import HlaseniChyby from '@/components/HlaseniChyby';
@@ -297,55 +297,97 @@ export default function DesignerClient({ song }: { song: any }) {
    * korekce vstoupí, zaklíčuje se pár slov a zbytek se dopočítá — se
    * dvěma a víc body i s rychlostí, ne jen posunem.
    */
+  type KorekcniBod = { puvodni: number; novy: number; lineIdx: number; wordIdx: number };
+
   const [korekceStav, setKorekceStav] = useState<{ puvodni: TimingEvent[] } | null>(null);
+  const [korekcniBody, setKorekcniBody] = useState<KorekcniBod[]>([]);
+  const [navrhIdx, setNavrhIdx] = useState(0);
+
+  /** Slova původního časování seřazená podle času — mezi nimi se navrhuje. */
+  const puvodniSlova = useMemo(() => {
+    if (!korekceStav) return [] as { time: number; lineIdx: number; wordIdx: number }[];
+    return korekceStav.puvodni
+      .filter((e) => e.type === 'word')
+      .map((e: any) => ({ time: e.time, lineIdx: e.lineIdx, wordIdx: e.wordIdx }))
+      .sort((a, b) => a.time - b.time);
+  }, [korekceStav]);
+
+  const navrh = puvodniSlova[navrhIdx];
+
+  /**
+   * Které slovo by na daném místě nahrávky mělo znít.
+   *
+   * Původní časy jsou posunuté — proto se z už zadaných bodů spočítá
+   * průběžná korekce a čas se jí převede zpátky do souřadnic původního
+   * časování. Po zadání prvního bodu je tak návrh u konce písně
+   * podstatně blíž pravdě než holý odhad.
+   */
+  const odhadniNavrh = (cas: number) => {
+    if (!puvodniSlova.length) return 0;
+    const zatimniKorekce = korekcniBody.length ? spocitejKorekci(korekcniBody) : null;
+    const cilovy = zatimniKorekce ? (cas - zatimniKorekce.b) / zatimniKorekce.a : cas;
+    let nej = 0, nejblizsi = Infinity;
+    puvodniSlova.forEach((w, idx) => {
+      const d = Math.abs(w.time - cilovy);
+      if (d < nejblizsi) { nejblizsi = d; nej = idx; }
+    });
+    return nej;
+  };
+
+  /** Po přetažení jezdce se návrh přizpůsobí novému místu. */
+  const prepocitejNavrh = () => {
+    if (!korekceStav || !audioRef.current) return;
+    setNavrhIdx(odhadniNavrh(audioRef.current.currentTime));
+  };
 
   const zacniKorekci = () => {
-    if (!eventsRef.current.length) {
-      setStatusMessage('❌ Není co korigovat — píseň zatím časování nemá.');
+    if (!eventsRef.current.filter((e) => e.type === 'word').length) {
+      setStatusMessage('❌ Není co korigovat — píseň zatím nemá zaklíčovaná slova.');
       return;
     }
+    // Původní časování zůstává v editoru i při přehrávání, ať je vidět,
+    // jak moc se rozchází. Body se sbírají zvlášť.
     setKorekceStav({ puvodni: [...eventsRef.current] });
-    eventsRef.current = [];
-    curLineRef.current = -1;
-    curWordRef.current = -1;
-    if (audioRef.current) audioRef.current.currentTime = 0;
-    forceUpdate();
-    setStatusMessage('🎯 Korekce: přehraj a zaklíčuj pár slov (2–3 stačí, ideálně na začátku a na konci).');
+    setKorekcniBody([]);
+    setNavrhIdx(0);
+    setStatusMessage('🎯 Korekce: najeď na místo, potvrď navržené slovo klávesou W.');
   };
 
   const zrusKorekci = () => {
     if (!korekceStav) return;
     eventsRef.current = korekceStav.puvodni;
     setKorekceStav(null);
+    setKorekcniBody([]);
     restoreState();
     forceUpdate();
     setStatusMessage('Korekce zrušena, původní časování je zpátky.');
   };
 
+  /** Potvrzení navrženého slova v aktuálním čase nahrávky. */
+  const potvrdNavrh = () => {
+    if (!korekceStav || !audioRef.current || !navrh) return;
+    const cas = audioRef.current.currentTime;
+    setKorekcniBody((p) => [
+      ...p.filter((b) => !(b.lineIdx === navrh.lineIdx && b.wordIdx === navrh.wordIdx)),
+      { puvodni: navrh.time, novy: cas, lineIdx: navrh.lineIdx, wordIdx: navrh.wordIdx },
+    ]);
+    // Návrh se posune na další slovo, ať jde potvrdit několik za sebou.
+    setNavrhIdx((i) => Math.min(puvodniSlova.length - 1, i + 1));
+  };
+
   const pouzijKorekci = () => {
     if (!korekceStav) return;
-
-    // Ke každému ručně zaklíčovanému slovu najdeme totéž slovo v původním
-    // časování — dvojice (původní čas, nový čas) je vstup pro výpočet.
-    const dvojice: Dvojice[] = [];
-    for (const e of eventsRef.current) {
-      if (e.type !== 'word') continue;
-      const puvodniUdalost = korekceStav.puvodni.find(
-        (p) => p.type === 'word' && p.lineIdx === e.lineIdx && p.wordIdx === e.wordIdx,
-      );
-      if (puvodniUdalost) dvojice.push({ puvodni: puvodniUdalost.time, novy: e.time });
-    }
-
-    if (!dvojice.length) {
-      setStatusMessage('❌ Žádné zaklíčované slovo se nepodařilo spárovat s původním časováním.');
+    if (!korekcniBody.length) {
+      setStatusMessage('❌ Zatím není potvrzené žádné slovo.');
       return;
     }
 
-    const k = spocitejKorekci(dvojice);
+    const k = spocitejKorekci(korekcniBody.map((b) => ({ puvodni: b.puvodni, novy: b.novy })));
     if (!k) { setStatusMessage('❌ Korekci se nepodařilo spočítat.'); return; }
 
     eventsRef.current = korekceStav.puvodni.map((e) => ({ ...e, time: uprav(e.time, k) }));
     setKorekceStav(null);
+    setKorekcniBody([]);
     restoreState();
     forceUpdate();
 
@@ -460,6 +502,37 @@ export default function DesignerClient({ song }: { song: any }) {
        return;
     }
 
+    /**
+     * Korekce má vlastní ovládání. Klíčování na sebe nenavazuje jako
+     * v běžném režimu — potvrzuje se konkrétní navržené slovo, takže se
+     * dá skočit rovnou ke konci písně a označit bod tam.
+     */
+    if (korekceStav) {
+      if (e.code === 'Space') { e.preventDefault(); togglePlay(); return; }
+      if (e.code === 'KeyW' || e.code === 'Enter') { e.preventDefault(); potvrdNavrh(); return; }
+      if (e.key === '[' || e.key === ']') {
+        e.preventDefault();
+        setNavrhIdx((i) => Math.max(0, Math.min(puvodniSlova.length - 1, i + (e.key === ']' ? 1 : -1))));
+        return;
+      }
+      // Šipky nahoru/dolů skáčou po celých řádcích — u dlouhé písně by
+      // proklikat se po slovech trvalo věčnost.
+      if (e.code === 'ArrowUp' || e.code === 'ArrowDown') {
+        e.preventDefault();
+        const smer = e.code === 'ArrowDown' ? 1 : -1;
+        const cilovyRadek = (navrh?.lineIdx ?? 0) + smer;
+        const idx = puvodniSlova.findIndex((w) => w.lineIdx === cilovyRadek);
+        if (idx >= 0) setNavrhIdx(idx);
+        return;
+      }
+      if (e.code === 'Backspace') {
+        e.preventDefault();
+        setKorekcniBody((p) => p.slice(0, -1));
+        return;
+      }
+      return; // ostatní klávesy v korekci nic nedělají
+    }
+
     if (e.key.toLowerCase() === 'a') {
       handleWordTiming(1);
       return;
@@ -513,12 +586,8 @@ export default function DesignerClient({ song }: { song: any }) {
        audioRef.current.pause();
        const inc = e.key === '[' ? -1 : 1;
        const targetLine = Math.max(0, Math.min(linesRef.current.length - 1, curLineRef.current + inc));
-       // Při korekci je pracovní časování prázdné, takže není podle čeho
-       // skákat — použije se to původní, které se právě opravuje. Bez toho
-       // se nedalo dostat ke konci písně a zaklíčovat druhý bod daleko od
-       // prvního, což je přesně to, z čeho se počítá tempo.
-       const zdroj = korekceStav ? korekceStav.puvodni : eventsRef.current;
-       const ev = zdroj.find(x => x.type === 'line' && x.lineIdx === targetLine);
+       // Korekce sem nedojde, ta má vlastní ovládání a vrací se dřív.
+       const ev = eventsRef.current.find(x => x.type === 'line' && x.lineIdx === targetLine);
        if (ev) {
            audioRef.current.currentTime = Math.max(0, ev.time - 1.5);
        }
@@ -543,7 +612,7 @@ export default function DesignerClient({ song }: { song: any }) {
       setStatusMessage(`✂️ Začátek písně nastaven na ${fmtTime(currentT)}`);
       return;
     }
-  }, [view, voiceMap, startTime]);
+  }, [view, voiceMap, startTime, korekceStav, korekcniBody, navrhIdx, puvodniSlova, navrh]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -1095,12 +1164,29 @@ export default function DesignerClient({ song }: { song: any }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           gap: '14px', flexWrap: 'wrap', boxShadow: '0 6px 24px rgba(0,0,0,0.5)'
         }}>
-          <span style={{ lineHeight: 1.4 }}>
-            🎯 <strong>Korekce</strong> — klávesou <strong>W</strong> zaklíčuj slovo na začátku,
-            pak se klávesou <strong>]</strong> přesuň ke konci a zaklíčuj další. Čím dál od sebe,
-            tím přesnější tempo.
-            {' '}Řádek <strong style={{ color: 'var(--color-gold)' }}>{Math.max(0, curLineRef.current) + 1}/{linesRef.current.length}</strong>
-            {' '}· zaklíčováno <strong style={{ color: 'var(--color-gold)' }}>{eventsRef.current.filter(e => e.type === 'word').length}</strong>
+          <span style={{ lineHeight: 1.5, textAlign: 'left' }}>
+            <div>
+              🎯 <strong>Korekce</strong> — najeď kam chceš, potvrď navržené slovo klávesou <strong>W</strong>.
+              {' '}<span style={{ opacity: 0.65 }}>[ ] posune návrh po slovech, ↑ ↓ po řádcích, Backspace vezme bod zpět.</span>
+            </div>
+            <div style={{ marginTop: '4px' }}>
+              {navrh ? (
+                <>
+                  <span style={{ opacity: 0.65 }}>na tomhle místě by mělo znít:</span>{' '}
+                  <strong style={{ color: 'var(--color-gold)', fontSize: '15px' }}>
+                    {linesRef.current[navrh.lineIdx]?.[navrh.wordIdx] ?? '?'}
+                  </strong>
+                  <span style={{ opacity: 0.5 }}>
+                    {' '}(řádek {navrh.lineIdx + 1}, slovo {navrh.wordIdx + 1}, původně {navrh.time.toFixed(1)}s)
+                  </span>
+                </>
+              ) : <span style={{ opacity: 0.6 }}>není co navrhnout</span>}
+              {' · '}
+              <strong style={{ color: korekcniBody.length >= 2 ? '#4ade80' : 'var(--color-gold)' }}>
+                {korekcniBody.length} {korekcniBody.length === 1 ? 'bod' : korekcniBody.length < 5 ? 'body' : 'bodů'}
+              </strong>
+              {korekcniBody.length === 1 && <span style={{ opacity: 0.6 }}> — druhý daleko od prvního přidá i tempo</span>}
+            </div>
           </span>
           <button
             className="btn-primary"
@@ -1222,7 +1308,7 @@ export default function DesignerClient({ song }: { song: any }) {
               {/* PROGRESS BAR */}
               <div style={{ width: '100%', maxWidth: '800px', padding: '0 20px', boxSizing: 'border-box', pointerEvents: 'auto' }}>
                   <div 
-                    onClick={(e) => { if (audioRef.current?.duration) { const r = e.currentTarget.getBoundingClientRect(); audioRef.current.currentTime = (e.clientX - r.left) / r.width * audioRef.current.duration; } }} 
+                    onClick={(e) => { if (audioRef.current?.duration) { const r = e.currentTarget.getBoundingClientRect(); audioRef.current.currentTime = (e.clientX - r.left) / r.width * audioRef.current.duration; prepocitejNavrh(); } }} 
                     style={{ width: '100%', height: '35px', background: 'rgba(255,255,255,0.05)', borderRadius: '18px', cursor: 'pointer', position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)' }}
                   >
                     <div style={{ height: '100%', background: 'linear-gradient(90deg, var(--color-gold), #fff)', width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`, transition: 'width 0.1s linear', boxShadow: '0 0 20px rgba(255,215,0,0.5)' }} />
