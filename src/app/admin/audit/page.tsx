@@ -2,7 +2,89 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { auditSongsAction, batchFixSongsAction, getInternetSuggestionsAction } from '@/app/admin/actions';
+import { auditSongsAction, batchFixSongsAction, getInternetSuggestionsAction, updateSong, fetchLyricsAction } from '@/app/admin/actions';
+
+/**
+ * Doplnění interpreta rovnou v přehledu.
+ *
+ * Bez interpreta nedohledá text ani časování žádný zdroj — všechny se
+ * ptají na dvojici interpret + název. Chodit kvůli jednomu poli do detailu
+ * písně a zpátky bylo u desítek písní zbytečné zdržení.
+ */
+function DoplnitInterpreta({ songId, puvodni, hotovo }: { songId: string; puvodni: string; hotovo: () => void }) {
+  const [hodnota, setHodnota] = useState(puvodni || '');
+  const [uklada, setUklada] = useState(false);
+  const [ulozeno, setUlozeno] = useState(false);
+
+  const uloz = async () => {
+    if (!hodnota.trim()) return;
+    setUklada(true);
+    try {
+      await updateSong(songId, { artist: hodnota.trim() });
+      setUlozeno(true);
+      hotovo();
+    } catch (e: any) {
+      alert(`Uložení selhalo: ${e.message}`);
+    } finally {
+      setUklada(false);
+    }
+  };
+
+  if (ulozeno) return <span style={{ fontSize: '12px', color: '#4ade80', fontWeight: 700, flexShrink: 0 }}>✓ {hodnota}</span>;
+
+  return (
+    <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+      <input
+        value={hodnota}
+        onChange={(e) => setHodnota(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') uloz(); }}
+        placeholder="Doplnit interpreta"
+        disabled={uklada}
+        style={{ width: '190px', padding: '6px 10px', borderRadius: '8px', background: 'rgba(0,0,0,0.4)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)', fontSize: '12px' }}
+      />
+      <button
+        onClick={uloz}
+        disabled={uklada || !hodnota.trim()}
+        style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #4ade80', background: 'rgba(74,222,128,0.08)', color: '#4ade80', fontSize: '12px', fontWeight: 800, cursor: 'pointer', opacity: uklada || !hodnota.trim() ? 0.5 : 1 }}
+      >
+        {uklada ? '…' : 'Uložit'}
+      </button>
+    </div>
+  );
+}
+
+/** Pokus o stažení textu rovnou z přehledu, ať se nemusí do detailu. */
+function DotahnoutText({ songId }: { songId: string }) {
+  const [stav, setStav] = useState<'' | 'hleda' | 'ok' | 'nic'>('');
+  const [zprava, setZprava] = useState('');
+
+  const zkus = async () => {
+    setStav('hleda');
+    try {
+      const r: any = await fetchLyricsAction(songId);
+      if (r?.success) { setStav('ok'); setZprava(r.source || 'nalezeno'); }
+      else { setStav('nic'); setZprava(r?.error || 'nenalezeno'); }
+    } catch (e: any) {
+      setStav('nic');
+      setZprava(e.message);
+    }
+  };
+
+  if (stav === 'ok') return <span style={{ fontSize: '12px', color: '#4ade80', fontWeight: 700, flexShrink: 0 }}>✓ text z {zprava}</span>;
+
+  return (
+    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+      {stav === 'nic' && <span style={{ fontSize: '11px', color: '#f87171', maxWidth: '160px' }}>{zprava}</span>}
+      <button
+        onClick={zkus}
+        disabled={stav === 'hleda'}
+        style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #00d2ff', background: 'rgba(0,210,255,0.08)', color: '#00d2ff', fontSize: '12px', fontWeight: 800, cursor: 'pointer', opacity: stav === 'hleda' ? 0.5 : 1, whiteSpace: 'nowrap' }}
+      >
+        {stav === 'hleda' ? 'Hledám…' : (stav === 'nic' ? '↻ Zkusit znovu' : '📝 Dotáhnout text')}
+      </button>
+    </div>
+  );
+}
 
 type AuditIssue = {
   songId: string;
@@ -319,6 +401,14 @@ export default function AuditPage() {
                       </div>
                       <div style={{ fontSize: '12px', opacity: 0.5, marginTop: '2px' }}>{issue.description}</div>
                     </div>
+
+                    {/* RYCHLÁ AKCE PODLE DRUHU NÁLEZU */}
+                    {issue.issueType === 'MISSING_ARTIST' && (
+                      <DoplnitInterpreta songId={issue.songId} puvodni={issue.suggestedArtist || ''} hotovo={() => {}} />
+                    )}
+                    {issue.issueType === 'MISSING_LYRICS' && (
+                      <DotahnoutText songId={issue.songId} />
+                    )}
 
                     {/* SUGGESTION */}
                     {(issue.suggestedTitle || issue.suggestedArtist || issue.suggestedGenre || issue.suggestedOrigin) && (

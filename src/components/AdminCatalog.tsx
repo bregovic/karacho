@@ -96,6 +96,9 @@ export default function AdminCatalog({
     if (s.state === 'WAITING_AUDIO') return 'WAITING_AUDIO';
     // Dohledané časování, které ještě nikdo neposlouchal.
     if (s.state === 'TIMING_CHECK') return 'TIMING_CHECK';
+    // Přání od hostů. Bez vlastní kategorie splývala s rozdělanou prací —
+    // mají text a nemají zvuk, takže vypadaly jako nedodělaný import.
+    if (s.state === 'REQUESTED') return 'REQUESTED';
 
     const hasLyrics = !!s.lyrics && s.lyrics.trim().length > 0;
     const hasAudio = !!s.audioUrl;
@@ -346,6 +349,7 @@ export default function AdminCatalog({
                 <option value="MISSING_TIMING">⏱️ STUDIO</option>
                 <option value="REVIEW">🚦 KONTROLA</option>
                 <option value="ACTIVE">🟢 LIVE</option>
+                <option value="REQUESTED">🙋 PŘÁNÍ HOSTŮ ({pocetVeStavu('REQUESTED')})</option>
                 <option value="TIMING_CHECK">⏱️🚦 ČASOVÁNÍ K OVĚŘENÍ ({pocetVeStavu('TIMING_CHECK')})</option>
                 <option value="WAITING_AUDIO">📻 ČEKÁ NA ZVUK ({pocetVeStavu('WAITING_AUDIO')})</option>
                 <option value="BAD_LYRICS">✍️⚠️ ŠPATNÝ TEXT ({pocetVeStavu('BAD_LYRICS')})</option>
@@ -606,6 +610,7 @@ export default function AdminCatalog({
                                  ⏱️ z LRC
                                </span>
                              )}
+                             {song.state === 'REQUESTED' && <span style={{ fontSize: '10px', background: 'rgba(255,215,0,0.15)', color: 'var(--color-gold)', padding: '4px 10px', borderRadius: '10px', fontWeight: 900, marginLeft: 'auto' }}>PŘÁNÍ 🙋</span>}
                              {song.state === 'TIMING_CHECK' && <span style={{ fontSize: '10px', background: 'rgba(0,210,255,0.15)', color: '#00d2ff', padding: '4px 10px', borderRadius: '10px', fontWeight: 900, marginLeft: 'auto' }}>ČASOVÁNÍ K OVĚŘENÍ ⏱️🚦</span>}
                              {song.state === 'WAITING_AUDIO' && <span style={{ fontSize: '10px', background: 'rgba(0,210,255,0.15)', color: '#00d2ff', padding: '4px 10px', borderRadius: '10px', fontWeight: 900, marginLeft: 'auto' }}>ČEKÁ NA ZVUK 📻</span>}
                              {song.state === 'BAD_LYRICS' && <span style={{ fontSize: '10px', background: 'rgba(255,204,0,0.15)', color: '#ffcc00', padding: '4px 10px', borderRadius: '10px', fontWeight: 900, marginLeft: 'auto' }}>ŠPATNÝ TEXT ✍️⚠️</span>}
