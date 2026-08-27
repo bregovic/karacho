@@ -19,13 +19,26 @@
 const ZAKAZANY_ZACATEK = /^[\s,;:)\]}]+/;
 
 /**
- * Doplní mezeru za čárkou a středníkem, když za nimi rovnou pokračuje slovo.
+ * Doplní mezeru za interpunkcí, když za ní rovnou pokračuje slovo.
  *
- * Číslo za oddělovačem se schválně nechává být — „1,5 piva" je desetinná
- * čárka, ne chybějící mezera.
+ * Čárka a středník: číslo za oddělovačem se schválně nechává být —
+ * „1,5 piva" je desetinná čárka, ne chybějící mezera.
+ *
+ * Tečka je opatrnější, protože v textech písní skoro nikdy neznamená konec
+ * věty. Z 65 případů „tečka a hned velké písmeno" v katalogu je většina
+ * zkratek — M.A.S.H., K.O., Y.M.C.A., a.k.a. — a těm mezera uvnitř
+ * nepatří. Mezera se proto vkládá jen když jsou před tečkou aspoň dvě
+ * písmena (zkratky mají jedno) a hned za ní velké písmeno. Malé písmeno
+ * za tečkou je v katalogu buď výpustka („…a jedeme dál"), nebo překlep
+ * („naje.eš"), kde by mezera situaci jen zhoršila.
+ *
+ * Použit `(\p{L}\p{L})` místo pohledu dozadu schválně: lookbehind umí
+ * Safari až od 16.4 a starší tablet by na něm shodil celý modul.
  */
 export function doplnMezeryZaInterpunkci(text: string): string {
-  return text.replace(/([,;])(?=\p{L})/gu, '$1 ');
+  let t = text.replace(/([,;])(?=\p{L})/gu, '$1 ');
+  t = t.replace(/(\p{L}\p{L})\.(?=\p{Lu})/gu, '$1. ');
+  return t;
 }
 
 /**
