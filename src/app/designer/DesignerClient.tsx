@@ -76,11 +76,21 @@ export default function DesignerClient({ song }: { song: any }) {
    */
   const udalostiZBloku = (data: any): TimingEvent[] => {
     const ev: TimingEvent[] = [];
-    (data?.blocks || []).forEach((b: any) => {
+    const bloky = data?.blocks || [];
+    bloky.forEach((b: any, idx: number) => {
       ev.push({ type: 'line', time: b.bs, lineIdx: b.li });
       (b.w || []).forEach((w: any) => {
         ev.push({ type: 'word', time: w.t, lineIdx: b.li, wordIdx: w.i, v: w.v });
       });
+      // Konec řádku se musí obnovit taky, jinak se při uložení ztratí:
+      // `generateBlocksJSON` bez události `lineEnd` sáhne po začátku dalšího
+      // řádku a blok se natáhne přes celý instrumentální předěl. U Sweet
+      // Caroline se tím „Hands, touching hands" roztáhlo ze čtyř vteřin na
+      // deset a výplň se za zpěvem beznadějně opozdila.
+      const dalsi = bloky[idx + 1];
+      if (typeof b.be === 'number' && (!dalsi || b.be < dalsi.bs - 0.05)) {
+        ev.push({ type: 'lineEnd', time: b.be, lineIdx: b.li });
+      }
     });
     (data?.countdowns || []).forEach((t: number) => ev.push({ type: 'countdown', time: t }));
     return ev.sort((a, b) => a.time - b.time);

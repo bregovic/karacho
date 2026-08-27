@@ -634,7 +634,13 @@ export default function PlayerClient({ song }: { song: any }) {
     }
 
     if (countEl.current && countBarEl.current) {
-        const countdownPoints = (data as any).countdowns || [];
+        const rucni: number[] = (data as any).countdowns || [];
+        // Automatický bod se zahodí, pokud je poblíž ruční — jinak by
+        // odpočet naskočil dvakrát po sobě.
+        const doplnene = automatickeOdpocty.filter(
+          (a) => !rucni.some((r) => Math.abs(r - a) < 1.5),
+        );
+        const countdownPoints = [...rucni, ...doplnene];
         const targetPoint = countdownPoints.find((pt: number) => (pt > t && pt - t < 3.5));
         if (targetPoint !== undefined) {
             const diff = targetPoint - t;
@@ -652,6 +658,30 @@ export default function PlayerClient({ song }: { song: any }) {
       rafRef.current = requestAnimationFrame(tick);
     }
   };
+
+  /**
+   * Odpočet i tam, kde ho nikdo ručně nezaklíčoval.
+   *
+   * Po dlouhé mezihře zpěvák netuší, kdy naskočit — dosud se to muselo
+   * u každé písně naťukat klávesou T. Delší pauza je ale z časování vidět,
+   * takže se odpočet dopočítá sám. Ručně zadané body zůstávají a mají
+   * přednost; blikání řádku před nástupem je na tomhle nezávislé a běží
+   * dál od pěti vteřin.
+   */
+  const MEZERA_PRO_ODPOCET = 15;
+
+  const automatickeOdpocty = useMemo(() => {
+    if (!blocks.length) return [];
+    const serazene = [...blocks].sort((a, b) => a.bs - b.bs);
+    const body: number[] = [];
+    let konecPredchozich = 0;
+    for (const b of serazene) {
+      const zacatek = b.w?.[0]?.t ?? b.bs;
+      if (zacatek - konecPredchozich >= MEZERA_PRO_ODPOCET) body.push(zacatek);
+      if (b.be > konecPredchozich) konecPredchozich = b.be;
+    }
+    return body;
+  }, [blocks]);
 
   const getShouldBlockFlash = (block: PlayerBlock | null, t: number, voice: number) => {
     if (!block) return false;
