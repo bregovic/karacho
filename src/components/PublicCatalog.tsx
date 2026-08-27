@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { useSession } from '@/context/SessionContext';
 import { prepniOblibenou, getOblibeneIds } from '@/app/actions/user-actions';
 import { obsahuje } from '@/lib/hledani';
-import HlaseniChyby from '@/components/HlaseniChyby';
 import { useToast } from '@/context/ToastContext';
 import { updateSessionState, advanceSessionQueue, addToSessionQueue, removeFromSessionQueue } from '@/app/actions/session-actions';
 import { requestSong, checkDuplicateSong } from '@/app/admin/actions';
@@ -50,9 +49,6 @@ export default function PublicCatalog({ initialSongs, prihlasen }: { initialSong
   
   /** Id oblíbených písní. Přepnutí se projeví hned, server se dotáhne pozadu. */
   const [oblibene, setOblibene] = useState<string[]>([]);
-  /** Píseň, kterou zrovna někdo hlásí (null = dialog zavřený). */
-  const [hlaseni, setHlaseni] = useState<{ id: string; nazev: string } | null>(null);
-
   useEffect(() => {
     if (!prihlasen) return;
     getOblibeneIds().then(setOblibene).catch(() => {});
@@ -193,15 +189,6 @@ export default function PublicCatalog({ initialSongs, prihlasen }: { initialSong
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', paddingBottom: joinCode ? '110px' : '0' }}>
 
-      {hlaseni && (
-        <HlaseniChyby
-          songId={hlaseni.id}
-          nazev={hlaseni.nazev}
-          onClose={() => setHlaseni(null)}
-          onHotovo={(z) => showToast(z, 'success')}
-        />
-      )}
-
       {/* === HERO SEKCE === */}
       <section style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center',
@@ -286,36 +273,27 @@ export default function PublicCatalog({ initialSongs, prihlasen }: { initialSong
                 >+</button>
 
                 {/* Srdíčko vidí každý. Nepřihlášenému se místo tichého
-                    nefungování řekne, proč to nejde — ukládá se k účtu. */}
+                    nefungování řekne, proč to nejde — ukládá se k účtu.
+                    Rozměry i vycentrování schválně stejné jako u „+" vedle:
+                    emoji má vlastní účaří, takže bez pevného boxu a flexu
+                    sedělo na mobilu jinak vysoko než sousední tlačítko. */}
                 <button
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); prepniSrdce(song.id); }}
                   title={!prihlasen
                     ? 'Přihlas se, ať si můžeš písničky ukládat'
                     : (oblibene.includes(song.id) ? 'Odebrat z oblíbených' : 'Přidat do oblíbených')}
                   style={{
-                    position: 'absolute', top: '14px', right: '58px', background: 'none', border: 'none',
-                    fontSize: '22px', cursor: 'pointer', lineHeight: 1, padding: '4px', zIndex: 2,
+                    position: 'absolute', top: '15px', right: '58px', width: '36px', height: '36px',
+                    borderRadius: '50%', background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    cursor: 'pointer', zIndex: 2, display: 'flex',
+                    alignItems: 'center', justifyContent: 'center',
+                    fontSize: '18px', lineHeight: 1, padding: 0,
                     filter: oblibene.includes(song.id) ? 'none' : 'grayscale(1)',
-                    opacity: oblibene.includes(song.id) ? 1 : 0.45,
+                    opacity: oblibene.includes(song.id) ? 1 : 0.5,
                   }}
                 >
                   {oblibene.includes(song.id) ? '❤️' : '🤍'}
-                </button>
-
-                {/* Nahlásit smí i nepřihlášený host — server hlášení jen
-                    zapíše a píseň z katalogu nestáhne, to udělá až správce. */}
-                <button
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setHlaseni({ id: song.id, nazev: `${song.artist || 'Neznámý interpret'} – ${song.title}` }); }}
-                  title="Nahlásit špatný text nebo špatnou píseň"
-                  style={{
-                    position: 'absolute', bottom: '14px', right: '15px', background: 'none', border: 'none',
-                    fontSize: '15px', cursor: 'pointer', lineHeight: 1, padding: '6px', zIndex: 2,
-                    opacity: 0.3, transition: 'opacity 0.2s',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.3'; }}
-                >
-                  ⚠️
                 </button>
 
                 <div style={{ marginBottom: '2rem', paddingRight: '40px' }}>

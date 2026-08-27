@@ -6,6 +6,7 @@ import { incrementPlayCount } from '@/app/admin/actions';
 import { useSession } from '@/context/SessionContext';
 import { getSessionStatus, updateSessionState, advanceSessionQueue } from '@/app/actions/session-actions';
 import { recordSinging } from '@/app/actions/user-actions';
+import HlaseniChyby from '@/components/HlaseniChyby';
 
 interface PlayerBlock {
   lw: string[];
@@ -130,6 +131,15 @@ export default function PlayerClient({ song }: { song: any }) {
   const shouldSuppressAudio = (isChordsMode || isWatchMode) && !isHost;
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  /** Otevřený dialog hlášení chyby + hláška po odeslání. */
+  const [hlasim, setHlasim] = useState(false);
+  const [hlaseniHotovo, setHlaseniHotovo] = useState('');
+
+  useEffect(() => {
+    if (!hlaseniHotovo) return;
+    const t = setTimeout(() => setHlaseniHotovo(''), 4000);
+    return () => clearTimeout(t);
+  }, [hlaseniHotovo]);
   const [playbackMode, setPlaybackMode] = useState<'ORIG' | 'INST'>(() => {
     if (!song.instrumentalUrl) return 'ORIG';
     if (typeof window === 'undefined') return 'INST';
@@ -788,6 +798,29 @@ export default function PlayerClient({ song }: { song: any }) {
       <audio ref={audioRef} preload="auto" crossOrigin="anonymous" />
       {/* Předstažení druhé stopy – trvale ztlumené, nikdy se nepřehrává. */}
       <audio ref={preloadRef} preload="auto" muted crossOrigin="anonymous" />
+
+      {hlasim && (
+        <HlaseniChyby
+          songId={song.id}
+          nazev={`${song.artist || 'Neznámý interpret'} – ${song.title}`}
+          onClose={() => setHlasim(false)}
+          onHotovo={(z) => setHlaseniHotovo(z)}
+        />
+      )}
+
+      {hlaseniHotovo && (
+        <div
+          onClick={() => setHlaseniHotovo('')}
+          style={{
+            position: 'absolute', top: '2rem', left: '50%', transform: 'translateX(-50%)',
+            background: 'rgba(0, 255, 180, 0.25)', border: '1px solid rgba(0, 255, 180, 0.5)',
+            padding: '10px 24px', borderRadius: '30px', color: '#fff', fontSize: '13px', fontWeight: 900,
+            backdropFilter: 'blur(15px)', zIndex: 10000, cursor: 'pointer', maxWidth: '90vw', textAlign: 'center',
+          }}
+        >
+          {hlaseniHotovo}
+        </div>
+      )}
       
       <style dangerouslySetInnerHTML={{ __html: `
         .player-root { --glow: rgba(255, 215, 0, 0.55); }
@@ -955,6 +988,19 @@ export default function PlayerClient({ song }: { song: any }) {
 
                 <button onClick={(e) => { e.stopPropagation(); toggleFullScreen(); }} style={{ flexShrink: 0, width: '46px', height: '46px', borderRadius: '14px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
                    ⛶
+                </button>
+
+                {/* Hlásit chybu se dá až odsud, protože že text nesedí na
+                    nahrávku se pozná při zpívání, ne v katalogu. Schválně
+                    v levé skupině — vpravo se na mobilu tak tak vejde
+                    přepínač stop a Zavřít. */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); setHlasim(true); }}
+                  title="Nahlásit špatný text nebo špatnou píseň"
+                  aria-label="Nahlásit chybu"
+                  style={{ flexShrink: 0, width: '46px', height: '46px', borderRadius: '14px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.75)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}
+                >
+                   ⚠️
                 </button>
               </div>
 
