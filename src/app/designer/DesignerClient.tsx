@@ -589,16 +589,17 @@ export default function DesignerClient({ song }: { song: any }) {
           return vysledek;
         });
 
+        // Šipky listují po celých úsecích textu — editor ukazuje tři řádky
+        // naráz, takže krok o tři je „další obrazovka". Po jednotlivých
+        // slovech se doladí hranatými závorkami.
         if (e.code === 'ArrowUp' || e.code === 'ArrowDown') {
           e.preventDefault();
-          posunORadky(e.code === 'ArrowDown' ? 1 : -1);
+          posunORadky(e.code === 'ArrowDown' ? 3 : -3);
           return;
         }
-        // Celá obrazovka textu naráz — u dlouhé písně je proklikat se po
-        // řádcích ke konci k neunesení.
         if (e.code === 'PageUp' || e.code === 'PageDown') {
           e.preventDefault();
-          posunORadky(e.code === 'PageDown' ? 10 : -10);
+          posunORadky(e.code === 'PageDown' ? 12 : -12);
           return;
         }
         if (e.key === '[' || e.key === ']') {
@@ -606,7 +607,24 @@ export default function DesignerClient({ song }: { song: any }) {
           setNavrhIdx((i) => Math.max(0, Math.min(puvodniSlova.length - 1, i + (e.key === ']' ? 1 : -1))));
           return;
         }
-        if (e.code === 'Backspace') { e.preventDefault(); setKorekcniBody((p) => p.slice(0, -1)); return; }
+        /**
+         * Backspace se chová jako při běžném klíčování: vezme poslední
+         * potvrzení zpět, vrátí návrh na to slovo a přetočí zvuk před něj,
+         * aby šlo hned znovu trefit. Samotné odebrání bodu bez návratu
+         * nechávalo člověka stát jinde, než kde chybu udělal.
+         */
+        if (e.code === 'Backspace') {
+          e.preventDefault();
+          if (!korekcniBody.length) return;
+          const posledni = korekcniBody[korekcniBody.length - 1];
+          const idx = puvodniSlova.findIndex(
+            (w) => w.lineIdx === posledni.lineIdx && w.wordIdx === posledni.wordIdx,
+          );
+          if (idx >= 0) setNavrhIdx(idx);
+          if (audioRef.current) audioRef.current.currentTime = Math.max(0, posledni.novy - 2);
+          setKorekcniBody((p) => p.slice(0, -1));
+          return;
+        }
         return; // v druhé fázi se jinak neklíčuje
       }
     }
@@ -1286,7 +1304,7 @@ export default function DesignerClient({ song }: { song: any }) {
               <span style={{ lineHeight: 1.5, textAlign: 'left' }}>
                 <div>
                   🎯 <strong>Korekce — 2. krok:</strong> přetáhni jezdec ke konci písně.
-                  {' '}<span style={{ opacity: 0.65 }}>↑ ↓ po řádcích, PageUp/PageDown po deseti, [ ] po slovech, Backspace bere bod zpět.</span>
+                  {' '}<span style={{ opacity: 0.65 }}>↑ ↓ o úsek textu, PageUp/PageDown o víc, [ ] po slovech, Backspace vrátí poslední bod.</span>
                 </div>
                 <div style={{ marginTop: '4px' }}>
                   {navrh ? (
