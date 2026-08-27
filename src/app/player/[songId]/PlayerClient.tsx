@@ -498,6 +498,29 @@ export default function PlayerClient({ song }: { song: any }) {
     setIsMuted(!isMuted);
   };
 
+  /**
+   * Skok na začátek písně. Nemíří na nulu souboru, ale na `startTime` —
+   * to je bod, od kterého píseň začíná i při normálním spuštění, takže
+   * restart zpěváka nehodí do předehry, kterou už jednou přeskočil.
+   *
+   * V relaci se posílá i nový čas, jinak by ostatní zařízení dál běžela
+   * podle původního a rozešla by se.
+   */
+  const odZacatku = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (isChordsMode && !isHost) return;
+    const p = audioRef.current;
+    if (!p) return;
+
+    const zacatek = song.startTime > 0 ? song.startTime : 0;
+    p.currentTime = zacatek;
+    if (p.paused) p.play().catch(() => {});
+
+    if (joinCode) {
+      updateSessionState(joinCode, { status: 'PLAYING', currentTime: zacatek });
+    }
+  };
+
   const togglePlay = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (isChordsMode && !isHost) return;
@@ -1018,6 +1041,15 @@ export default function PlayerClient({ song }: { song: any }) {
 
                 <button onClick={(e) => { e.stopPropagation(); toggleFullScreen(); }} style={{ flexShrink: 0, width: '46px', height: '46px', borderRadius: '14px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
                    ⛶
+                </button>
+
+                <button
+                  onClick={odZacatku}
+                  title="Přehrát od začátku"
+                  aria-label="Přehrát od začátku"
+                  style={{ flexShrink: 0, width: '46px', height: '46px', borderRadius: '14px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}
+                >
+                   ⏮
                 </button>
 
                 {/* Hlásit chybu se dá až odsud, protože že text nesedí na
