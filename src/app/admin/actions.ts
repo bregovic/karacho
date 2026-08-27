@@ -77,6 +77,9 @@ async function zkusDoplnitCasovani(songId: string): Promise<boolean> {
         // odpovídat řádkům textu, jinak se Studio rozejde samo se sebou.
         // Píseň zatím časování neměla, takže se o klíčovanou práci nepřijde.
         lyrics: nalezene.lyrics,
+        // Že časy sedí na TUHLE nahrávku pozná až člověk, který si to pustí.
+        // Do té doby píseň čeká ve stavu na ověření a do katalogu nejde.
+        state: SongState.TIMING_CHECK,
       },
     });
     console.log(`Časování z LRC: ${song.artist} – ${song.title} (${nalezene.blocks.length} bloků, rozdíl ${nalezene.rozdil.toFixed(1)}s)`);

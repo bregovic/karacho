@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { proverSeznamAction, zalistujAction, type NahledPisne } from '@/app/actions/zalistovani-actions';
+import { proverSeznamAction, zalistujAction, navrhniPisneAction, type NahledPisne } from '@/app/actions/zalistovani-actions';
 
 const BARVA: Record<NahledPisne['stav'], string> = {
   OK: '#4ade80',
@@ -23,11 +23,30 @@ export default function ZalistovatModal() {
   const [otevreno, setOtevreno] = useState(false);
   const [seznam, setSeznam] = useState('');
   const [nahled, setNahled] = useState<NahledPisne[] | null>(null);
-  const [pracuje, setPracuje] = useState<'' | 'prover' | 'zalistuj'>('');
+  const [pracuje, setPracuje] = useState<'' | 'prover' | 'zalistuj' | 'navrhy'>('');
   const [vysledek, setVysledek] = useState<string[] | null>(null);
 
   const pocetRadku = seznam.split('\n').filter((r) => r.trim()).length;
   const pocetOK = nahled?.filter((n) => n.stav === 'OK').length ?? 0;
+
+  /** Doplní do seznamu návrhy, které v katalogu nemáme a mají časování. */
+  const navrhni = async (zdroj: string) => {
+    setPracuje('navrhy');
+    setVysledek(null);
+    setNahled(null);
+    try {
+      const r = await navrhniPisneAction(zdroj, 20);
+      if (!r.radky.length) {
+        alert(`Ze zdroje „${r.popis}" nevyšel žádný nový návrh — prošlo ${r.prohledano} písní a všechny už v katalogu jsou nebo k nim není časování.`);
+        return;
+      }
+      setSeznam((p) => (p.trim() ? `${p.trim()}\n` : '') + r.radky.join('\n'));
+    } catch (e: any) {
+      alert(`Načtení návrhů selhalo: ${e.message}`);
+    } finally {
+      setPracuje('');
+    }
+  };
 
   const prover = async () => {
     setPracuje('prover');
@@ -86,6 +105,17 @@ export default function ZalistovatModal() {
                 </p>
               </div>
               <button onClick={zavri} disabled={!!pracuje} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', flexShrink: 0 }}>✕</button>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontSize: '11px', opacity: 0.5, fontWeight: 700 }}>NAVRHNOUT:</span>
+              <button onClick={() => navrhni('KARAOKE')} disabled={!!pracuje} className="btn-secondary" style={{ padding: '7px 14px', borderRadius: '10px', fontSize: '11px', fontWeight: 800, opacity: pracuje ? 0.5 : 1 }}>
+                🎤 Karaoke klasika
+              </button>
+              <button onClick={() => navrhni('ZEBRICEK')} disabled={!!pracuje} className="btn-secondary" style={{ padding: '7px 14px', borderRadius: '10px', fontSize: '11px', fontWeight: 800, opacity: pracuje ? 0.5 : 1 }}>
+                📈 Nejhranější teď
+              </button>
+              {pracuje === 'navrhy' && <span style={{ fontSize: '11px', opacity: 0.6 }}>hledám, co ještě nemáme…</span>}
             </div>
 
             <textarea

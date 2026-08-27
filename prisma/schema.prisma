@@ -206,6 +206,11 @@ enum SongState {
   TESTING
   ACTIVE
   REQUESTED
+  /// Časování dohledané z LRC, které ještě nikdo neposlouchal. Délky sedí
+  /// a časy se do nahrávky vejdou, ale že to opravdu sedí na tuhle verzi
+  /// nahrávky pozná až člověk. Do katalogu se píseň nepustí, dokud si ji
+  /// někdo nepustí a nepotvrdí.
+  TIMING_CHECK
   /// Zalistováno „nasucho": text, časování i metadata hotové, chybí jen
   /// nahrávka. Odlišuje se schválně od odvozeného „chybí audio" — to
   /// znamená rozdělanou práci, tohle je záměr. Píseň se do katalogu

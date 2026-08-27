@@ -13,6 +13,43 @@ import { lrcNaCasovani, MIN_BLOKU, type PrevedeneCasovani } from '@/lib/lrc';
 
 /** O kolik vteřin se smí délka lišit, aby šlo o tutéž nahrávku. */
 export const TOLERANCE_DELKY = 5;
+/** O kolik smí poslední zpívaný řádek přetéct za konec nahrávky. */
+const PRETECENI_KONCE = 3;
+/** Kolik z nahrávky musí být pokryto zpěvem, aby text nebyl jen útržek. */
+const MIN_POKRYTI = 0.25;
+
+/** Proč se nalezené časování nedá použít. */
+export type DuvodOdmitnuti =
+  | 'delka'        // celková stopáž se rozchází
+  | 'presah'       // text končí až za koncem nahrávky
+  | 'utrzek'       // zpěv pokrývá jen zlomek stopy
+  | 'malo-bloku';  // vadný nebo prázdný soubor
+
+/**
+ * Má nalezené časování šanci sedět na naši nahrávku?
+ *
+ * Shoda celkové stopáže sama nestačí. Chytá se proto ještě, jestli se
+ * poslední zpívaný řádek do nahrávky vůbec vejde a jestli zpěv pokrývá
+ * rozumnou část stopy — útržkovité LRC (jen refrén, jen první sloka) má
+ * délku správně, ale k ničemu není.
+ */
+export function posudCasovani(
+  prevedene: PrevedeneCasovani,
+  cilovaDelka: number,
+  rozdilDelek: number,
+  tolerance = TOLERANCE_DELKY,
+): DuvodOdmitnuti | null {
+  if (rozdilDelek > tolerance) return 'delka';
+  if (prevedene.blocks.length < MIN_BLOKU) return 'malo-bloku';
+
+  const konec = prevedene.blocks[prevedene.blocks.length - 1].be;
+  if (konec > cilovaDelka + PRETECENI_KONCE) return 'presah';
+
+  const zpivano = prevedene.blocks.reduce((a, b) => a + (b.be - b.bs), 0);
+  if (zpivano < cilovaDelka * MIN_POKRYTI) return 'utrzek';
+
+  return null;
+}
 
 export type NalezeneCasovani = PrevedeneCasovani & {
   lrcDelka: number;
@@ -53,7 +90,8 @@ export async function najdiCasovani(
     if (rozdil > tolerance) break; // dál už jsou jen vzdálenější
 
     const prevedene = lrcNaCasovani(lrc.syncedLyrics, lrc.duration);
-    if (prevedene.blocks.length < MIN_BLOKU) continue;
+    const problem = posudCasovani(prevedene, cilovaDelka, rozdil, tolerance);
+    if (problem) continue;
 
     return {
       ...prevedene,

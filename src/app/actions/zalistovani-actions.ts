@@ -206,3 +206,73 @@ export async function zalistujAction(seznam: string): Promise<{ zalozeno: number
   revalidatePath('/admin');
   return { zalozeno, preskoceno, hlaseni };
 }
+
+/**
+ * Návrhy, co zalistovat — podněty k shánění nahrávek.
+ *
+ * Bere osvědčené karaoke playlisty (editorské, ne náhodné) a projede je
+ * proti katalogu a proti LRCLIB. Vrátí jen to, co ještě nemáme A zároveň
+ * k tomu existuje časování — návrh, ke kterému se stejně nedá nic udělat,
+ * je jen šum.
+ */
+const ZDROJE_NAVRHU: Record<string, { popis: string; playlisty?: string[]; zebricek?: boolean }> = {
+  KARAOKE: { popis: 'Karaoke klasika', playlisty: ['7280809544', '12153922511'] },
+  ZEBRICEK: { popis: 'Nejhranější teď', zebricek: true },
+};
+
+export async function navrhniPisneAction(zdroj: string, limit = 25): Promise<{ radky: string[]; prohledano: number; popis: string }> {
+  await jenSpravce();
+
+  const nastaveni = ZDROJE_NAVRHU[zdroj] ?? ZDROJE_NAVRHU.KARAOKE;
+  const stopy: any[] = [];
+
+  if (nastaveni.zebricek) {
+    const d = await fetch('https://api.deezer.com/chart/0/tracks?limit=100', { signal: AbortSignal.timeout(15000) })
+      .then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    stopy.push(...(d?.data || []));
+  }
+  for (const id of nastaveni.playlisty || []) {
+    const d = await fetch(`https://api.deezer.com/playlist/${id}/tracks?limit=100`, { signal: AbortSignal.timeout(15000) })
+      .then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    stopy.push(...(d?.data || []));
+  }
+
+  // Zamícháme, ať návrhy nejsou pokaždé tytéž od začátku seznamu.
+  const poradi = stopy
+    .map((s, i) => ({ s, k: (i * 2654435761) % 4294967296 }))
+    .sort((a, b) => a.k - b.k)
+    .map((x) => x.s);
+
+  const radky: string[] = [];
+  let prohledano = 0;
+
+  for (const stopa of poradi) {
+    if (radky.length >= limit) break;
+    const artist = stopa?.artist?.name;
+    const title = String(stopa?.title || '').replace(/\s*[([].*$/, '').trim();
+    if (!artist || !title) continue;
+    prohledano++;
+
+    const uz = await db.song.findFirst({
+      where: {
+        title: { equals: title, mode: 'insensitive' },
+        artist: { equals: artist, mode: 'insensitive' },
+      },
+      select: { id: true },
+    });
+    if (uz) continue;
+
+    // Bez časování by to byl jen seznam přání, ne podnět k práci.
+    const maCasovani = await fetch(
+      `https://lrclib.net/api/search?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`,
+      { headers: { 'User-Agent': 'Karacho/1.0' }, signal: AbortSignal.timeout(12000) },
+    ).then((r) => (r.ok ? r.json() : [])).then(
+      (d: any) => Array.isArray(d) && d.some((x: any) => x.syncedLyrics),
+    ).catch(() => false);
+
+    if (maCasovani) radky.push(`${artist} - ${title}`);
+    await new Promise((r) => setTimeout(r, 250));
+  }
+
+  return { radky, prohledano, popis: nastaveni.popis };
+}
