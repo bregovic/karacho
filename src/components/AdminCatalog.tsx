@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AudioUploader from '@/components/AudioUploader';
 import BulkUploader from '@/components/BulkUploader';
+import ZalistovatModal from '@/components/ZalistovatModal';
 import SongEditModal from '@/components/SongEditModal';
 import { createSong, deleteSong, updateSong, removeSongResource, bulkRemoveBackground, bulkUpdateState, fetchLyricsAction, bulkFetchMissingLyrics, checkDuplicateSong, researchSongDataAction, bulkUpdateMetadata, getAdminStats, manageGenreAction, manageTagAction, getTaxonomyAction } from '@/app/admin/actions';
 import { autoAlignSong } from '@/app/admin/auto-align';
@@ -357,6 +358,7 @@ export default function AdminCatalog({
                   🔍 AUDIT DAT
                 </button>
               </Link>
+              <ZalistovatModal />
               <button onClick={toggleSelectAll} className="btn-secondary" style={{ padding: '12px 20px', borderRadius: '14px', fontSize: '12px', fontWeight: 800 }}>
                   {isAllSelected ? "🔲 ODZNAČIT VŠE ZOBRAZENÉ" : "☑️ OZNAČIT VŠE ZOBRAZENÉ"}
               </button>
