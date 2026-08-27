@@ -570,7 +570,8 @@ export default function AdminCatalog({
                             defaultValue={song.artist || ''} 
                             onBlur={async (e) => {
                               const r: any = await updateSong(song.id, { artist: e.target.value });
-                              if (r && r.ok === false) { alert(r.error); e.target.value = song.artist || ''; }
+                              if (r && r.ok === false) { alert(r.error); e.target.value = song.artist || ''; return; }
+                              router.refresh();
                             }}
                             placeholder="Interpret / Autor"
                             style={{ background: 'none', border: 'none', color: 'var(--color-gold)', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', width: '100%', outline: 'none', padding: 0 }} 
@@ -579,7 +580,8 @@ export default function AdminCatalog({
                             defaultValue={song.title} 
                             onBlur={async (e) => {
                               const r: any = await updateSong(song.id, { title: e.target.value });
-                              if (r && r.ok === false) { alert(r.error); e.target.value = song.title; }
+                              if (r && r.ok === false) { alert(r.error); e.target.value = song.title; return; }
+                              router.refresh();
                             }}
                             placeholder="Název písně"
                             style={{ background: 'none', border: 'none', color: 'white', fontSize: '20px', fontWeight: 900, width: '100%', outline: 'none', margin: '4px 0', padding: 0 }} 

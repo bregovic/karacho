@@ -41,6 +41,9 @@ export default function SongEditModal({
       if (r && r.ok === false) { setImportStatus(`⚠️ ${r.error}`); return; }
       setImportStatus('✅ Změny automaticky uloženy');
       setTimeout(() => setImportStatus(null), 2000);
+      // Přehled za oknem musí ukázat novou hodnotu — jinak se člověk vrátí
+      // z detailu a vidí na kartě pořád tu starou.
+      onRefresh();
     } catch (e) {
       setImportStatus('❌ Chyba auto-save');
     }

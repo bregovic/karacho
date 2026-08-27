@@ -66,7 +66,7 @@ function DoplnitInterpreta({ songId, puvodni, hotovo }: { songId: string; puvodn
 }
 
 /** Pokus o stažení textu rovnou z přehledu, ať se nemusí do detailu. */
-function DotahnoutText({ songId }: { songId: string }) {
+function DotahnoutText({ songId, hotovo }: { songId: string; hotovo: () => void }) {
   const [stav, setStav] = useState<'' | 'hleda' | 'ok' | 'nic'>('');
   const [zprava, setZprava] = useState('');
 
@@ -74,7 +74,7 @@ function DotahnoutText({ songId }: { songId: string }) {
     setStav('hleda');
     try {
       const r: any = await fetchLyricsAction(songId);
-      if (r?.success) { setStav('ok'); setZprava(r.source || 'nalezeno'); }
+      if (r?.success) { setStav('ok'); setZprava(r.source || 'nalezeno'); hotovo(); }
       else { setStav('nic'); setZprava(r?.error || 'nenalezeno'); }
     } catch (e: any) {
       setStav('nic');
@@ -133,6 +133,16 @@ export default function AuditPage() {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [filterType, setFilterType] = useState<string>('ALL');
   const [done, setDone] = useState(false);
+
+  /**
+   * Vyřešený nález zmizí ze seznamu rovnou, bez nového projetí auditu.
+   * Projet celý katalog trvá a člověk, který právě doplnil interpreta,
+   * potřebuje hlavně vidět, že řádek ubyl.
+   */
+  const vyresenNalez = (songId: string, typ: string) => {
+    setIssues((p) => p.filter((i) => !(i.songId === songId && i.issueType === typ)));
+    setSelected(new Set());
+  };
 
   const runAudit = async () => {
     setLoading(true);
@@ -416,10 +426,14 @@ export default function AuditPage() {
 
                     {/* RYCHLÁ AKCE PODLE DRUHU NÁLEZU */}
                     {issue.issueType === 'MISSING_ARTIST' && (
-                      <DoplnitInterpreta songId={issue.songId} puvodni={issue.suggestedArtist || ''} hotovo={() => {}} />
+                      <DoplnitInterpreta
+                        songId={issue.songId}
+                        puvodni={issue.suggestedArtist || ''}
+                        hotovo={() => vyresenNalez(issue.songId, 'MISSING_ARTIST')}
+                      />
                     )}
                     {issue.issueType === 'MISSING_LYRICS' && (
-                      <DotahnoutText songId={issue.songId} />
+                      <DotahnoutText songId={issue.songId} hotovo={() => vyresenNalez(issue.songId, 'MISSING_LYRICS')} />
                     )}
 
                     {/* SUGGESTION */}
