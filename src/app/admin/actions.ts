@@ -48,6 +48,34 @@ export async function smazNahranySoubor(fileUrl: string) {
  * aby bylo v administraci vidět, že to ještě nikdo neověřil; jakmile píseň
  * projde Studiem, značka zmizí sama, protože Studio bloky přestaví.
  */
+/**
+ * Posune stav písně poté, co dorazil nějaký zvuk.
+ *
+ * Zalistovaná píseň čeká, dokud nemá OBĚ stopy — originál i instrumentálku.
+ * Se samotným originálem se sice dá zpívat, ale přepínač stop by neměl co
+ * přepnout, takže „čeká na zvuk" pořád platí.
+ *
+ * Jakmile je zvuk kompletní, rozhoduje časování: když ho píseň má (typicky
+ * odvozené z LRC), jde na ověření — že časy sedí na tuhle nahrávku pozná
+ * až člověk. Bez časování pokračuje běžným postupem.
+ *
+ * Stavy, které si někdo nastavil sám (ACTIVE, nahlášené chyby, přání),
+ * se nepřepisují.
+ */
+async function dorovnejStavPoNahrani(songId: string) {
+  const s = await db.song.findUnique({
+    where: { id: songId },
+    select: { state: true, audioUrl: true, instrumentalUrl: true, timingData: true },
+  });
+  if (!s || s.state !== SongState.WAITING_AUDIO) return;
+  if (!s.audioUrl || !s.instrumentalUrl) return;
+
+  await db.song.update({
+    where: { id: songId },
+    data: { state: s.timingData ? SongState.TIMING_CHECK : SongState.NEW },
+  });
+}
+
 async function zkusDoplnitCasovani(songId: string, prepsatOdvozene = false): Promise<boolean> {
   const song = await db.song.findUnique({
     where: { id: songId },
@@ -320,15 +348,13 @@ export async function updateSongAudio(songId: string, audioUrl: string, audioHas
       audioUrl,
       audioHash: audioHash || undefined,
       audioSize: audioSize ?? undefined,
-      // Píseň zalistovaná nasucho čekala právě na tenhle soubor — jakmile
-      // dorazí, nemá důvod zůstávat stranou a vrací se do běžného postupu.
-      state: oldSong?.state === 'WAITING_AUDIO' ? SongState.NEW : undefined,
     }
   });
 
   // Až teď víme, jak je nahrávka dlouhá — u časování odvozeného z LRC se
   // proto vybere verze znovu, tentokrát podle ní.
   await zkusDoplnitCasovani(songId, true);
+  await dorovnejStavPoNahrani(songId);
 
   revalidatePath('/admin');
 }
@@ -347,6 +373,7 @@ export async function updateSongInstrumental(songId: string, instrumentalUrl: st
     where: { id: songId },
     data: { instrumentalUrl, instrumentalHash: instrumentalHash || undefined },
   });
+  await dorovnejStavPoNahrani(songId);
   revalidatePath('/admin');
 }
 
