@@ -206,6 +206,11 @@ enum SongState {
   TESTING
   ACTIVE
   REQUESTED
+  /// Zalistováno „nasucho": text, časování i metadata hotové, chybí jen
+  /// nahrávka. Odlišuje se schválně od odvozeného „chybí audio" — to
+  /// znamená rozdělanou práci, tohle je záměr. Píseň se do katalogu
+  /// pustí, až se zvuk doplní.
+  WAITING_AUDIO
   /// Text je špatně (překlepy, jiná sloka, přehozené řádky). Opraví se
   /// v katalogu, audio i časování se dají použít dál.
   BAD_LYRICS

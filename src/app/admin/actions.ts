@@ -229,14 +229,21 @@ function normalizeForMatching(str: string) {
 export async function updateSongAudio(songId: string, audioUrl: string, audioHash?: string, audioSize?: number) {
   await ensureAdmin();
 
-  const oldSong = await db.song.findUnique({ where: { id: songId }, select: { audioUrl: true } });
+  const oldSong = await db.song.findUnique({ where: { id: songId }, select: { audioUrl: true, state: true } });
   if (oldSong?.audioUrl && oldSong.audioUrl !== audioUrl) {
     await deleteFileFromR2(oldSong.audioUrl);
   }
 
   await db.song.update({
     where: { id: songId },
-    data: { audioUrl, audioHash: audioHash || undefined, audioSize: audioSize ?? undefined }
+    data: {
+      audioUrl,
+      audioHash: audioHash || undefined,
+      audioSize: audioSize ?? undefined,
+      // Píseň zalistovaná nasucho čekala právě na tenhle soubor — jakmile
+      // dorazí, nemá důvod zůstávat stranou a vrací se do běžného postupu.
+      state: oldSong?.state === 'WAITING_AUDIO' ? SongState.NEW : undefined,
+    }
   });
   revalidatePath('/admin');
 }

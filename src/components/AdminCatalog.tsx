@@ -63,6 +63,10 @@ export default function AdminCatalog({
     // že píseň má komplet audio i časování.
     if (s.state === 'BAD_LYRICS') return 'BAD_LYRICS';
     if (s.state === 'BAD_SONG') return 'BAD_SONG';
+    // Zalistováno nasucho: čeká se jen na zvuk. Musí se rozhodnout podle
+    // stavu, ne podle chybějícího audia — jinak by to splynulo s rozdělanou
+    // prací, kde MP3 chybí omylem.
+    if (s.state === 'WAITING_AUDIO') return 'WAITING_AUDIO';
 
     const hasLyrics = !!s.lyrics && s.lyrics.trim().length > 0;
     const hasAudio = !!s.audioUrl;
@@ -313,6 +317,7 @@ export default function AdminCatalog({
                 <option value="MISSING_TIMING">⏱️ STUDIO</option>
                 <option value="REVIEW">🚦 KONTROLA</option>
                 <option value="ACTIVE">🟢 LIVE</option>
+                <option value="WAITING_AUDIO">📻 ČEKÁ NA ZVUK ({pocetVeStavu('WAITING_AUDIO')})</option>
                 <option value="BAD_LYRICS">✍️⚠️ ŠPATNÝ TEXT ({pocetVeStavu('BAD_LYRICS')})</option>
                 <option value="BAD_SONG">⛔ ŠPATNÁ PÍSEŇ ({pocetVeStavu('BAD_SONG')})</option>
             </select>
@@ -554,6 +559,7 @@ export default function AdminCatalog({
                              })()}
 
                              {song.state === 'ACTIVE' && <span style={{ fontSize: '10px', background: 'rgba(0,177,64,0.15)', color: '#4ade80', padding: '4px 10px', borderRadius: '10px', fontWeight: 900, marginLeft: 'auto' }}>LIVE ✅</span>}
+                             {song.state === 'WAITING_AUDIO' && <span style={{ fontSize: '10px', background: 'rgba(0,210,255,0.15)', color: '#00d2ff', padding: '4px 10px', borderRadius: '10px', fontWeight: 900, marginLeft: 'auto' }}>ČEKÁ NA ZVUK 📻</span>}
                              {song.state === 'BAD_LYRICS' && <span style={{ fontSize: '10px', background: 'rgba(255,204,0,0.15)', color: '#ffcc00', padding: '4px 10px', borderRadius: '10px', fontWeight: 900, marginLeft: 'auto' }}>ŠPATNÝ TEXT ✍️⚠️</span>}
                              {song.state === 'BAD_SONG' && <span style={{ fontSize: '10px', background: 'rgba(255,75,43,0.15)', color: '#ff8a70', padding: '4px 10px', borderRadius: '10px', fontWeight: 900, marginLeft: 'auto' }}>ŠPATNÁ PÍSEŇ ⛔</span>}
                           </div>
