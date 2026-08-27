@@ -50,8 +50,16 @@ export async function POST(req: NextRequest) {
     // Na název se schválně nekoukáme — přejmenovaný soubor je pořád stejná
     // písnička a právě tím dřív kontrola propadala.
     if (contentType.includes('audio')) {
+       // Otisk sám o sobě nestačí — musí u něj být i soubor. Osiřelý otisk
+       // (po smazání nahrávky) by jinak zablokoval nahrání téže písně a
+       // ukázal na záznam, kde žádné audio není.
        const existing = await db.song.findFirst({
-          where: { OR: [{ audioHash: hash }, { instrumentalHash: hash }] },
+          where: {
+            OR: [
+              { audioHash: hash, audioUrl: { not: null } },
+              { instrumentalHash: hash, instrumentalUrl: { not: null } },
+            ],
+          },
           select: { id: true, title: true, artist: true, audioUrl: true, instrumentalUrl: true, audioHash: true },
        });
        if (existing) {

@@ -376,10 +376,16 @@ export async function removeSongResource(songId: string, type: 'audio' | 'instru
   if (type === 'audio') {
     await deleteFileFromR2(song.audioUrl);
     data.audioUrl = null;
+    // Otisk a velikost musí pryč se souborem. Když zůstaly, hlásil upload
+    // téhož MP3 „už existuje" a odkázal na píseň, kde žádné audio není —
+    // z takové slepé uličky se nedalo dostat jinak než přes databázi.
+    data.audioHash = null;
+    data.audioSize = null;
   }
   if (type === 'instrumental') {
     await deleteFileFromR2(song.instrumentalUrl);
     data.instrumentalUrl = null;
+    data.instrumentalHash = null;
   }
   if (type === 'background') {
     await deleteFileFromR2(song.backgroundUrl);
