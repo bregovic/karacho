@@ -1047,9 +1047,9 @@ export default function PlayerClient({ song }: { song: any }) {
                   onClick={odZacatku}
                   title="Přehrát od začátku"
                   aria-label="Přehrát od začátku"
-                  style={{ flexShrink: 0, width: '46px', height: '46px', borderRadius: '14px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}
+                  style={{ flexShrink: 0, width: '46px', height: '46px', borderRadius: '14px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}
                 >
-                   ⏮
+                   ⏮️
                 </button>
 
                 {/* Hlásit chybu se dá až odsud, protože že text nesedí na
