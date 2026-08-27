@@ -15,16 +15,21 @@ function DoplnitInterpreta({ songId, puvodni, hotovo }: { songId: string; puvodn
   const [hodnota, setHodnota] = useState(puvodni || '');
   const [uklada, setUklada] = useState(false);
   const [ulozeno, setUlozeno] = useState(false);
+  const [chyba, setChyba] = useState('');
 
   const uloz = async () => {
     if (!hodnota.trim()) return;
     setUklada(true);
+    setChyba('');
     try {
-      await updateSong(songId, { artist: hodnota.trim() });
+      const r: any = await updateSong(songId, { artist: hodnota.trim() });
+      // Doplnění interpreta může narazit na píseň, která už v katalogu pod
+      // tím jménem je. Server to vrátí jako srozumitelnou zprávu, ne výjimku.
+      if (r && r.ok === false) { setChyba(r.error); return; }
       setUlozeno(true);
       hotovo();
     } catch (e: any) {
-      alert(`Uložení selhalo: ${e.message}`);
+      setChyba(e?.message || 'Uložení selhalo');
     } finally {
       setUklada(false);
     }
@@ -33,7 +38,8 @@ function DoplnitInterpreta({ songId, puvodni, hotovo }: { songId: string; puvodn
   if (ulozeno) return <span style={{ fontSize: '12px', color: '#4ade80', fontWeight: 700, flexShrink: 0 }}>✓ {hodnota}</span>;
 
   return (
-    <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+    <div style={{ display: 'flex', gap: '6px', flexShrink: 0, flexDirection: 'column', alignItems: 'flex-end' }} onClick={(e) => e.stopPropagation()}>
+     <div style={{ display: 'flex', gap: '6px' }}>
       <input
         value={hodnota}
         onChange={(e) => setHodnota(e.target.value)}
@@ -49,6 +55,12 @@ function DoplnitInterpreta({ songId, puvodni, hotovo }: { songId: string; puvodn
       >
         {uklada ? '…' : 'Uložit'}
       </button>
+     </div>
+      {chyba && (
+        <div style={{ fontSize: '11px', color: '#ffcc00', maxWidth: '280px', textAlign: 'right', lineHeight: 1.4 }}>
+          ⚠️ {chyba}
+        </div>
+      )}
     </div>
   );
 }

@@ -35,7 +35,10 @@ export default function SongEditModal({
 
   const autoSave = async (updatedFields: any) => {
     try {
-      await updateSong(song.id, { ...formData, ...updatedFields });
+      const r: any = await updateSong(song.id, { ...formData, ...updatedFields });
+      // Změna názvu nebo interpreta může narazit na píseň, která už
+      // v katalogu pod tím jménem je. Server vrátí srozumitelnou zprávu.
+      if (r && r.ok === false) { setImportStatus(`⚠️ ${r.error}`); return; }
       setImportStatus('✅ Změny automaticky uloženy');
       setTimeout(() => setImportStatus(null), 2000);
     } catch (e) {
@@ -45,10 +48,17 @@ export default function SongEditModal({
 
   const handleSave = async () => {
     setIsSaving(true);
-    await updateSong(song.id, formData);
-    setIsSaving(false);
-    onRefresh();
-    onClose();
+    try {
+      const r: any = await updateSong(song.id, formData);
+      if (r && r.ok === false) {
+        setImportStatus(`⚠️ ${r.error}`);
+        return; // okno zůstává otevřené, ať se dá název opravit
+      }
+      onRefresh();
+      onClose();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleResearch = async () => {

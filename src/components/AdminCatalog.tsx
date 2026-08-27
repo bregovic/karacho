@@ -328,23 +328,6 @@ export default function AdminCatalog({
       ) : (
         <>
           {/* KOMPAKTNÍ FILTRAČNÍ PULT */}
-          {/* Přání hostů mají přednost — ať je vidět, že čekají, i když je
-              zrovna zapnutý jiný filtr. */}
-          {pocetVeStavu('REQUESTED') > 0 && statusFilter !== 'REQUESTED' && (
-            <button
-              onClick={() => setStatusFilter('REQUESTED')}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem',
-                padding: '10px 18px', borderRadius: '14px', cursor: 'pointer',
-                background: 'rgba(255,215,0,0.08)', border: '1px solid rgba(255,215,0,0.35)',
-                color: 'var(--color-gold)', fontSize: '13px', fontWeight: 800,
-              }}
-            >
-              🙋 Čeká {pocetVeStavu('REQUESTED')} přání od hostů
-              <span style={{ opacity: 0.6, fontWeight: 600 }}>— zobrazit</span>
-            </button>
-          )}
-
           <div className="admin-filters" style={{ 
             display: 'flex', gap: '0.75rem', marginBottom: '2rem', 
             background: 'rgba(255,255,255,0.03)', padding: '0.8rem', 
@@ -585,13 +568,19 @@ export default function AdminCatalog({
                       <div style={{ flex: 1, overflow: 'hidden' }}>
                           <input 
                             defaultValue={song.artist || ''} 
-                            onBlur={(e) => updateSong(song.id, { artist: e.target.value })}
+                            onBlur={async (e) => {
+                              const r: any = await updateSong(song.id, { artist: e.target.value });
+                              if (r && r.ok === false) { alert(r.error); e.target.value = song.artist || ''; }
+                            }}
                             placeholder="Interpret / Autor"
                             style={{ background: 'none', border: 'none', color: 'var(--color-gold)', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', width: '100%', outline: 'none', padding: 0 }} 
                           />
                           <input 
                             defaultValue={song.title} 
-                            onBlur={(e) => updateSong(song.id, { title: e.target.value })}
+                            onBlur={async (e) => {
+                              const r: any = await updateSong(song.id, { title: e.target.value });
+                              if (r && r.ok === false) { alert(r.error); e.target.value = song.title; }
+                            }}
                             placeholder="Název písně"
                             style={{ background: 'none', border: 'none', color: 'white', fontSize: '20px', fontWeight: 900, width: '100%', outline: 'none', margin: '4px 0', padding: 0 }} 
                           />

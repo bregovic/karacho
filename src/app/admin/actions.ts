@@ -48,14 +48,21 @@ export async function smazNahranySoubor(fileUrl: string) {
  * aby bylo v administraci vidět, že to ještě nikdo neověřil; jakmile píseň
  * projde Studiem, značka zmizí sama, protože Studio bloky přestaví.
  */
-async function zkusDoplnitCasovani(songId: string): Promise<boolean> {
+async function zkusDoplnitCasovani(songId: string, prepsatOdvozene = false): Promise<boolean> {
   const song = await db.song.findUnique({
     where: { id: songId },
     select: { artist: true, title: true, audioSize: true, timingData: true },
   });
-  // Existující časování se nikdy nepřepisuje — ruční práce ze Studia je
-  // cennější než odhad z LRC.
-  if (!song?.artist || !song.title || song.timingData) return false;
+  if (!song?.artist || !song.title) return false;
+
+  // Ruční práce ze Studia se nikdy nepřepisuje. Odvozené časování z LRC
+  // ano — a to je právě případ, kdy k zalistované písni dorazí nahrávka:
+  // do té chvíle se verze LRC vybírala podle mediánu kandidátů, teď je
+  // konečně podle čeho vybírat. U Sweet Caroline se tím trefilo LRC pro
+  // 200s vydání místo 206s a šest vteřin rozdílu nespraví žádný posun,
+  // protože se to rozjíždí postupně.
+  const odvozene = (song.timingData as any)?.zdroj === 'lrc';
+  if (song.timingData && !(prepsatOdvozene && odvozene)) return false;
 
   const cil = delkaZVelikosti(song.audioSize);
   if (!cil) return false;
@@ -318,6 +325,11 @@ export async function updateSongAudio(songId: string, audioUrl: string, audioHas
       state: oldSong?.state === 'WAITING_AUDIO' ? SongState.NEW : undefined,
     }
   });
+
+  // Až teď víme, jak je nahrávka dlouhá — u časování odvozeného z LRC se
+  // proto vybere verze znovu, tentokrát podle ní.
+  await zkusDoplnitCasovani(songId, true);
+
   revalidatePath('/admin');
 }
 
@@ -460,13 +472,39 @@ export async function updateSong(songId: string, data: any) {
     filteredData.tags = filteredData.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
   }
 
-  await db.song.update({ 
-    where: { id: songId }, 
-    data: filteredData 
-  });
+  /**
+   * Dvojice interpret + název je v databázi unikátní, takže doplnění
+   * interpreta u písně, která už v katalogu pod tím jménem je, skončí
+   * chybou P2002. Bez ošetření to na uživatele vypadlo jako hláška
+   * z Prismy — což je přesně ta situace, kdy člověk potřebuje vědět,
+   * SE KTEROU písní se to bije, ne co je to za výjimku.
+   */
+  try {
+    await db.song.update({ where: { id: songId }, data: filteredData });
+  } catch (e: any) {
+    if (e?.code === 'P2002') {
+      const kolize = await db.song.findFirst({
+        where: {
+          id: { not: songId },
+          artist: { equals: filteredData.artist ?? undefined, mode: 'insensitive' },
+          title: { equals: filteredData.title ?? undefined, mode: 'insensitive' },
+        },
+        select: { id: true, title: true, artist: true, state: true },
+      });
+      return {
+        ok: false as const,
+        error: kolize
+          ? `V katalogu už je „${kolize.artist} – ${kolize.title}" (${kolize.state}). Dvě písně se stejným interpretem a názvem mít nejdou.`
+          : 'Píseň se stejným interpretem a názvem už v katalogu je.',
+        konfliktId: kolize?.id,
+      };
+    }
+    throw e;
+  }
 
   await logAdminAction('UPDATE_SONG', `Upravena píseň ID: ${songId}`, 'Song', songId);
   revalidatePath('/admin');
+  return { ok: true as const };
 }
 
 export async function bulkRemoveBackground(backgroundUrl: string) {
