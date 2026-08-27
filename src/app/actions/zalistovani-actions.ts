@@ -16,8 +16,20 @@ import { revalidatePath } from 'next/cache';
 /** Názvy variant, které nechceme — remix ani live obvykle není to, co hledáme. */
 const PODEZRELE = /(remix|live|acoustic|instrumental|karaoke|cover|remaster|re-?recorded|radio edit|version|mix|demo|reprise|extended|mono|sped up|slowed|tribute|made popular)/i;
 
+/**
+ * Porovnávací klíč. Stylizace `$` a `@` se převádějí na písmena — „Ke$ha"
+ * a „Kesha" je tentýž interpret a bez toho se píseň založila podruhé,
+ * i když v katalogu dávno byla. Číslice se schválně nepřevádějí: „MIG 21"
+ * a „Blink-182" jsou skutečná jména a záměna 1→i by z různých kapel
+ * udělala jednu.
+ */
 const klic = (s?: string | null) =>
-  (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/\$/g, 's').replace(/@/g, 'a')
+    .replace(/[^a-z0-9]/g, '');
+
+/** Vydavatelství a projekty vydávající karaoke podklady a předělávky. */
+const PODEZRELY_INTERPRET = /(karaoke|ameritz|mix-?masters|tribute|piano dreamers|string quartet|tune robbers|orchestra|violinista|workshop|backing|instrumental|cover band|sunfly|zoom|made famous by)/i;
 
 const median = (a: number[]) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)];
 
@@ -56,6 +68,9 @@ export type NahledPisne = {
 
 async function pripravit(artist: string, title: string): Promise<NahledPisne> {
   const zadano = `${artist} – ${title}`;
+  if (PODEZRELY_INTERPRET.test(artist)) {
+    return { zadano, stav: 'CHYBA', zprava: 'Vypadá to na karaoke podklad nebo předělávku, ne na originál' };
+  }
   try {
     const lr = await fetch(
       `https://lrclib.net/api/search?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`,
@@ -84,19 +99,25 @@ async function pripravit(artist: string, title: string): Promise<NahledPisne> {
       ).then((r) => (r.ok ? r.json() : null)).catch(() => null);
       const stopa = vyberStopu(dz?.data, title, lrc.duration);
 
-      const finalniNazev = stopa?.title || title;
-      const finalniInterpret = stopa?.artist?.name || artist;
+      // Deezer smí název upřesnit, ale NIKDY přepsat interpreta na jiného.
+      // Když se neshodne, je to coververze nebo jiná píseň téhož názvu —
+      // a časování, které držíme, patří tomu původnímu interpretovi.
+      // Bez tohohle pravidla vyšel z „Oasis – Whatever" záznam
+      // „Imagine Dragons – Whatever It Takes".
+      const sediInterpret = stopa && klic(stopa.artist?.name) === klic(artist);
+      const finalniNazev = sediInterpret ? stopa.title : title;
+      const finalniInterpret = artist;
 
       // Porovnání bez ohledu na velikost písmen a diakritiku. Přesná shoda
       // nestačí: „Take On Me" a „Take on Me" jsou tatáž píseň a jednou se
       // kvůli tomu založila podruhé.
-      const existujici = await db.song.findFirst({
-        where: {
-          title: { equals: finalniNazev, mode: 'insensitive' },
-          artist: { equals: finalniInterpret, mode: 'insensitive' },
-        },
-        select: { id: true, title: true, artist: true, state: true },
-      });
+      // Porovnává se normalizovaně nad celým katalogem, ne dotazem do
+      // databáze: `mode: 'insensitive'` řeší velikost písmen, ale ne dolar
+      // v „Ke$ha" ani tečku v „Boney M.". Katalog má stovky písní, takže
+      // projít je v paměti nic nestojí.
+      const vsechny = await db.song.findMany({ select: { id: true, title: true, artist: true, state: true } });
+      const kA = klic(finalniInterpret), kT = klic(finalniNazev);
+      const existujici = vsechny.find((x) => klic(x.artist) === kA && klic(x.title) === kT);
       if (existujici) {
         return {
           zadano, stav: 'DUPLICITA', existujiciId: existujici.id,
