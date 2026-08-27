@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { autoAlignSong } from '@/app/admin/auto-align';
 import HlaseniChyby from '@/components/HlaseniChyby';
 import { doplnMezeryZaInterpunkci, opravZacatkyRadku } from '@/lib/text';
+import { spocitejKorekci, uprav, type Dvojice } from '@/lib/korekce';
 
 type TimingEvent = 
   | { type: 'line'; time: number; lineIdx: number }
@@ -276,6 +277,74 @@ export default function DesignerClient({ song }: { song: any }) {
     } finally {
       setIsAligning(false);
     }
+  };
+
+  /**
+   * Korekce staženého časování.
+   *
+   * Stažené časy z LRC bývají vůči své nahrávce správné, ale naše verze
+   * může mít delší předehru. Místo klíčování celé písně od nuly se do
+   * korekce vstoupí, zaklíčuje se pár slov a zbytek se dopočítá — se
+   * dvěma a víc body i s rychlostí, ne jen posunem.
+   */
+  const [korekceStav, setKorekceStav] = useState<{ puvodni: TimingEvent[] } | null>(null);
+
+  const zacniKorekci = () => {
+    if (!eventsRef.current.length) {
+      setStatusMessage('❌ Není co korigovat — píseň zatím časování nemá.');
+      return;
+    }
+    setKorekceStav({ puvodni: [...eventsRef.current] });
+    eventsRef.current = [];
+    curLineRef.current = -1;
+    curWordRef.current = -1;
+    if (audioRef.current) audioRef.current.currentTime = 0;
+    forceUpdate();
+    setStatusMessage('🎯 Korekce: přehraj a zaklíčuj pár slov (2–3 stačí, ideálně na začátku a na konci).');
+  };
+
+  const zrusKorekci = () => {
+    if (!korekceStav) return;
+    eventsRef.current = korekceStav.puvodni;
+    setKorekceStav(null);
+    restoreState();
+    forceUpdate();
+    setStatusMessage('Korekce zrušena, původní časování je zpátky.');
+  };
+
+  const pouzijKorekci = () => {
+    if (!korekceStav) return;
+
+    // Ke každému ručně zaklíčovanému slovu najdeme totéž slovo v původním
+    // časování — dvojice (původní čas, nový čas) je vstup pro výpočet.
+    const dvojice: Dvojice[] = [];
+    for (const e of eventsRef.current) {
+      if (e.type !== 'word') continue;
+      const puvodniUdalost = korekceStav.puvodni.find(
+        (p) => p.type === 'word' && p.lineIdx === e.lineIdx && p.wordIdx === e.wordIdx,
+      );
+      if (puvodniUdalost) dvojice.push({ puvodni: puvodniUdalost.time, novy: e.time });
+    }
+
+    if (!dvojice.length) {
+      setStatusMessage('❌ Žádné zaklíčované slovo se nepodařilo spárovat s původním časováním.');
+      return;
+    }
+
+    const k = spocitejKorekci(dvojice);
+    if (!k) { setStatusMessage('❌ Korekci se nepodařilo spočítat.'); return; }
+
+    eventsRef.current = korekceStav.puvodni.map((e) => ({ ...e, time: uprav(e.time, k) }));
+    setKorekceStav(null);
+    restoreState();
+    forceUpdate();
+
+    const tempo = k.a === 1 ? '' : `, tempo ${k.a.toFixed(3)}×`;
+    setStatusMessage(
+      `🎯 Posun ${k.b >= 0 ? '+' : ''}${k.b.toFixed(2)} s${tempo} podle ${k.bodu} ${k.bodu === 1 ? 'bodu' : 'bodů'}` +
+      (k.odchylka > 0.3 ? ` — pozor, body se rozcházejí o ${k.odchylka.toFixed(1)} s` : '') +
+      (k.poznamka ? ` (${k.poznamka})` : ''),
+    );
   };
 
   const handleReset = () => {
@@ -998,6 +1067,31 @@ export default function DesignerClient({ song }: { song: any }) {
         </div>
       )}
 
+      {/* KOREKCE ČASOVÁNÍ */}
+      {korekceStav && (
+        <div onClick={e => e.stopPropagation()} style={{
+          position: 'absolute', bottom: '95px', left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(0, 210, 255, 0.16)', border: '1px solid rgba(0, 210, 255, 0.5)',
+          padding: '12px 20px', borderRadius: '14px', color: '#fff', fontSize: '13px',
+          backdropFilter: 'blur(15px)', zIndex: 10001, display: 'flex', alignItems: 'center',
+          gap: '14px', maxWidth: '92vw', boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+        }}>
+          <span style={{ lineHeight: 1.4 }}>
+            🎯 <strong>Korekce</strong> — zaklíčuj klávesou <strong>W</strong> pár slov, ideálně jedno na začátku
+            a jedno ke konci. Zaklíčováno: <strong>{eventsRef.current.filter(e => e.type === 'word').length}</strong>
+          </span>
+          <button
+            className="btn-primary"
+            style={{ padding: '8px 16px', fontSize: '12px', fontWeight: 900, background: 'var(--color-gold)', color: '#000', border: 'none', whiteSpace: 'nowrap' }}
+            onClick={pouzijKorekci}
+            disabled={!eventsRef.current.some(e => e.type === 'word')}
+          >
+            Použít korekci
+          </button>
+          <button className="btn-secondary" style={{ padding: '8px 14px', fontSize: '12px' }} onClick={zrusKorekci}>Zrušit</button>
+        </div>
+      )}
+
       {/* NABÍDKA OBNOVY — v prohlížeči zůstala práce, která nedoletěla na server */}
       {zaloha && (
         <div onClick={e => e.stopPropagation()} style={{
@@ -1222,6 +1316,14 @@ export default function DesignerClient({ song }: { song: any }) {
                   disabled={isAligning}
                 >
                   {isAligning ? '⌛' : '🪄'}
+                </button>
+                <button
+                  className="btn-primary"
+                  style={{ padding: '6px 12px', fontSize: '11px', background: korekceStav ? '#ff4b2b' : 'linear-gradient(45deg, #00d2ff, #0077aa)', border: 'none', color: '#fff' }}
+                  title={korekceStav ? 'Zrušit korekci a vrátit původní časování' : '🎯 Korekce časování — zaklíčuj pár slov a zbytek se dopočítá'}
+                  onClick={korekceStav ? zrusKorekci : zacniKorekci}
+                >
+                  {korekceStav ? '✕' : '🎯'}
                 </button>
                 <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px' }} title="Stáhnout JSON" onClick={() => { dlSRT(JSON.stringify(generateBlocksJSON(), null, 2), "karaoke-data.json"); }}>📥</button>
                 <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '11px', background: 'var(--color-gold)' }} onClick={handleSave} disabled={saving}>{saving ? '...' : (saveDone ? '✓' : '💾')}</button>

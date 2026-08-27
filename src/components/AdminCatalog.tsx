@@ -328,6 +328,23 @@ export default function AdminCatalog({
       ) : (
         <>
           {/* KOMPAKTNÍ FILTRAČNÍ PULT */}
+          {/* Přání hostů mají přednost — ať je vidět, že čekají, i když je
+              zrovna zapnutý jiný filtr. */}
+          {pocetVeStavu('REQUESTED') > 0 && statusFilter !== 'REQUESTED' && (
+            <button
+              onClick={() => setStatusFilter('REQUESTED')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem',
+                padding: '10px 18px', borderRadius: '14px', cursor: 'pointer',
+                background: 'rgba(255,215,0,0.08)', border: '1px solid rgba(255,215,0,0.35)',
+                color: 'var(--color-gold)', fontSize: '13px', fontWeight: 800,
+              }}
+            >
+              🙋 Čeká {pocetVeStavu('REQUESTED')} přání od hostů
+              <span style={{ opacity: 0.6, fontWeight: 600 }}>— zobrazit</span>
+            </button>
+          )}
+
           <div className="admin-filters" style={{ 
             display: 'flex', gap: '0.75rem', marginBottom: '2rem', 
             background: 'rgba(255,255,255,0.03)', padding: '0.8rem', 
