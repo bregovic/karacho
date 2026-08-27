@@ -1,7 +1,8 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { SongState } from '@prisma/client';
+import { SongState, Prisma } from '@prisma/client';
+import { najdiCasovani, delkaZVelikosti } from '@/lib/lrclib';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { logAdminAction } from '@/app/actions/admin-extra-actions';
@@ -37,6 +38,53 @@ async function deleteFileFromR2(fileUrl: string | null) {
 export async function smazNahranySoubor(fileUrl: string) {
   await ensureAdmin();
   await deleteFileFromR2(fileUrl);
+}
+
+/**
+ * Zkusí k písni dohledat hotové časování a uložit ho.
+ *
+ * Nikdy nepřepisuje časování, které už existuje — ruční práce ze Studia je
+ * vždycky cennější než odhad z LRC. Do dat se ukládá značka `zdroj: 'lrc'`,
+ * aby bylo v administraci vidět, že to ještě nikdo neověřil; jakmile píseň
+ * projde Studiem, značka zmizí sama, protože Studio bloky přestaví.
+ */
+async function zkusDoplnitCasovani(songId: string): Promise<boolean> {
+  const song = await db.song.findUnique({
+    where: { id: songId },
+    select: { artist: true, title: true, audioSize: true, timingData: true },
+  });
+  // Existující časování se nikdy nepřepisuje — ruční práce ze Studia je
+  // cennější než odhad z LRC.
+  if (!song?.artist || !song.title || song.timingData) return false;
+
+  const cil = delkaZVelikosti(song.audioSize);
+  if (!cil) return false;
+
+  try {
+    const nalezene = await najdiCasovani(song.artist, song.title, cil);
+    if (!nalezene) return false;
+
+    await db.song.update({
+      where: { id: songId },
+      data: {
+        timingData: {
+          blocks: nalezene.blocks,
+          dur: nalezene.dur,
+          countdowns: nalezene.countdowns,
+          zdroj: 'lrc',
+        },
+        // Text jde s časováním v jednom balíku: slova v blocích musí
+        // odpovídat řádkům textu, jinak se Studio rozejde samo se sebou.
+        // Píseň zatím časování neměla, takže se o klíčovanou práci nepřijde.
+        lyrics: nalezene.lyrics,
+      },
+    });
+    console.log(`Časování z LRC: ${song.artist} – ${song.title} (${nalezene.blocks.length} bloků, rozdíl ${nalezene.rozdil.toFixed(1)}s)`);
+    return true;
+  } catch (e) {
+    console.error('Dohledání časování selhalo:', e);
+    return false;
+  }
 }
 
 async function ensureAdmin() {
@@ -146,10 +194,15 @@ export async function createSong(formData: FormData) {
     }
   }
 
+  // Když k písni existuje hotové časování odpovídající délkou naší nahrávce,
+  // není důvod ji klíčovat od nuly. Rozhoduje `audioSize`, takže to funguje
+  // jen u importu, který velikost posílá.
+  const casovaniNalezeno = await zkusDoplnitCasovani(newSong.id);
+
   await logAdminAction('CREATE_SONG', `Vytvořena píseň: ${title} (${artist})`, 'Song', newSong.id);
 
   revalidatePath('/admin');
-  return { ...newSong, textNalezen };
+  return { ...newSong, textNalezen, casovaniNalezeno };
 }
 
 export async function manuallyCleanLyricsAction(songId: string, currentContent: string, customBlacklist: string[] = []) {
@@ -906,6 +959,43 @@ export async function importLyricsFromUrl(songId: string, url: string) {
   }
 }
 
+/**
+ * Hromadné dohledání časování u písní, které ho nemají.
+ *
+ * Bere jen ty, u kterých známe délku nahrávky (`audioSize`) — bez ní se
+ * nedá poznat, jestli nalezené LRC patří k naší verzi, a špatné časování
+ * je horší než žádné. Existující časování se nikdy nepřepisuje.
+ *
+ * Zpracovává se po dávkách, ať jeden požadavek neběží půl hodiny;
+ * `zbyva` říká, kolik písní ještě čeká na další kolo.
+ */
+export async function bulkDohledejCasovaniAction(davka = 25) {
+  await ensureAdmin();
+
+  const kandidati = await db.song.findMany({
+    where: { timingData: { equals: Prisma.DbNull }, audioSize: { not: null }, artist: { not: null } },
+    select: { id: true, artist: true, title: true },
+    take: davka,
+  });
+
+  let nalezeno = 0;
+  const hlaseni: string[] = [];
+  for (const s of kandidati) {
+    if (await zkusDoplnitCasovani(s.id)) {
+      nalezeno++;
+      hlaseni.push(`✓ ${s.artist} – ${s.title}`);
+    }
+  }
+
+  const zbyva = await db.song.count({
+    where: { timingData: { equals: Prisma.DbNull }, audioSize: { not: null }, artist: { not: null } },
+  });
+
+  await logAdminAction('BULK_TIMING', `Dohledáno časování: ${nalezeno} z ${kandidati.length}`);
+  revalidatePath('/admin');
+  return { zpracovano: kandidati.length, nalezeno, zbyva, hlaseni };
+}
+
 export async function bulkFetchMissingLyrics() {
   await ensureAdmin();
   const songsWithoutLyrics = await db.song.findMany({
@@ -1023,6 +1113,12 @@ export async function researchSongDataAction(songId: string, overrideTitle?: str
     }
 
     if (results.lyrics) results.lyrics = cleanLyrics(results.lyrics);
+
+    // Když k písni existuje hotové časování sedící délkou na naši nahrávku,
+    // je škoda ji klíčovat od nuly. Nepřepisuje se, jen doplňuje.
+    if (await zkusDoplnitCasovani(songId)) {
+      results.casovaniZLrc = true;
+    }
 
     if (Object.keys(results).length > 0) {
       // Sloučení tagů místo přepsání (pokud chceme být opatrní)

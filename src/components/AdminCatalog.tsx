@@ -6,7 +6,7 @@ import AudioUploader from '@/components/AudioUploader';
 import BulkUploader from '@/components/BulkUploader';
 import ZalistovatModal from '@/components/ZalistovatModal';
 import SongEditModal from '@/components/SongEditModal';
-import { createSong, deleteSong, updateSong, removeSongResource, bulkRemoveBackground, bulkUpdateState, fetchLyricsAction, bulkFetchMissingLyrics, checkDuplicateSong, researchSongDataAction, bulkUpdateMetadata, getAdminStats, manageGenreAction, manageTagAction, getTaxonomyAction } from '@/app/admin/actions';
+import { createSong, deleteSong, updateSong, removeSongResource, bulkRemoveBackground, bulkUpdateState, fetchLyricsAction, bulkFetchMissingLyrics, checkDuplicateSong, researchSongDataAction, bulkUpdateMetadata, getAdminStats, manageGenreAction, manageTagAction, getTaxonomyAction, bulkDohledejCasovaniAction } from '@/app/admin/actions';
 import { autoAlignSong } from '@/app/admin/auto-align';
 import { vratMeziPublikovane, vyresHlaseni } from '@/app/actions/report-actions';
 import { obsahuje } from '@/lib/hledani';
@@ -44,6 +44,32 @@ export default function AdminCatalog({
   const [loadingStats, setLoadingStats] = useState(false);
   const [taxonomy, setTaxonomy] = useState<{genres: string[], tags: string[]}>({genres: [], tags: []});
   const [showTaxonomyManager, setShowTaxonomyManager] = useState(false);
+  const [hledamCasovani, setHledamCasovani] = useState(false);
+
+  /**
+   * Dohledá hotové časování u písní, které ho nemají. Běží po dávkách,
+   * ať jeden požadavek nevisí půl hodiny — dokud něco zbývá, pokračuje.
+   */
+  const dohledejCasovani = async () => {
+    if (!confirm('Zkusit u nenačasovaných písní dohledat hotové časování?\n\nBere se jen tehdy, když délka sedí na naši nahrávku. Existující časování se nepřepisuje.')) return;
+    setHledamCasovani(true);
+    let celkem = 0, zpracovano = 0;
+    try {
+      for (;;) {
+        const r = await bulkDohledejCasovaniAction(25);
+        celkem += r.nalezeno;
+        zpracovano += r.zpracovano;
+        if (!r.zpracovano || !r.zbyva) break;
+        if (!confirm(`Zatím načasováno ${celkem} z ${zpracovano}. Zbývá ${r.zbyva} písní — pokračovat další dávkou?`)) break;
+      }
+      alert(`Hotovo. Načasováno ${celkem} písní z ${zpracovano} prověřených.`);
+      router.refresh();
+    } catch (e: any) {
+      alert(`Dohledávání selhalo: ${e.message}`);
+    } finally {
+      setHledamCasovani(false);
+    }
+  };
 
   const fetchTaxonomy = async () => {
     const data = await getTaxonomyAction();
@@ -359,6 +385,14 @@ export default function AdminCatalog({
                 </button>
               </Link>
               <ZalistovatModal />
+              <button
+                onClick={dohledejCasovani}
+                disabled={hledamCasovani}
+                className="btn-secondary"
+                style={{ padding: '12px 20px', borderRadius: '14px', fontSize: '12px', fontWeight: 800, border: '1px solid #00d2ff', background: 'rgba(0,210,255,0.05)', color: '#00d2ff', opacity: hledamCasovani ? 0.5 : 1 }}
+              >
+                {hledamCasovani ? '⏱️ HLEDÁM…' : '⏱️ DOHLEDAT ČASOVÁNÍ'}
+              </button>
               <button onClick={toggleSelectAll} className="btn-secondary" style={{ padding: '12px 20px', borderRadius: '14px', fontSize: '12px', fontWeight: 800 }}>
                   {isAllSelected ? "🔲 ODZNAČIT VŠE ZOBRAZENÉ" : "☑️ OZNAČIT VŠE ZOBRAZENÉ"}
               </button>
@@ -561,6 +595,14 @@ export default function AdminCatalog({
                              })()}
 
                              {song.state === 'ACTIVE' && <span style={{ fontSize: '10px', background: 'rgba(0,177,64,0.15)', color: '#4ade80', padding: '4px 10px', borderRadius: '10px', fontWeight: 900, marginLeft: 'auto' }}>LIVE ✅</span>}
+                             {song.timingData?.zdroj === 'lrc' && (
+                               <span
+                                 title="Časování dohledané z LRC, ještě ho nikdo neověřil. Jakmile píseň uložíš ve Studiu, značka zmizí."
+                                 style={{ fontSize: '10px', background: 'rgba(0,210,255,0.12)', color: '#00d2ff', padding: '3px 8px', borderRadius: '10px', fontWeight: 800 }}
+                               >
+                                 ⏱️ z LRC
+                               </span>
+                             )}
                              {song.state === 'WAITING_AUDIO' && <span style={{ fontSize: '10px', background: 'rgba(0,210,255,0.15)', color: '#00d2ff', padding: '4px 10px', borderRadius: '10px', fontWeight: 900, marginLeft: 'auto' }}>ČEKÁ NA ZVUK 📻</span>}
                              {song.state === 'BAD_LYRICS' && <span style={{ fontSize: '10px', background: 'rgba(255,204,0,0.15)', color: '#ffcc00', padding: '4px 10px', borderRadius: '10px', fontWeight: 900, marginLeft: 'auto' }}>ŠPATNÝ TEXT ✍️⚠️</span>}
                              {song.state === 'BAD_SONG' && <span style={{ fontSize: '10px', background: 'rgba(255,75,43,0.15)', color: '#ff8a70', padding: '4px 10px', borderRadius: '10px', fontWeight: 900, marginLeft: 'auto' }}>ŠPATNÁ PÍSEŇ ⛔</span>}

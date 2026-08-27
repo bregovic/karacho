@@ -111,7 +111,11 @@ export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) 
             await uklid(fileUrl);
             addLog(`❌ Chyba: ${newSong.error}`, 'error');
           } else {
-            addLog(`✅ "${newSong.title}" — ${newSong.textNalezen ? 'text stažen' : 'text se nenašel, doplň ručně'}`, newSong.textNalezen ? 'success' : 'info');
+            const casti = [
+              newSong.textNalezen ? 'text stažen' : 'text se nenašel',
+              newSong.casovaniNalezeno ? '⏱️ ČASOVÁNÍ NALEZENO' : null,
+            ].filter(Boolean).join(' · ');
+            addLog(`✅ "${newSong.title}" — ${casti}`, newSong.casovaniNalezeno || newSong.textNalezen ? 'success' : 'info');
           }
         } else {
           // Režim INSTRUMENTAL - hledáme na serveru podle názvu i surového jména
