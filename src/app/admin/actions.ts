@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { logAdminAction } from '@/app/actions/admin-extra-actions';
 import { r2, BUCKET_NAME, PUBLIC_URL } from '@/lib/r2';
+import { silaShody, otiskNazvu } from '@/lib/parovani';
 import { ListObjectsV2Command, DeleteObjectCommand } from '@aws-sdk/client-s3';
 
 async function deleteFileFromR2(fileUrl: string | null) {
@@ -207,9 +208,49 @@ export async function createSong(formData: FormData) {
     createdById: session.user.id
   };
 
-  const newSong = await db.song.create({
-    data: songData
-  });
+  // Přání od hosta a zalistovaná píseň čekají v katalogu jen s názvem
+  // a interpretem. Když dorazí jejich nahrávka, patří DO NICH — dokud se
+  // zakládal nový záznam, sedla instrumentálka (ta párovat umí) k přání,
+  // originál zůstal vedle a přání viselo navěky. Takhle vypadl v katalogu
+  // R.E.M. – Everybody Hurts nadvakrát.
+  const cekajici = audioUrl ? await najdiPisenBezOriginalu(title, artist, importName) : null;
+
+  let newSong;
+  let doplneno: string | null = null;
+
+  if (cekajici) {
+    doplneno = cekajici.state;
+    newSong = await db.song.update({
+      where: { id: cekajici.id },
+      data: {
+        audioUrl: songData.audioUrl,
+        audioHash: songData.audioHash,
+        audioSize: songData.audioSize,
+        // Původní název souboru je vodítko pro druhý průchod importu:
+        // instrumentálka se pak trefí na otisk názvu, ne na ručně psaný
+        // titul s diakritikou.
+        importName: songData.importName,
+        genre: cekajici.genre || songData.genre,
+        lyrics: cekajici.lyrics || songData.lyrics,
+        // Přání se zvukem přestává být přáním. Kdyby zůstalo, viselo by
+        // v administraci ve složce přání a nikdo by ho nezačal časovat.
+        ...(cekajici.state === SongState.REQUESTED ? { state: SongState.NEW } : {}),
+      },
+    });
+    // Název a interpret se schválně nepřepisují: ruční zápis („Hana Zagorová")
+    // je vždycky hezčí než to, co vypadne z názvu souboru („Hana Zagorova").
+  } else {
+    try {
+      newSong = await db.song.create({ data: songData });
+    } catch (e) {
+      // Kolize na `@@unique([artist, title])`. Surová hláška z Prismy
+      // („Unique constraint failed…") importujícímu nic neřekla.
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        return { error: `„${title}"${artist ? ` (${artist})` : ''} už v katalogu je.` };
+      }
+      throw e;
+    }
+  }
 
   /**
    * Stažení textu se čeká, i když to import zdrží.
@@ -241,10 +282,66 @@ export async function createSong(formData: FormData) {
   // jen u importu, který velikost posílá.
   const casovaniNalezeno = await zkusDoplnitCasovani(newSong.id);
 
-  await logAdminAction('CREATE_SONG', `Vytvořena píseň: ${title} (${artist})`, 'Song', newSong.id);
+  if (doplneno) {
+    // Zalistovaná píseň, které tímhle dorazila poslední chybějící stopa,
+    // se musí pohnout ze stavu „čeká na zvuk" — jinak by tam zůstala viset
+    // i s kompletní nahrávkou.
+    await dorovnejStavPoNahrani(newSong.id);
+    await logAdminAction(
+      'UPDATE_SONG',
+      `Nahrávka doplněna k čekající písni (${doplneno}): ${newSong.title} (${newSong.artist})`,
+      'Song',
+      newSong.id,
+    );
+  } else {
+    await logAdminAction('CREATE_SONG', `Vytvořena píseň: ${title} (${artist})`, 'Song', newSong.id);
+  }
 
   revalidatePath('/admin');
-  return { ...newSong, textNalezen, casovaniNalezeno };
+  return { ...newSong, textNalezen, casovaniNalezeno, doplneno };
+}
+
+/**
+ * Najde píseň, které nahrávaný originál patří — přání od hosta nebo
+ * zalistovanou píseň, která čeká na zvuk.
+ *
+ * Hledá se jen mezi písněmi **bez originálu**: doplnit zvuk tam, kde žádný
+ * není, nemůže nic přepsat. Píseň, která originál už má, se nikdy nesebere —
+ * jiná nahrávka téhož titulu (live, druhá verze) je legitimní nový záznam.
+ *
+ * Když interpreta neznáme (soubor bez pomlčky → „Neznámý"), sáhne se po
+ * čekající písni jen tehdy, je-li jediná. Jinak by se u dvou přání se
+ * stejným názvem vybralo náhodné.
+ */
+async function najdiPisenBezOriginalu(title: string, artist: string, rawFilename?: string | null) {
+  const kandidati = await db.song.findMany({
+    where: { audioUrl: null },
+    select: {
+      id: true, title: true, artist: true, importName: true,
+      state: true, genre: true, lyrics: true,
+    },
+  });
+
+  const shody = kandidati
+    .map(s => ({ s, sila: silaShody(s, title, artist, rawFilename) }))
+    .filter((x): x is { s: typeof kandidati[number]; sila: 0 | 1 | 2 } => x.sila !== null);
+
+  if (shody.length === 0) return null;
+
+  const jiste = shody.filter(x => x.sila < 2);
+  if (jiste.length > 0) {
+    // Přání má přednost před zalistovanou písní — o to někdo výslovně požádal.
+    jiste.sort((a, b) => a.sila - b.sila || prioritaStavu(a.s.state) - prioritaStavu(b.s.state));
+    return jiste[0].s;
+  }
+
+  return shody.length === 1 ? shody[0].s : null;
+}
+
+function prioritaStavu(state: SongState): number {
+  if (state === SongState.REQUESTED) return 0;
+  if (state === SongState.WAITING_AUDIO) return 1;
+  return 2;
 }
 
 export async function manuallyCleanLyricsAction(songId: string, currentContent: string, customBlacklist: string[] = []) {
@@ -283,9 +380,16 @@ export async function manuallyCleanLyricsAction(songId: string, currentContent: 
   }
 }
 
+/**
+ * Ke které písni patří nahrávaná instrumentálka?
+ *
+ * Když sedí víc písní, vyhrává ta, které stopa reálně chybí a která už má
+ * originál. Dokud se bralo první, co v databázi leželo, sedla instrumentálka
+ * klidně k přání bez zvuku a originál skončil v jiném záznamu.
+ */
 export async function findSongForInstrumentalAction(title: string, artist: string, rawFilename?: string) {
   await ensureAdmin();
-  
+
   // 1. NEJJISTĚJŠÍ CESTA: Hledáme podle přesného původního názvu importu
   if (rawFilename) {
     const exact = await db.song.findFirst({
@@ -295,47 +399,32 @@ export async function findSongForInstrumentalAction(title: string, artist: strin
     if (exact) return exact;
   }
 
-  // 2. CESTA ZNALCŮ: Super-Normalizace (pokud se netrefíme přesně)
+  // 2. CESTA ZNALCŮ: porovnání otisků názvů (bez diakritiky, plevele a značek stopy)
   const songs = await db.song.findMany({
-    select: { id: true, title: true, artist: true, importName: true }
+    select: { id: true, title: true, artist: true, importName: true, audioUrl: true, instrumentalUrl: true }
   });
 
-  const normTitle = normalizeForMatching(title);
-  const normArtist = normalizeForMatching(artist);
+  const shody = songs
+    .map(s => ({ s, sila: silaShody(s, title, artist, rawFilename) }))
+    .filter((x): x is { s: typeof songs[number]; sila: 0 | 1 | 2 } => x.sila !== null);
 
-  const match = songs.find(s => {
-    // Pokud má píseň importName, zkusíme normalizovat i ten (jako fallback)
-    if (s.importName && rawFilename) {
-       if (normalizeForMatching(s.importName) === normalizeForMatching(rawFilename)) return true;
-    }
+  if (shody.length === 0) return undefined;
 
-    const dbTitle = normalizeForMatching(s.title || '');
-    const dbArtist = normalizeForMatching(s.artist || '');
+  shody.sort((a, b) =>
+    prioritaProInstrumentalku(a.s) - prioritaProInstrumentalku(b.s) || a.sila - b.sila
+  );
 
-    if (dbTitle !== normTitle) return false;
-
-    return (
-      dbArtist === normArtist || 
-      !dbArtist || !normArtist || 
-      dbArtist === 'neznamy' || normArtist === 'neznamy' ||
-      dbArtist.includes(normArtist) || normArtist.includes(dbArtist)
-    );
-  });
-
-  return match;
+  const { id, title: t, artist: a } = shody[0].s;
+  return { id, title: t, artist: a };
 }
 
-function normalizeForMatching(str: string) {
-  if (!str) return '';
-  let s = str.toLowerCase();
-  // 1. Odstranění prefixů (1_, 01., atd.)
-  s = s.replace(/^[0-9]+[\._\s-]/, '');
-  // 2. Odstranění YouTube junk a instrumentálních značek
-  s = s.replace(/[\(\[]\s*[^\]\)]*(official|video|lyrics?|audio|hd|4k|hq|remastered|live|feat\.|ft\.|karaoke|instrumental|vhs|retro|píseň|pieseň|wmv|mp4|avi|mpg|mpeg)[^\]\)]*\s*[\)\]]/gi, '');
-  s = s.replace(/[-–—|]\s*(official|video|lyrics?|audio|hd|4k|hq|remastered|live|karaoke|instrumental|wmv|mp4|avi|mpg|mpeg)$/gi, '');
-  s = s.replace(/instrumental|instr|karaoke/gi, '');
-  // 3. SUPER-NORMALIZACE: Odstranění všeho kromě písmen a čísel
-  return s.replace(/[^a-z0-9]/gi, '');
+function prioritaProInstrumentalku(s: { audioUrl: string | null; instrumentalUrl: string | null }): number {
+  // Přesně sem stopa patří: originál je na místě a druhá stopa chybí.
+  if (s.audioUrl && !s.instrumentalUrl) return 0;
+  // Píseň zatím čeká na obě stopy (typicky přání) — instrumentálka jí neuškodí.
+  if (!s.instrumentalUrl) return 1;
+  // Instrumentálku už má; přepsat ji je až poslední možnost.
+  return 2;
 }
 
 export async function updateSongAudio(songId: string, audioUrl: string, audioHash?: string, audioSize?: number) {

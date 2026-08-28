@@ -14,19 +14,30 @@ export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) 
     setLog(prev => [{ msg, status }, ...prev].slice(0, 100));
   };
 
-  const normalizeName = (str: string) => {
-    if (!str) return '';
-    let s = str.toLowerCase();
-    // Odstranění prefixů - jen první číslo s podtržítkem nebo tečkou (např. 1_ nebo 01.)
-    s = s.replace(/^[0-9]+[\._\s-]/, '');
-    // YouTube Junk & Suffixes
-    s = s.replace(/[\(\[]\s*[^\]\)]*(official|video|lyrics?|audio|hd|4k|hq|remastered|live|feat\.|ft\.|karaoke|instrumental|vhs|retro|píseň|pieseň|wmv|mp4|avi|mpg|mpeg)[^\]\)]*\s*[\)\]]/gi, '');
-    s = s.replace(/[-–—|]\s*(official|video|lyrics?|audio|hd|4k|hq|remastered|live|karaoke|instrumental|wmv|mp4|avi|mpg|mpeg)$/gi, '');
-    // Čištění konců
-    s = s.replace(/[\s-_]*\(?instrumental\)?[\s-_]*/gi, '');
-    s = s.replace(/[\s-_]*instr[\s-_]*/gi, '');
-    s = s.replace(/\.[a-z0-9]{3,4}$/i, '');
-    return s.replace(/\s{2,}/g, ' ').trim();
+  /**
+   * Rozdělí název souboru na interpreta a píseň.
+   *
+   * Přednost má pomlčka obklopená mezerami — dělení na první pomlčce bez
+   * ohledu na okolí rozřízlo „Blink-182 - All the Small Things" na
+   * interpreta „Blink" a píseň „182 - All the Small Things", a takový
+   * záznam se pak nespároval s ničím.
+   */
+  const rozdelNazev = (rawName: string): { artist: string; title: string } => {
+    const oddelovac = / [-–—] /.exec(rawName);
+    if (oddelovac) {
+      return {
+        artist: rawName.slice(0, oddelovac.index).trim(),
+        title: rawName.slice(oddelovac.index + oddelovac[0].length).trim(),
+      };
+    }
+    const pomlcka = rawName.indexOf('-');
+    if (pomlcka > 0) {
+      return {
+        artist: rawName.slice(0, pomlcka).trim(),
+        title: rawName.slice(pomlcka + 1).trim(),
+      };
+    }
+    return { artist: 'Neznámý', title: rawName.trim() };
   };
 
   /** Zahodí soubor, který se sice nahrál do R2, ale nemá k čemu patřit. */
@@ -52,18 +63,12 @@ export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) 
     setLog([]); 
     addLog(`🚀 Startuji hromadný import ${pendingFiles.length} souborů (${mode === 'ORIGINAL' ? 'Originály' : 'Instrumentálky'})...`, 'info');
 
+    let prirazenoKPrani = 0;
+
     for (const file of pendingFiles) {
       try {
-        const rawName = file.name.replace(/\.[^/.]+$/, ""); 
-        
-        let artist = "Neznámý";
-        let title = rawName;
-
-        if (rawName.includes('-')) {
-          const parts = rawName.split('-');
-          artist = parts[0].trim();
-          title = parts.slice(1).join('-').trim();
-        }
+        const rawName = file.name.replace(/\.[^/.]+$/, "");
+        const { artist, title } = rozdelNazev(rawName);
 
         addLog(`Zpracovávám: ${artist} - ${title}...`);
 
@@ -112,10 +117,13 @@ export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) 
             addLog(`❌ Chyba: ${newSong.error}`, 'error');
           } else {
             const casti = [
+              newSong.doplneno === 'REQUESTED' ? '🙋 doplněno k PŘÁNÍ' :
+                newSong.doplneno ? '🔗 doplněno k čekající písni' : null,
               newSong.textNalezen ? 'text stažen' : 'text se nenašel',
               newSong.casovaniNalezeno ? '⏱️ ČASOVÁNÍ NALEZENO' : null,
             ].filter(Boolean).join(' · ');
-            addLog(`✅ "${newSong.title}" — ${casti}`, newSong.casovaniNalezeno || newSong.textNalezen ? 'success' : 'info');
+            if (newSong.doplneno) prirazenoKPrani++;
+            addLog(`✅ "${newSong.title}" — ${casti}`, newSong.doplneno || newSong.casovaniNalezeno || newSong.textNalezen ? 'success' : 'info');
           }
         } else {
           // Režim INSTRUMENTAL - hledáme na serveru podle názvu i surového jména
@@ -137,6 +145,9 @@ export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) 
 
     setUploading(false);
     setPendingFiles([]);
+    if (prirazenoKPrani > 0) {
+      addLog(`🙋 Doplněno k čekajícím písním: ${prirazenoKPrani}× (nezaložil se druhý záznam).`, 'success');
+    }
     addLog(`✨ Hromadný import dokončen.`, 'info');
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
