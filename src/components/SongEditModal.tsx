@@ -7,17 +7,21 @@ import AudioUploader from './AudioUploader';
 interface SongEditModalProps {
   song: any;
   onClose: () => void;
+  /** Načte celou stránku znovu — pro změny, o kterých tenhle formulář neví (stav, časování). */
   onRefresh: () => void;
+  /** Ohlásí uložená pole nahoru, ať se karta v přehledu překreslí hned. */
+  onZmena?: (zmeny: any) => void;
   onRemoveBackground: (url: string) => Promise<void>;
   allGenres?: string[];
   allBackgrounds?: string[];
   allSongs?: any[];
 }
 
-export default function SongEditModal({ 
-  song, 
-  onClose, 
-  onRefresh, 
+export default function SongEditModal({
+  song,
+  onClose,
+  onRefresh,
+  onZmena,
   onRemoveBackground,
   allGenres = [],
   allBackgrounds = [],
@@ -51,8 +55,10 @@ export default function SongEditModal({
       setImportStatus('✅ Změny automaticky uloženy');
       setTimeout(() => setImportStatus(null), 2000);
       // Přehled za oknem musí ukázat novou hodnotu — jinak se člověk vrátí
-      // z detailu a vidí na kartě pořád tu starou.
-      onRefresh();
+      // z detailu a vidí na kartě pořád tu starou. Posílá se jen to, co se
+      // opravdu uložilo; přetáčet kvůli jednomu políčku celou stránku
+      // (osm set písní) bylo znát na každém odkliknutí.
+      onZmena?.(updatedFields);
     } catch (e) {
       setImportStatus('❌ Chyba auto-save');
     }
@@ -64,7 +70,7 @@ export default function SongEditModal({
       // Výslovný výčet polí formuláře. Odkazy na soubory, stav ani časování
       // se odtud neposílají — ty patří uploaderům a serveru, formulář o nich
       // má jen zastaralou představu.
-      const r: any = await updateSong(song.id, {
+      const zmeny = {
         title: formData.title,
         artist: formData.artist,
         genre: formData.genre,
@@ -72,12 +78,13 @@ export default function SongEditModal({
         lyrics: formData.lyrics,
         chords: formData.chords,
         startTime: formData.startTime,
-      });
+      };
+      const r: any = await updateSong(song.id, zmeny);
       if (r && r.ok === false) {
         setImportStatus(`⚠️ ${r.error}`);
         return; // okno zůstává otevřené, ať se dá název opravit
       }
-      onRefresh();
+      onZmena?.(zmeny);
       onClose();
     } finally {
       setIsSaving(false);
@@ -89,11 +96,10 @@ export default function SongEditModal({
     setImportStatus('⌛ Zjišťuji...');
     const res = await researchSongDataAction(song.id, formData.title, formData.artist);
     if (res.success && res.updated) {
-      setFormData({ 
-        ...formData, 
-        ...res.updated,
-        tags: res.updated.tags || formData.tags 
-      });
+      const doplneno = { ...res.updated, tags: res.updated.tags || formData.tags };
+      setFormData({ ...formData, ...doplneno });
+      // Research přepisuje i název a interpreta — karta v přehledu to musí vědět.
+      onZmena?.(doplneno);
       setImportStatus('✨ Data automaticky doplněna a uložena!');
       setTimeout(() => setImportStatus(null), 4000);
     } else {
@@ -108,6 +114,7 @@ export default function SongEditModal({
     const res = await importLyricsFromUrl(song.id, importUrl);
     if (res.success) {
       setFormData({ ...formData, lyrics: res.lyrics, chords: res.chords || formData.chords });
+      onZmena?.({ lyrics: res.lyrics, chords: res.chords || formData.chords });
       setImportStatus('✅ Text úspěšně stažen a uložen!');
       setTimeout(() => setImportStatus(null), 3000);
     } else {
@@ -123,11 +130,12 @@ export default function SongEditModal({
     
     const res = await manuallyCleanLyricsAction(song.id, sourceContent, customBlacklist);
     if (res.success && res.lyrics) {
-      setFormData({ 
-        ...formData, 
-        lyrics: res.lyrics, 
-        chords: res.chords || formData.chords 
+      setFormData({
+        ...formData,
+        lyrics: res.lyrics,
+        chords: res.chords || formData.chords
       });
+      onZmena?.({ lyrics: res.lyrics, chords: res.chords || formData.chords });
       setImportStatus('✅ Text vyčištěn a synchronizován!');
       setTimeout(() => setImportStatus(null), 3000);
     } else {

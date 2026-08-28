@@ -4,7 +4,9 @@ import { redirect } from 'next/navigation';
 import AdminCatalog from '@/components/AdminCatalog';
 import Link from 'next/link';
 
-export const forceDynamic = true;
+// Pozor na název: Next zná `dynamic`, ne `forceDynamic`. Dokud tu stálo
+// `forceDynamic`, byl to obyčejný export, kterého si nikdo nevšiml.
+export const dynamic = 'force-dynamic';
 
 export default async function AdminPage() {
   const session = await auth();
@@ -12,16 +14,11 @@ export default async function AdminPage() {
     redirect('/');
   }
 
+  // Hlášení se s písněmi netahají: na kartě se nevypisují (rozhazovala
+  // mřížku) a co je s písní špatně, je vidět z jejího stavu. Ušetří to
+  // u 800 písní jeden join navíc.
   const songs = await db.song.findMany({
     orderBy: { createdAt: 'desc' },
-    // Nevyřízená hlášení jedou s písní — ať je na kartě rovnou vidět,
-    // co komu na písni vadilo, a nemusí se to dohledávat jinde.
-    include: {
-      reports: {
-        where: { vyreseno: false },
-        orderBy: { createdAt: 'desc' },
-      },
-    },
   });
 
   const adminEmails = await db.adminEmail.findMany({

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AudioUploader from '@/components/AudioUploader';
@@ -8,7 +8,7 @@ import ZalistovatModal from '@/components/ZalistovatModal';
 import SongEditModal from '@/components/SongEditModal';
 import { createSong, deleteSong, updateSong, removeSongResource, bulkRemoveBackground, bulkUpdateState, fetchLyricsAction, bulkFetchMissingLyrics, checkDuplicateSong, researchSongDataAction, bulkUpdateMetadata, getAdminStats, manageGenreAction, manageTagAction, getTaxonomyAction, bulkDohledejCasovaniAction } from '@/app/admin/actions';
 import { autoAlignSong } from '@/app/admin/auto-align';
-import { vratMeziPublikovane, vyresHlaseni } from '@/app/actions/report-actions';
+import { vratMeziPublikovane } from '@/app/actions/report-actions';
 import { obsahuje } from '@/lib/hledani';
 import { useUlozenyStav } from '@/lib/ulozenyStav';
 import { delkaPisne, formatDelka, delkaProRazeni } from '@/lib/delka';
@@ -33,7 +33,15 @@ export default function AdminCatalog({
   const [genreFilter, setGenreFilter] = useUlozenyStav('karacho-admin-zanr', 'ALL');
   const [tagFilter, setTagFilter] = useUlozenyStav('karacho-admin-stitek', 'ALL');
   const [search, setSearch] = useState('');
-  const [editingSong, setEditingSong] = useState<any>(null);
+  /**
+   * Otevřený detail se drží ID, ne snímkem písně.
+   *
+   * Dřív tu ležel objekt zmrazený v okamžiku kliknutí. Co se v detailu
+   * uložilo, se do něj nikdy nevrátilo — po zavření okna ukazovala karta
+   * pořád staré jméno a při dalším uložení odešla ta stará hodnota zpátky
+   * na server.
+   */
+  const [editingSongId, setEditingSongId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [displayCount, setDisplayCount] = useState(60);
   const [showTools, setShowTools] = useState(false);
@@ -70,6 +78,33 @@ export default function AdminCatalog({
       setHledamCasovani(false);
     }
   };
+
+  /**
+   * Písně, které přehled opravdu kreslí.
+   *
+   * Server je pošle znovu po každé akci (`revalidatePath`), ale čekat na to
+   * u každého ťuknutí do políčka je znát. Změna se proto promítne rovnou
+   * sem a serverová odpověď ji jen potvrdí.
+   */
+  const [songs, setSongs] = useState<any[]>(initialSongs);
+  useEffect(() => { setSongs(initialSongs); }, [initialSongs]);
+
+  /** Promítne uloženou změnu do přehledu okamžitě, bez čekání na server. */
+  const aktualizujPisen = (id: string, zmeny: any) => {
+    setSongs(prev => prev.map(s => (s.id === id ? { ...s, ...zmeny } : s)));
+  };
+
+  /** Píseň otevřená v detailu — vždycky ta aktuální, ne snímek z chvíle kliknutí. */
+  const editingSong = editingSongId ? songs.find(s => s.id === editingSongId) ?? null : null;
+
+  /**
+   * Hodnota políčka na kartě z chvíle, kdy do něj člověk klikl.
+   *
+   * Slouží ke dvěma věcem: poznat, že se nic nezměnilo (a neběhat kvůli
+   * tomu na server), a vrátit původní text, když server změnu odmítne.
+   * Stačí jedna proměnná — vybrané je vždycky jen jedno políčko.
+   */
+  const hodnotaPredUpravou = useRef('');
 
   const fetchTaxonomy = async () => {
     const data = await getTaxonomyAction();
@@ -115,10 +150,10 @@ export default function AdminCatalog({
   };
 
   /** Kolik písní čeká na opravu — číslo rovnou v nabídce filtru. */
-  const pocetVeStavu = (stav: string) => initialSongs.filter(s => s.state === stav).length;
+  const pocetVeStavu = (stav: string) => songs.filter(s => s.state === stav).length;
 
-  const allGenres = Array.from(new Set(initialSongs.map(s => s.genre).filter(Boolean)));
-  const allTags = Array.from(new Set(initialSongs.flatMap(s => s.tags || []).filter(Boolean)));
+  const allGenres = Array.from(new Set(songs.map(s => s.genre).filter(Boolean)));
+  const allTags = Array.from(new Set(songs.flatMap(s => s.tags || []).filter(Boolean)));
   const systemBackgrounds = [
     '/backgrounds/disco.png',
     '/backgrounds/rock.png',
@@ -138,7 +173,7 @@ export default function AdminCatalog({
 
   const allBackgrounds = Array.from(new Set([
     ...systemBackgrounds,
-    ...initialSongs.map(s => s.backgroundUrl).filter(Boolean)
+    ...songs.map(s => s.backgroundUrl).filter(Boolean)
   ]));
 
   /**
@@ -160,7 +195,7 @@ export default function AdminCatalog({
     });
   };
 
-  const filteredSongs = serad(initialSongs.filter(song => {
+  const filteredSongs = serad(songs.filter(song => {
     const step = getWorkflowStep(song);
     
     if (statusFilter === 'UNPUBLISHED' && step === 'ACTIVE') return false;
@@ -192,7 +227,7 @@ export default function AdminCatalog({
   };
 
   const exportSelectedMp3s = async () => {
-    const songsToExport = initialSongs.filter(s => selectedIds.includes(s.id) && s.audioUrl);
+    const songsToExport = songs.filter(s => selectedIds.includes(s.id) && s.audioUrl);
     if (songsToExport.length === 0) {
       alert('Žádná z vybraných písní nemá audio.');
       return;
@@ -229,7 +264,7 @@ export default function AdminCatalog({
 
     let success = 0;
     for (const id of selectedIds) {
-       const s = initialSongs.find(x => x.id === id);
+       const s = songs.find(x => x.id === id);
        setDownloadingUrl(`Hledám text pro: ${s?.title || 'Neznámý'}...`);
        try {
          const res = await researchSongDataAction(id);
@@ -566,25 +601,40 @@ export default function AdminCatalog({
                         style={{ width: '22px', height: '22px', cursor: 'pointer', accentColor: 'var(--color-teal)' }} 
                       />
                       <div style={{ flex: 1, overflow: 'hidden' }}>
-                          <input 
-                            defaultValue={song.artist || ''} 
+                          {/* `key` podle hodnoty: políčko je nekontrolované (psaní tak
+                              nepřekresluje celou mřížku), ale když se název změní
+                              jinde — v detailu nebo výzkumem dat — musí se přemontovat,
+                              jinak by v něm zůstal starý text a vypadalo by to,
+                              že se uložení nepovedlo. */}
+                          <input
+                            key={`artist-${song.artist ?? ''}`}
+                            defaultValue={song.artist || ''}
+                            onFocus={(e) => { hodnotaPredUpravou.current = e.target.value; }}
                             onBlur={async (e) => {
-                              const r: any = await updateSong(song.id, { artist: e.target.value });
-                              if (r && r.ok === false) { alert(r.error); e.target.value = song.artist || ''; return; }
-                              router.refresh();
+                              const puvodni = hodnotaPredUpravou.current;
+                              const nova = e.target.value.trim();
+                              if (nova === puvodni.trim()) return;
+                              const r: any = await updateSong(song.id, { artist: nova });
+                              if (r && r.ok === false) { alert(r.error); e.target.value = puvodni; return; }
+                              aktualizujPisen(song.id, { artist: nova });
                             }}
                             placeholder="Interpret / Autor"
-                            style={{ background: 'none', border: 'none', color: 'var(--color-gold)', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', width: '100%', outline: 'none', padding: 0 }} 
+                            style={{ background: 'none', border: 'none', color: 'var(--color-gold)', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', width: '100%', outline: 'none', padding: 0 }}
                           />
-                          <input 
-                            defaultValue={song.title} 
+                          <input
+                            key={`title-${song.title ?? ''}`}
+                            defaultValue={song.title}
+                            onFocus={(e) => { hodnotaPredUpravou.current = e.target.value; }}
                             onBlur={async (e) => {
-                              const r: any = await updateSong(song.id, { title: e.target.value });
-                              if (r && r.ok === false) { alert(r.error); e.target.value = song.title; return; }
-                              router.refresh();
+                              const puvodni = hodnotaPredUpravou.current;
+                              const nova = e.target.value.trim();
+                              if (nova === puvodni.trim()) return;
+                              const r: any = await updateSong(song.id, { title: nova });
+                              if (r && r.ok === false) { alert(r.error); e.target.value = puvodni; return; }
+                              aktualizujPisen(song.id, { title: nova });
                             }}
                             placeholder="Název písně"
-                            style={{ background: 'none', border: 'none', color: 'white', fontSize: '20px', fontWeight: 900, width: '100%', outline: 'none', margin: '4px 0', padding: 0 }} 
+                            style={{ background: 'none', border: 'none', color: 'white', fontSize: '20px', fontWeight: 900, width: '100%', outline: 'none', margin: '4px 0', padding: 0 }}
                           />
                           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '10px', alignItems: 'center' }}>
                              {song.genre && <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '10px', fontWeight: 700, marginRight: '8px' }}>{song.genre}</span>}
@@ -628,44 +678,28 @@ export default function AdminCatalog({
                   </div>
                   <div style={{ display: 'flex', gap: '6px' }}>
                       <button onClick={async () => { if(confirm('Načíst text z API?')) await fetchLyricsAction(song.id); }} style={{ background: 'rgba(0,177,64,0.1)', border: 'none', color: '#00B140', width: '38px', height: '38px', borderRadius: '12px', cursor: 'pointer' }} title="Načíst text">✍️</button>
-                      <button onClick={() => setEditingSong(song)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', width: '38px', height: '38px', borderRadius: '12px', cursor: 'pointer' }} title="Upravit detail">⚙️</button>
+                      <button onClick={() => setEditingSongId(song.id)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', width: '38px', height: '38px', borderRadius: '12px', cursor: 'pointer' }} title="Upravit detail">⚙️</button>
                       <button onClick={() => { if(confirm('Smazat?')) deleteSong(song.id); }} style={{ background: 'rgba(255,75,43,0.1)', border: 'none', color: '#ff4b2b', width: '38px', height: '38px', borderRadius: '12px', cursor: 'pointer' }}>🗑️</button>
                   </div>
                 </div>
 
-                {/* NAHLÁŠENÉ CHYBY */}
-                {(song.reports?.length > 0 || song.state === 'BAD_LYRICS' || song.state === 'BAD_SONG') && (
-                  <div style={{ background: 'rgba(255,75,43,0.07)', border: '1px solid rgba(255,75,43,0.25)', borderRadius: '16px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {(song.reports || []).map((r: any) => (
-                      <div key={r.id} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', fontSize: '12px' }}>
-                        <span title={r.druh === 'PISEN' ? 'Špatná píseň' : 'Špatný text'}>{r.druh === 'PISEN' ? '⛔' : '✍️'}</span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ wordBreak: 'break-word' }}>{r.popis}</div>
-                          <div style={{ opacity: 0.45, fontSize: '10px', marginTop: '2px' }}>
-                            {new Date(r.createdAt).toLocaleString('cs-CZ')}
-                          </div>
-                        </div>
-                        <button
-                          onClick={async () => { await vyresHlaseni(r.id, 'ponechat'); router.refresh(); }}
-                          title="Jen odškrtnout hlášení, stav písně nechat být"
-                          style={{ background: 'none', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.6)', borderRadius: '8px', padding: '2px 8px', fontSize: '11px', cursor: 'pointer' }}
-                        >✓</button>
-                      </div>
-                    ))}
-                    {(song.state === 'BAD_LYRICS' || song.state === 'BAD_SONG') && (
-                      <button
-                        onClick={async () => {
-                          if (!confirm('Píseň je opravená? Vrátí se mezi publikované a hlášení se odškrtnou.')) return;
-                          await vratMeziPublikovane(song.id);
-                          router.refresh();
-                        }}
-                        className="btn-secondary"
-                        style={{ padding: '8px 14px', fontSize: '12px', fontWeight: 800, border: '1px solid #4ade80', color: '#4ade80', background: 'rgba(74,222,128,0.06)', borderRadius: '12px' }}
-                      >
-                        ✅ Opraveno — vrátit do katalogu
-                      </button>
-                    )}
-                  </div>
+                {/* NAHLÁŠENÉ CHYBY
+                    Texty hlášení se na kartě schválně nevypisují: jsou libovolně
+                    dlouhé, každá karta jimi narostla jinak a mřížka se rozsypala.
+                    Co je s písní špatně, říká štítek u názvu (ŠPATNÝ TEXT /
+                    ŠPATNÁ PÍSEŇ); tady zbývá jediná akce, která je potřeba. */}
+                {(song.state === 'BAD_LYRICS' || song.state === 'BAD_SONG') && (
+                  <button
+                    onClick={async () => {
+                      if (!confirm('Píseň je opravená? Vrátí se mezi publikované a hlášení se odškrtnou.')) return;
+                      await vratMeziPublikovane(song.id);
+                      router.refresh();
+                    }}
+                    className="btn-secondary"
+                    style={{ padding: '8px 14px', fontSize: '12px', fontWeight: 800, border: '1px solid #4ade80', color: '#4ade80', background: 'rgba(74,222,128,0.06)', borderRadius: '12px' }}
+                  >
+                    ✅ Opraveno — vrátit do katalogu
+                  </button>
                 )}
 
                 <div style={{ display: 'flex', gap: '0.75rem', marginTop: 'auto' }}>
@@ -775,13 +809,14 @@ export default function AdminCatalog({
       {/* EXISTUJÍCÍ SONG MODÁLY */}
       {editingSong && (
         <SongEditModal 
-          song={editingSong} 
-          onClose={() => setEditingSong(null)} 
+          song={editingSong}
+          onClose={() => setEditingSongId(null)}
           allGenres={allGenres as string[]} 
           allBackgrounds={allBackgrounds as string[]}
-          allSongs={initialSongs}
+          allSongs={songs}
           onRemoveBackground={bulkRemoveBackground}
-          onRefresh={() => router.refresh()} 
+          onRefresh={() => router.refresh()}
+          onZmena={(zmeny) => aktualizujPisen(editingSong.id, zmeny)} 
         />
       )}
         </>

@@ -12,18 +12,18 @@ const STAV_PODLE_DRUHU = { TEXT: 'BAD_LYRICS', PISEN: 'BAD_SONG' } as const;
 /**
  * Hlášení chyby u písně.
  *
- * Když hlásí správce (typicky přímo ze Studia, kde si špatného textu všimne
- * při klíčování), píseň se rovnou označí a zmizí z katalogu — veřejný výpis
- * bere jen ACTIVE. Hlášení od běžného zpěváka se jen zapíše; kdyby stačilo
- * jedno kliknutí kohokoli, mohla by písnička zmizet uprostřed večera kvůli
- * omylu nebo naschválu.
+ * Rozhodující je druh chyby — píseň se podle něj rovnou označí a zmizí
+ * z katalogu (veřejný výpis bere jen ACTIVE). Popis je nepovinný: kdo
+ * u mikrofonu zjistí, že text nesedí, ťukne na druh a jde zpívat dál;
+ * vypisovat, co přesně je špatně, se stejně skoro nikdo neobtěžoval.
+ *
+ * Hlášení se ukládá i tak — kvůli historii je vidět, že píseň zlobí
+ * opakovaně, a správce ho vyřídí tlačítkem „Opraveno" u písně.
  */
-export async function nahlasChybu(songId: string, druh: Druh, popis: string) {
-  const text = popis.trim();
-  if (text.length < 3) return { ok: false as const, error: 'Napiš prosím, co je špatně.' };
+export async function nahlasChybu(songId: string, druh: Druh, popis?: string) {
+  const text = (popis || '').trim();
 
   const session = await auth();
-  const jeSpravce = session?.user?.role === 'ADMIN';
 
   const pisen = await db.song.findUnique({ where: { id: songId }, select: { id: true } });
   if (!pisen) return { ok: false as const, error: 'Píseň neexistuje.' };
@@ -37,13 +37,11 @@ export async function nahlasChybu(songId: string, druh: Druh, popis: string) {
     },
   });
 
-  if (jeSpravce) {
-    await db.song.update({ where: { id: songId }, data: { state: STAV_PODLE_DRUHU[druh] } });
-  }
+  await db.song.update({ where: { id: songId }, data: { state: STAV_PODLE_DRUHU[druh] } });
 
   revalidatePath('/admin');
   revalidatePath('/');
-  return { ok: true as const, oznaceno: jeSpravce };
+  return { ok: true as const, oznaceno: true };
 }
 
 /** Nevyřízená hlášení pro administraci, nejnovější první. */

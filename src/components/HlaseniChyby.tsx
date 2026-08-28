@@ -7,9 +7,13 @@ import { nahlasChybu } from '@/app/actions/report-actions';
  * Dialog pro nahlášení chyby u písně.
  *
  * Používá ho Studio (kde si špatného textu všimne správce při klíčování)
- * i veřejný katalog (kde na to přijde zpěvák uprostřed večera). Hlášení od
- * správce píseň rovnou stáhne z katalogu, hlášení od zpěváka se jen zapíše —
- * rozhoduje o tom server, ne tenhle komponent.
+ * i veřejný katalog (kde na to přijde zpěvák uprostřed večera). Píseň se
+ * podle nahlášeného druhu rovnou stáhne z katalogu — rozhoduje o tom
+ * server, ne tenhle komponent.
+ *
+ * Popis je nepovinný. Jediné, co se opravdu musí vybrat, je druh chyby;
+ * kvůli povinnému okénku na text hlášení buď nevzniklo, nebo v něm bylo
+ * „nic".
  */
 export default function HlaseniChyby({
   songId,
@@ -38,9 +42,7 @@ export default function HlaseniChyby({
         setChyba(r.error);
         return;
       }
-      onHotovo?.(r.oznaceno
-        ? '⚠️ Nahlášeno — píseň je označená a stažená z katalogu.'
-        : '⚠️ Díky! Hlášení jsme předali správci.');
+      onHotovo?.('⚠️ Nahlášeno — píseň je označená a stažená z katalogu.');
       onClose();
     } catch {
       setChyba('Hlášení se nepodařilo odeslat.');
@@ -90,10 +92,9 @@ export default function HlaseniChyby({
         <textarea
           value={popis}
           onChange={e => setPopis(e.target.value)}
-          placeholder={'Co je špatně? (např. „druhá sloka je z jiné písně“)'}
-          rows={4}
+          placeholder={'Nepovinně: co přesně je špatně (např. „druhá sloka je z jiné písně“)'}
+          rows={3}
           maxLength={1000}
-          autoFocus
           style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'rgba(0,0,0,0.4)', color: '#fff', border: '1px solid rgba(255,255,255,0.12)', fontSize: '14px', resize: 'vertical', fontFamily: 'inherit' }}
         />
 
@@ -103,9 +104,9 @@ export default function HlaseniChyby({
           <button className="btn-secondary" style={{ padding: '10px 20px', fontSize: '13px' }} onClick={onClose}>Zrušit</button>
           <button
             className="btn-primary"
-            style={{ padding: '10px 24px', fontSize: '13px', fontWeight: 900, background: '#ff4b2b', border: 'none', color: '#fff', opacity: odesila || popis.trim().length < 3 ? 0.5 : 1 }}
+            style={{ padding: '10px 24px', fontSize: '13px', fontWeight: 900, background: '#ff4b2b', border: 'none', color: '#fff', opacity: odesila ? 0.5 : 1 }}
             onClick={odeslat}
-            disabled={odesila || popis.trim().length < 3}
+            disabled={odesila}
           >
             {odesila ? 'Odesílám…' : 'Nahlásit'}
           </button>
