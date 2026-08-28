@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { logAdminAction } from '@/app/actions/admin-extra-actions';
 import { r2, BUCKET_NAME, PUBLIC_URL } from '@/lib/r2';
-import { silaShody, otiskNazvu } from '@/lib/parovani';
+import { silaShody, otiskNazvu, podobnostNazvu, shodaInterpretu, PRAH_PODOBNOSTI } from '@/lib/parovani';
 import { ListObjectsV2Command, DeleteObjectCommand } from '@aws-sdk/client-s3';
 
 async function deleteFileFromR2(fileUrl: string | null) {
@@ -213,32 +213,51 @@ export async function createSong(formData: FormData) {
   // zakládal nový záznam, sedla instrumentálka (ta párovat umí) k přání,
   // originál zůstal vedle a přání viselo navěky. Takhle vypadl v katalogu
   // R.E.M. – Everybody Hurts nadvakrát.
-  const cekajici = audioUrl ? await najdiPisenBezOriginalu(title, artist, importName) : null;
+  const nalez = audioUrl ? await najdiPisenBezOriginalu(title, artist, importName) : null;
 
   let newSong;
   let doplneno: string | null = null;
+  let prejmenovanoZ: string | null = null;
 
-  if (cekajici) {
+  if (nalez) {
+    const cekajici = nalez.pisen;
     doplneno = cekajici.state;
-    newSong = await db.song.update({
-      where: { id: cekajici.id },
-      data: {
-        audioUrl: songData.audioUrl,
-        audioHash: songData.audioHash,
-        audioSize: songData.audioSize,
-        // Původní název souboru je vodítko pro druhý průchod importu:
-        // instrumentálka se pak trefí na otisk názvu, ne na ručně psaný
-        // titul s diakritikou.
-        importName: songData.importName,
-        genre: cekajici.genre || songData.genre,
-        lyrics: cekajici.lyrics || songData.lyrics,
-        // Přání se zvukem přestává být přáním. Kdyby zůstalo, viselo by
-        // v administraci ve složce přání a nikdo by ho nezačal časovat.
-        ...(cekajici.state === SongState.REQUESTED ? { state: SongState.NEW } : {}),
-      },
-    });
-    // Název a interpret se schválně nepřepisují: ruční zápis („Hana Zagorová")
-    // je vždycky hezčí než to, co vypadne z názvu souboru („Hana Zagorova").
+    // U přesné shody se název ani interpret nepřepisují: ruční zápis
+    // („Hana Zagorová") je vždycky hezčí než to, co vypadne z názvu souboru
+    // („Hana Zagorova"). U přání trefeného jen přibližně je to obráceně —
+    // právě proto se neshodly, že je host napsal špatně („I want to get
+    // high" místo „I Wanna Get High"), takže platí název ze souboru.
+    if (nalez.priblizne && otiskNazvu(cekajici.title) !== otiskNazvu(title)) {
+      prejmenovanoZ = cekajici.title;
+    }
+
+    try {
+      newSong = await db.song.update({
+        where: { id: cekajici.id },
+        data: {
+          audioUrl: songData.audioUrl,
+          audioHash: songData.audioHash,
+          audioSize: songData.audioSize,
+          // Původní název souboru je vodítko pro druhý průchod importu:
+          // instrumentálka se pak trefí na otisk názvu, ne na ručně psaný
+          // titul s diakritikou.
+          importName: songData.importName,
+          genre: cekajici.genre || songData.genre,
+          lyrics: cekajici.lyrics || songData.lyrics,
+          ...(prejmenovanoZ ? { title, artist: artist || cekajici.artist } : {}),
+          // Přání se zvukem přestává být přáním. Kdyby zůstalo, viselo by
+          // v administraci ve složce přání a nikdo by ho nezačal časovat.
+          ...(cekajici.state === SongState.REQUESTED ? { state: SongState.NEW } : {}),
+        },
+      });
+    } catch (e) {
+      // Přejmenování přání může narazit na píseň, která pod tím jménem
+      // v katalogu už je. Přání se v takovém případě nechá být.
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        return { error: `„${title}"${artist ? ` (${artist})` : ''} už v katalogu je.` };
+      }
+      throw e;
+    }
   } else {
     try {
       newSong = await db.song.create({ data: songData });
@@ -289,7 +308,8 @@ export async function createSong(formData: FormData) {
     await dorovnejStavPoNahrani(newSong.id);
     await logAdminAction(
       'UPDATE_SONG',
-      `Nahrávka doplněna k čekající písni (${doplneno}): ${newSong.title} (${newSong.artist})`,
+      `Nahrávka doplněna k čekající písni (${doplneno}): ${newSong.title} (${newSong.artist})`
+        + (prejmenovanoZ ? ` — přejmenováno z „${prejmenovanoZ}"` : ''),
       'Song',
       newSong.id,
     );
@@ -298,7 +318,7 @@ export async function createSong(formData: FormData) {
   }
 
   revalidatePath('/admin');
-  return { ...newSong, textNalezen, casovaniNalezeno, doplneno };
+  return { ...newSong, textNalezen, casovaniNalezeno, doplneno, prejmenovanoZ };
 }
 
 /**
@@ -326,16 +346,54 @@ async function najdiPisenBezOriginalu(title: string, artist: string, rawFilename
     .map(s => ({ s, sila: silaShody(s, title, artist, rawFilename) }))
     .filter((x): x is { s: typeof kandidati[number]; sila: 0 | 1 | 2 } => x.sila !== null);
 
-  if (shody.length === 0) return null;
-
   const jiste = shody.filter(x => x.sila < 2);
   if (jiste.length > 0) {
     // Přání má přednost před zalistovanou písní — o to někdo výslovně požádal.
     jiste.sort((a, b) => a.sila - b.sila || prioritaStavu(a.s.state) - prioritaStavu(b.s.state));
-    return jiste[0].s;
+    return { pisen: jiste[0].s, priblizne: false };
   }
 
-  return shody.length === 1 ? shody[0].s : null;
+  if (shody.length === 1) return { pisen: shody[0].s, priblizne: false };
+  if (shody.length > 1) return null;
+
+  return najdiPodobnePrani(kandidati, title, artist);
+}
+
+/**
+ * Poslední pokus: přání, které je napsané nepřesně.
+ *
+ * Hosté píšou přání po paměti — v katalogu leží „Cypress Hill /
+ * I want to get high", zatímco píseň se jmenuje „I Wanna Get High".
+ * Otisky se nerovnají a bez tohohle kroku vznikla vedle přání druhá
+ * píseň a přání viselo dál.
+ *
+ * Zábrany jsou schválně tvrdé, protože se tu hádá: bere se jen skutečné
+ * přání (ne rozdělaná práce), interpret musí sedět jménem, podobnost
+ * názvu musí být nad prahem a vítěz musí být jednoznačný — dvě podobně
+ * blízká přání znamenají „nevím" a zakládá se nová píseň.
+ */
+function najdiPodobnePrani(
+  kandidati: { id: string; title: string; artist: string | null; state: SongState }[],
+  title: string,
+  artist: string,
+) {
+  const otiskInterpreta = otiskNazvu(artist);
+
+  const blizka = kandidati
+    .filter(s => s.state === SongState.REQUESTED)
+    .filter(s => {
+      const shoda = shodaInterpretu(otiskNazvu(s.artist), otiskInterpreta);
+      return shoda !== null && shoda < 2; // neznámý interpret na hádání nestačí
+    })
+    .map(s => ({ s, podobnost: podobnostNazvu(s.title, title) }))
+    .filter(x => x.podobnost >= PRAH_PODOBNOSTI)
+    .sort((a, b) => b.podobnost - a.podobnost);
+
+  if (blizka.length === 0) return null;
+  // Dva srovnatelně blízké názvy = nevíme který; radši nová píseň.
+  if (blizka.length > 1 && blizka[1].podobnost > blizka[0].podobnost - 0.1) return null;
+
+  return { pisen: blizka[0].s as typeof kandidati[number] & { genre?: string | null; lyrics?: string | null }, priblizne: true };
 }
 
 function prioritaStavu(state: SongState): number {

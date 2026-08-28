@@ -78,6 +78,50 @@ export function shodaInterpretu(a: string, b: string): 0 | 1 | 2 | null {
   return null;
 }
 
+/** Editační vzdálenost dvou otisků (kolik znaků se musí změnit). */
+function vzdalenost(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length || !b.length) return Math.max(a.length, b.length);
+
+  let predchozi = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const radek = [i];
+    for (let j = 1; j <= b.length; j++) {
+      radek[j] = Math.min(
+        predchozi[j] + 1,
+        radek[j - 1] + 1,
+        predchozi[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
+    }
+    predchozi = radek;
+  }
+  return predchozi[b.length];
+}
+
+/**
+ * Jak moc si jsou dva názvy podobné (1 = shodné, 0 = nic společného).
+ *
+ * Přání píšou hosté po paměti, takže v katalogu leží „I want to get high"
+ * a soubor se jmenuje „I Wanna Get High", nebo „Becuase" místo „Because".
+ * Otisk je v obou případech jiný a přesná shoda nemá šanci.
+ */
+export function podobnostNazvu(a: string, b: string): number {
+  const x = otiskNazvu(a);
+  const y = otiskNazvu(b);
+  if (!x || !y) return 0;
+  return 1 - vzdalenost(x, y) / Math.max(x.length, y.length);
+}
+
+/**
+ * Od jaké podobnosti se přání považuje za tutéž píseň.
+ *
+ * Nízko to jít nemůže — 0,72 pustí „I want to get high" ≈ „I Wanna Get High"
+ * (0,79) i „Becuase" ≈ „Because" (0,87), ale dvě různé písně téhož
+ * interpreta se pod sebe nedostanou. Platí jen pro přání a jen když sedí
+ * interpret.
+ */
+export const PRAH_PODOBNOSTI = 0.72;
+
 export interface KandidatParovani {
   title: string | null;
   artist: string | null;

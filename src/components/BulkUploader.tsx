@@ -119,6 +119,9 @@ export default function BulkUploader({ initialSongs }: { initialSongs: any[] }) 
             const casti = [
               newSong.doplneno === 'REQUESTED' ? '🙋 doplněno k PŘÁNÍ' :
                 newSong.doplneno ? '🔗 doplněno k čekající písni' : null,
+              // Ať je vidět, že se přání trefilo jen přibližně a název se
+              // opravil — kdyby to sedlo na cizí píseň, pozná se to tady.
+              newSong.prejmenovanoZ ? `přepsán název z „${newSong.prejmenovanoZ}"` : null,
               newSong.textNalezen ? 'text stažen' : 'text se nenašel',
               newSong.casovaniNalezeno ? '⏱️ ČASOVÁNÍ NALEZENO' : null,
             ].filter(Boolean).join(' · ');
