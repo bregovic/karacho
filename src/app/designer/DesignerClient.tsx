@@ -12,7 +12,35 @@ type TimingEvent =
   | { type: 'countdown'; time: number }
   | { type: 'lineEnd'; time: number; lineIdx: number };
 
-export default function DesignerClient({ song }: { song: any }) {
+/**
+ * Offline režim (časování v letadle, viz /designer/offline). Studio pak
+ * neposílá nic na server – ukládá přes `uloz` do telefonu a „zpět" vede do
+ * seznamu stažených písní místo do administrace.
+ */
+export type OfflineRezim = {
+  uloz: (telo: string, publikovat: boolean) => Promise<void>;
+  zpet: () => void;
+};
+
+export default function DesignerClient({ song, offline }: { song: any; offline?: OfflineRezim }) {
+  const offlineRef = useRef(offline);
+  offlineRef.current = offline;
+  /** Uloží tělo – online na server, offline do telefonu. Chybu vyhodí. */
+  const odesli = async (telo: string, publikovat = false, keepalive = false) => {
+    if (offlineRef.current) return offlineRef.current.uloz(telo, publikovat);
+    const res = await fetch(`/api/songs/${song.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: telo,
+      keepalive,
+    });
+    // Server dřív mohl vrátit 500 a tlačítko stejně zahlásilo ✓.
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  };
+  const domu = () => {
+    if (offlineRef.current) offlineRef.current.zpet();
+    else window.location.href = '/admin';
+  };
   const [view, setView] = useState<'setup' | 'editor'>('setup');
   const [mode, setMode] = useState<'lines' | 'words'>('words');
   const [audioName, setAudioName] = useState('Nahrát audio soubor');
@@ -535,7 +563,7 @@ export default function DesignerClient({ song }: { song: any }) {
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     // Esc pro návrat domů/zpět
     if (e.code === 'Escape') {
-      window.location.href = '/admin';
+      domu();
       return;
     }
 
@@ -842,13 +870,7 @@ export default function DesignerClient({ song }: { song: any }) {
     setSaving(true);
     try {
       const telo = JSON.stringify({ timingData: generateBlocksJSON(), lyrics: rawText, chords: chordsText, startTime });
-      const res = await fetch(`/api/songs/${song.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: telo,
-      });
-      // Server dřív mohl vrátit 500 a tlačítko stejně zahlásilo ✓.
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await odesli(telo);
       posledniOdeslaneRef.current = telo;
       zmenenoRef.current = false;
       try { localStorage.removeItem(zalohaKlic); } catch {}
@@ -915,16 +937,10 @@ export default function DesignerClient({ song }: { song: any }) {
       try { localStorage.setItem(zalohaKlic, JSON.stringify({ kdy: Date.now(), telo })); } catch {}
 
       try {
-        const res = await fetch(`/api/songs/${song.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: telo,
-          // `keepalive` nechá request doběhnout i po zavření karty, ale tělo
-          // smí mít max 64 kB. Delší písnička se pošle normálně (a když to
-          // odchod nestihne, zůstává záloha v prohlížeči).
-          keepalive: odchod && telo.length < 60000,
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        // `keepalive` nechá request doběhnout i po zavření karty, ale tělo
+        // smí mít max 64 kB. Delší písnička se pošle normálně (a když to
+        // odchod nestihne, zůstává záloha v prohlížeči).
+        await odesli(telo, false, odchod && telo.length < 60000);
         posledniOdeslaneRef.current = telo;
         zmenenoRef.current = false;
         setAutoUlozeno(new Date());
@@ -1005,12 +1021,8 @@ export default function DesignerClient({ song }: { song: any }) {
     setSaving(true);
     try {
       const data = generateBlocksJSON();
-      await fetch(`/api/songs/${song.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ timingData: data, lyrics: rawText, chords: chordsText, state: 'ACTIVE', startTime }),
-      });
-      window.location.href = '/admin';
+      await odesli(JSON.stringify({ timingData: data, lyrics: rawText, chords: chordsText, state: 'ACTIVE', startTime }), true);
+      domu();
     } catch (e) {
       console.error(e);
       alert("Chyba při publikaci.");

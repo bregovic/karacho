@@ -199,6 +199,17 @@ export default function TopHamburger({ isAdmin, isAuthenticated }: TopHamburgerP
               </Link>
             )}
 
+            {isAdmin && (
+              // Obyčejný <a>, ne <Link>: stránka si musí registrovat service
+              // worker a uložit se pro offline, klientská navigace by to obešla.
+              <a href="/designer/offline" style={{ textDecoration: 'none', color: 'inherit' }} onClick={() => setIsOpen(false)}>
+                <div style={{ padding: '16px 20px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }} className="menu-item">
+                  <span style={{ fontSize: '18px' }}>✈️</span>
+                  <span style={{ fontSize: '14px', fontWeight: 700 }}>Studio offline</span>
+                </div>
+              </a>
+            )}
+
             {isAuthenticated ? (
               <div 
                 onClick={async () => { 
