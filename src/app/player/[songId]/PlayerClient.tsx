@@ -622,7 +622,13 @@ export default function PlayerClient({ song }: { song: any }) {
      if (isDuet) {
         // Duet: společný text patří doprostřed, a jen tam. Dřív ho dostávaly
         // oba krajní pásy, takže se stejný řádek vypsal dvakrát nad sebou.
-        const jeSpolecny = (blockVoice !== null) ? blockVoice === 3 : (has3 && !has1 && !has2);
+        //
+        // Doprostřed jde i řádek, ve kterém se hlasy střídají („Venku to padá<1>
+        // … za okny<2>"). Dřív se vypsal do obou krajních pásů a slova druhého
+        // hlasu se v každém jen zneviditelnila – řádek se tak rozpadl na dva
+        // poloviční s dírami. Uprostřed je celý a slova mají barvu svého hlasu.
+        const jedenHlas = (has1 ? 1 : 0) + (has2 ? 1 : 0) + (has3 ? 1 : 0) === 1;
+        const jeSpolecny = (blockVoice !== null) ? blockVoice === 3 : !(jedenHlas && !has3);
 
         if (containerVoice === 3) return jeSpolecny;
         if (jeSpolecny) return false;
@@ -733,6 +739,8 @@ export default function PlayerClient({ song }: { song: any }) {
    * dál od pěti vteřin.
    */
   const MEZERA_PRO_ODPOCET = 15;
+  /** Nejdelší doba, po kterou se vybarvuje poslední slovo řádku (s). */
+  const MAX_VYDRZ_SLOVA = 6;
 
   const automatickeOdpocty = useMemo(() => {
     if (!blocks.length) return [];
@@ -810,7 +818,13 @@ export default function PlayerClient({ song }: { song: any }) {
         let p = 0;
         if (block.w && block.w[i]) {
            const wordStart = block.w[i].t;
-           const wordEnd = (i < block.w.length - 1) ? block.w[i+1].t : block.be;
+           // Poslední slovo končí koncem řádku – jenže ten bývá natažený přes
+           // celou mezihru (u 57 písní víc než 8 s, u některých přes dvě
+           // minuty) a slovo se pak vybarvovalo celou dobu. Výdrž se proto
+           // omezí; i dlouhý tón se vejde.
+           const wordEnd = (i < block.w.length - 1)
+             ? block.w[i+1].t
+             : Math.min(block.be, wordStart + MAX_VYDRZ_SLOVA);
            if (t >= wordStart && t < wordEnd) p = (t - wordStart) / (wordEnd - wordStart);
            else if (t >= wordEnd) p = 1;
         } else {
