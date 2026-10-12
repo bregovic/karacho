@@ -1,8 +1,9 @@
 /*
  * Service worker offline studia (/designer/offline).
  *
- * Schválně úzký: obsluhuje jen stránku offline studia a statické soubory
- * Nextu (`/_next/static/`, mají v názvu otisk obsahu, takže se nemění).
+ * Schválně úzký: obsluhuje jen stránku offline studia, statické soubory
+ * Nextu (`/_next/static/`, mají v názvu otisk obsahu, takže se nemění)
+ * a obrázky pozadí přehrávače.
  * Zbytek webu jde normálně na síť – nechceme, aby karaoke někomu servíroval
  * zastaralé stránky z mezipaměti.
  *
@@ -51,8 +52,9 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Statika Nextu: z mezipaměti, když tam je, jinak ze sítě.
-  if (url.pathname.startsWith('/_next/static/')) {
+  // Statika Nextu a pozadí přehrávače (zpěv offline): z mezipaměti, když
+  // tam je, jinak ze sítě.
+  if (url.pathname.startsWith('/_next/static/') || url.pathname.startsWith('/backgrounds/')) {
     e.respondWith(caches.match(req).then((r) => r || fetch(req)));
   }
 });

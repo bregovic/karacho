@@ -123,10 +123,20 @@ function ChordsView({ chords, songTitle, artist }: { chords: string, songTitle: 
   );
 }
 
-export default function PlayerClient({ song }: { song: any }) {
+/**
+ * Zpěv bez internetu (studio offline): zvuk jde z telefonu, nic se neposílá
+ * na server a konec písně vrací do seznamu místo na katalog.
+ */
+export type OfflinePrehravani = { zpet: () => void };
+
+export default function PlayerClient({ song, offline }: { song: any; offline?: OfflinePrehravani }) {
   const isWatchMode = typeof window !== 'undefined' && window.location.search.includes('mode=watch');
   const router = useRouter();
-  const { joinCode, sessionData, localMode, isHost } = useSession();
+  const relace = useSession();
+  // Offline žádná společná relace – její dotazy by jen padaly.
+  const joinCode = offline ? null : relace.joinCode;
+  const sessionData = offline ? null : relace.sessionData;
+  const { localMode, isHost } = relace;
   const isChordsMode = localMode === 'CHORDS' || sessionData?.sessionMode === 'CHORDS';
   const shouldSuppressAudio = (isChordsMode || isWatchMode) && !isHost;
   const [isPlaying, setIsPlaying] = useState(false);
@@ -262,7 +272,8 @@ export default function PlayerClient({ song }: { song: any }) {
     } catch {
       /* fullscreen nemusí jít vypnout – odchod nesmí zablokovat */
     }
-    router.push('/');
+    if (offline) offline.zpet();
+    else router.push('/');
   };
 
   // Preserve fullscreen across session song transitions
@@ -373,6 +384,7 @@ export default function PlayerClient({ song }: { song: any }) {
       lastBlockCA.current = -1; lastBlockCB.current = -1;
       releaseWakeLock();
       if (isWatchMode) return;
+      if (offline) { offline.zpet(); return; }
       if (joinCode) {
         const next = await advanceSessionQueue(joinCode);
         if (next && next.currentSongId) {
@@ -388,7 +400,7 @@ export default function PlayerClient({ song }: { song: any }) {
     p.onended = handleEnded;
 
     const handlePlaying = () => {
-      if (!recordHandled.current) {
+      if (!recordHandled.current && !offline) {
         incrementPlayCount(song.id);
         recordSinging(song.id);
         recordHandled.current = true;
@@ -591,6 +603,7 @@ export default function PlayerClient({ song }: { song: any }) {
     const p = audioRef.current;
     if (p) p.pause();
 
+    if (offline) { offline.zpet(); return; }
     if (joinCode) {
       const next = await advanceSessionQueue(joinCode);
       if (next && next.currentSongId) {
