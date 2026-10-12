@@ -28,7 +28,25 @@ export default function LoginPage() {
     if (result?.error) {
       setError("Neplatný email nebo heslo. Zkuste to znovu.");
     } else {
-      window.location.href = "/admin";
+      window.location.href = kamPoPrihlaseni();
+    }
+  }
+
+  /**
+   * Zpět tam, odkud nás middleware poslal (`?callbackUrl=`). Dřív se šlo
+   * vždycky do administrace. Bere se jen cesta na tomhle webu – absolutní
+   * adresa (i stará interní „https://0.0.0.0:8080/…") se zkrátí na cestu,
+   * „//jiny.web" se nepustí.
+   */
+  function kamPoPrihlaseni(): string {
+    const c = new URLSearchParams(window.location.search).get("callbackUrl");
+    if (!c) return "/admin";
+    try {
+      const u = new URL(c, window.location.origin);
+      const cesta = u.pathname + u.search;
+      return cesta.startsWith("/") && !cesta.startsWith("//") && !cesta.startsWith("/login") ? cesta : "/admin";
+    } catch {
+      return "/admin";
     }
   }
 

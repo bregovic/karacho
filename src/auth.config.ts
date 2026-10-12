@@ -24,10 +24,23 @@ export const authConfig = {
       const p = request.nextUrl.pathname;
       // Host v baru se nepřihlašuje – katalog, přehrávač, join i renderer
       // musí zůstat veřejné, jinak se nikdo nezazpívá.
-      if (ADMIN_PREFIXES.some((x) => p.startsWith(x)))
-        return auth?.user?.role === "ADMIN";
-      if (USER_PREFIXES.some((x) => p.startsWith(x))) return !!auth?.user;
-      return true;
+      let povoleno = true;
+      if (ADMIN_PREFIXES.some((x) => p.startsWith(x))) povoleno = auth?.user?.role === "ADMIN";
+      else if (USER_PREFIXES.some((x) => p.startsWith(x))) povoleno = !!auth?.user;
+      if (povoleno) return true;
+
+      /*
+       * Přesměrování na přihlášení si skládáme sami. Výchozí z Auth.js bere
+       * adresu z `request.url`, a ta je za proxy Railway interní
+       * („https://0.0.0.0:8080/…") – po přihlášení by to vedlo do prázdna.
+       * Veřejnou adresu nese `x-forwarded-host`; zpáteční cesta jde jen
+       * relativně, aby přes ni nešlo poslat uživatele na cizí web.
+       */
+      const h = request.headers;
+      const host = h.get("x-forwarded-host") ?? h.get("host") ?? request.nextUrl.host;
+      const proto = (h.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "")).split(",")[0];
+      const zpet = p + request.nextUrl.search;
+      return Response.redirect(`${proto}://${host}/login?callbackUrl=${encodeURIComponent(zpet)}`, 307);
     },
     jwt({ token, user }) {
       if (user) {
