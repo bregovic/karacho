@@ -889,6 +889,33 @@ async function zKaraoketexty(artist: string, title: string): Promise<string | nu
   return naText(blok[1]);
 }
 
+/**
+ * LRCLIB — otevřená databáze textů, kterou už používáme na časování. Na
+ * rozdíl od Genia nás neblokuje: Genius vrací serveru na Railway 403 (lokálně
+ * jde), takže v provozu nikdy nic nenašel, i když byl nejúspěšnější zdroj.
+ * Na vzorku 40 písní bez textu (10/2026) měl LRCLIB text u 17.
+ *
+ * Hledání je volné a vrací i cizí písně, proto se bere jen výsledek, kde sedí
+ * interpret i název.
+ */
+async function zLrclib(artist: string, title: string): Promise<string | null> {
+  const odpoved = await stahni(
+    `https://lrclib.net/api/search?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`,
+  );
+  if (!odpoved) return null;
+  let data: any[];
+  try { data = JSON.parse(odpoved); } catch { return null; }
+  if (!Array.isArray(data)) return null;
+  const nas = otiskNazvu(artist);
+  const shoda = data.find((x) =>
+    typeof x?.plainLyrics === 'string' && x.plainLyrics.trim().length > 100 &&
+    !x.instrumental &&
+    shodaInterpretu(nas, otiskNazvu(x.artistName)) !== null &&
+    podobnostNazvu(title, x.trackName || '') >= PRAH_PODOBNOSTI,
+  );
+  return shoda ? shoda.plainLyrics.trim() : null;
+}
+
 /** Postupně obejde zdroje a vrátí všechny nalezené texty k porovnání. */
 async function sesbirejKandidaty(artist: string, title: string): Promise<Kandidat[]> {
   const kandidati: Kandidat[] = [];
@@ -911,8 +938,9 @@ async function sesbirejKandidaty(artist: string, title: string): Promise<Kandida
     }
   }
 
-  // 2. Písničky-akordy, Genius a Karaoketexty.
+  // 2. LRCLIB, Písničky-akordy, Genius a Karaoketexty.
   for (const [nazev, ziskej] of [
+    ['LRCLIB', zLrclib],
     ['Písničky-akordy', zPisnickyAkordy],
     ['Genius', zGenius],
     ['Karaoketexty', zKaraoketexty],
@@ -2073,9 +2101,13 @@ export async function importCatalogXmlAction(xmlContent: string) {
 
     if (title) updateData.title = title;
     if (artist) updateData.artist = artist;
-    if (origin !== undefined) updateData.origin = origin || null;
-    if (genre !== undefined) updateData.genre = genre || null;
-    if (tags !== undefined) {
+    // Mění se jen pole, která ve vráceném XML jsou. `getVal` vrací prázdný
+    // řetězec i pro chybějící prvek, takže dřívější `!== undefined` platilo
+    // vždycky – když AI nějaký prvek vynechala, import hodnotu v databázi
+    // smazal. Prázdný prvek (<Genre></Genre>) dál znamená „vymazat".
+    if (songData.Origin !== undefined) updateData.origin = origin || null;
+    if (songData.Genre !== undefined) updateData.genre = genre || null;
+    if (songData.Tags !== undefined) {
       updateData.tags = tags ? tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [];
     }
 
