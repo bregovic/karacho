@@ -53,6 +53,18 @@ export default function DesignerClient({ song, offline }: { song: any; offline?:
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const [voiceMap, setVoiceMap] = useState<Record<number, number>>({});
+  /**
+   * Hlas pro mobil. Na počítači se hlas volí klávesou při každém ťuknutí
+   * (A/1 = první, D/2 = druhý, S/3 = společný), na telefonu klávesy nejsou.
+   * Tady se hlas zvolí jednou a platí, dokud se nepřepne – long press by
+   * zastavoval hudbu a při rytmickém ťukání se spouštěl omylem.
+   * Volba se ukáže jen v režimu „2 hlasy"; u písně, která už hlasy má,
+   * je zapnutý rovnou.
+   */
+  const [dvojhlas, setDvojhlas] = useState<boolean>(() =>
+    !!song?.timingData?.blocks?.some((b: any) => b.v === 1 || b.v === 2 || b.w?.some((w: any) => w.v === 1 || w.v === 2)));
+  const [aktivniHlas, setAktivniHlas] = useState<1 | 2 | 3>(3);
+  const BARVA_HLASU: Record<number, string> = { 1: '#ff4b2b', 2: '#00d2ff', 3: '#00ffb4' };
 
   const [rawText, setRawText] = useState((song?.lyrics || '') as string);
   const [chordsText, setChordsText] = useState((song?.chords || '') as string);
@@ -1422,7 +1434,7 @@ export default function DesignerClient({ song, offline }: { song: any; offline?:
              {/* MOBILNÍ DOTYKOVÁ PLOCHA */}
              <div 
                className="mobile-only"
-               onClick={(e) => { e.stopPropagation(); if(isPlaying) handleWordTiming(); }}
+               onClick={(e) => { e.stopPropagation(); if(isPlaying) handleWordTiming(dvojhlas ? aktivniHlas : undefined); }}
                style={{ 
                  position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'auto',
                  display: 'flex', alignItems: 'flex-end', justifyContent: 'center'
@@ -1469,6 +1481,30 @@ export default function DesignerClient({ song, offline }: { song: any; offline?:
                   </div>
               </div>
 
+              {/* VOLBA HLASU NA MOBILU */}
+              <div className="mobile-only" style={{ display: 'flex', gap: '8px', justifyContent: 'center', pointerEvents: 'auto', marginBottom: '10px', flexWrap: 'wrap' }}>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setDvojhlas((d) => { if (d) setAktivniHlas(3); return !d; }); }}
+                  style={{ padding: '6px 12px', borderRadius: '50px', fontSize: '12px', fontWeight: 800, background: dvojhlas ? 'rgba(255,255,255,0.15)' : 'transparent', border: '1px solid rgba(255,255,255,0.3)', color: '#fff' }}
+                >
+                  👥 2 hlasy {dvojhlas ? 'ZAP' : 'VYP'}
+                </button>
+                {dvojhlas && ([[1, '1. hlas'], [3, 'Spolu'], [2, '2. hlas']] as const).map(([v, popis]) => (
+                  <button
+                    key={v}
+                    onClick={(e) => { e.stopPropagation(); setAktivniHlas(v); }}
+                    style={{
+                      padding: '6px 14px', borderRadius: '50px', fontSize: '12px', fontWeight: 800,
+                      background: aktivniHlas === v ? BARVA_HLASU[v] : 'transparent',
+                      color: aktivniHlas === v ? '#000' : BARVA_HLASU[v],
+                      border: `2px solid ${BARVA_HLASU[v]}`,
+                    }}
+                  >
+                    {popis}
+                  </button>
+                ))}
+              </div>
+
               {/* OVLÁDACÍ TLAČÍTKA */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', pointerEvents: 'auto', flexWrap: 'wrap', justifyContent: 'center' }}>
                 <button 
@@ -1511,8 +1547,8 @@ export default function DesignerClient({ song, offline }: { song: any; offline?:
 
                 <div className="mobile-only" style={{ display: 'flex', gap: '12px' }}>
                   <button 
-                    onClick={(e) => { e.stopPropagation(); if(isPlaying) handleWordTiming(); }} 
-                    style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(0,255,180,0.2)', border: '3px solid rgba(0,255,180,0.5)', color: 'white', fontSize: '30px', backdropFilter: 'blur(10px)', boxShadow: '0 0 30px rgba(0,255,180,0.2)' }}
+                    onClick={(e) => { e.stopPropagation(); if(isPlaying) handleWordTiming(dvojhlas ? aktivniHlas : undefined); }} 
+                    style={{ width: '80px', height: '80px', borderRadius: '50%', background: `${BARVA_HLASU[dvojhlas ? aktivniHlas : 3]}33`, border: `3px solid ${BARVA_HLASU[dvojhlas ? aktivniHlas : 3]}`, color: 'white', fontSize: '30px', backdropFilter: 'blur(10px)', boxShadow: `0 0 30px ${BARVA_HLASU[dvojhlas ? aktivniHlas : 3]}33` }}
                   >
                     ✨
                   </button>
