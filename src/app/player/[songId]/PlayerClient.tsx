@@ -131,6 +131,15 @@ export default function PlayerClient({ song }: { song: any }) {
   const shouldSuppressAudio = (isChordsMode || isWatchMode) && !isHost;
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  /**
+   * Prohlížeč odmítl spustit zvuk sám od sebe. Televize (Samsung 2019, starý
+   * Chromium) povolí `play()` jen přímo ve stisku tlačítka – po přechodu na
+   * další píseň přes `window.location` tedy autoplay neprojde a dřív se nic
+   * nestalo, protože chyba se tiše zahodila. Teď se ukáže velké tlačítko.
+   */
+  const [potrebujeKlik, setPotrebujeKlik] = useState(false);
+  /** Probíhá výměna stopy – pauza a play z ní nejsou skutečné povely. */
+  const prepinaniRef = useRef(false);
   /** Otevřený dialog hlášení chyby + hláška po odeslání. */
   const [hlasim, setHlasim] = useState(false);
   const [hlaseniHotovo, setHlaseniHotovo] = useState('');
@@ -333,6 +342,8 @@ export default function PlayerClient({ song }: { song: any }) {
         return;
       }
       setIsPlaying(true);
+      setPotrebujeKlik(false);
+      if (prepinaniRef.current) return;
       requestWakeLock();
       if (joinCode && !isWatchMode) {
         updateSessionState(joinCode, { 
@@ -345,6 +356,9 @@ export default function PlayerClient({ song }: { song: any }) {
     };
 
     const handlePause = () => {
+      // Výměna src stopu sama pozastaví – to není pauza od uživatele a nesmí
+      // se rozeslat do relace ani přepnout tlačítko.
+      if (prepinaniRef.current) return;
       setIsPlaying(false);
       releaseWakeLock();
       if (joinCode && !isWatchMode) {
@@ -427,7 +441,9 @@ export default function PlayerClient({ song }: { song: any }) {
     }, isWatchMode ? 250 : 1000);
 
     if (!isChordsMode || isHost) {
-      p.play().catch(() => {});
+      p.play().catch((err: any) => {
+        if (err?.name === 'NotAllowedError' && !isWatchMode) setPotrebujeKlik(true);
+      });
     }
 
     return () => {
@@ -468,22 +484,47 @@ export default function PlayerClient({ song }: { song: any }) {
     
     const wasPlaying = !p.paused;
     const currentTime = p.currentTime;
+    const bylZtlumeny = p.muted;
 
+    prepinaniRef.current = true;
     p.src = nextMode === 'INST' ? (song.instrumentalUrl || song.audioUrl) : song.audioUrl;
+
+    let hotovo = false;
+    const dokoncit = () => {
+      if (hotovo) return;
+      hotovo = true;
+      p.removeEventListener('seeked', dokoncit);
+      p.removeEventListener('error', dokoncit);
+      clearTimeout(pojistka);
+      p.muted = bylZtlumeny;
+      prepinaniRef.current = false;
+      if (wasPlaying && p.paused) setIsPlaying(false);
+    };
+    // Kdyby se nová stopa nenačetla, nesmí zůstat ztlumená a „v přepínání".
+    const pojistka = setTimeout(dokoncit, 8000);
 
     // Čas se smí nastavit až když má element načtená metadata. Dřív se
     // nastavoval hned po výměně src, kdy je readyState ještě 0 – Chrome si
     // takový seek odloží, ale Safari na iPhonu ho umí zahodit nebo provést
     // pozdě, což bylo slyšet jako škubnutí a skok v čase.
-    const obnovitPozici = () => {
-      p.currentTime = currentTime;
-      if (wasPlaying) p.play().catch(() => {});
-    };
     // Na `readyState` se hned po výměně src spolehnout nejde – prohlížeč ho
     // resetuje až v další úloze, takže by ještě hlásil stav PŘEDCHOZÍ stopy
     // a seek by se ztratil. Čekáme proto vždy na loadedmetadata.
-    p.addEventListener('loadedmetadata', obnovitPozici, { once: true });
+    p.addEventListener('loadedmetadata', () => {
+      p.addEventListener('seeked', dokoncit, { once: true });
+      p.currentTime = currentTime;
+    }, { once: true });
+    p.addEventListener('error', dokoncit, { once: true });
     p.load();
+
+    // `play()` MUSÍ zaznít ještě ve stisku tlačítka. Dřív se volal až po
+    // loadedmetadata, a to televize (Samsung 2019) bere jako přehrávání bez
+    // povolení a odmítne ho – po přepnutí na originál hudba stála. Do
+    // doskočení na původní čas běží stopa ztlumeně, ať není slyšet začátek.
+    if (wasPlaying) {
+      p.muted = true;
+      p.play().catch(() => dokoncit());
+    }
 
     setPlaybackMode(nextMode);
     playbackModeRef.current = nextMode;
@@ -851,6 +892,20 @@ export default function PlayerClient({ song }: { song: any }) {
       <audio ref={audioRef} preload="auto" crossOrigin="anonymous" />
       {/* Předstažení druhé stopy – trvale ztlumené, nikdy se nepřehrává. */}
       <audio ref={preloadRef} preload="auto" muted crossOrigin="anonymous" />
+
+      {potrebujeKlik && !isPlaying && !isChordsMode && (
+        <div
+          style={{ position: 'absolute', inset: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }}
+        >
+          <button
+            autoFocus
+            onClick={(e) => { setPotrebujeKlik(false); togglePlay(e); }}
+            style={{ padding: '24px 48px', borderRadius: '999px', background: 'var(--color-gold)', border: 'none', color: '#000', fontSize: '28px', fontWeight: 900, cursor: 'pointer', boxShadow: '0 0 60px rgba(255,215,0,0.5)' }}
+          >
+            ▶ Spustit
+          </button>
+        </div>
+      )}
 
       {hlasim && (
         <HlaseniChyby
